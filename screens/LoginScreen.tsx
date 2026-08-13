@@ -14,6 +14,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
 import HapticTouchable from '../components/HapticTouchable';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -45,12 +46,29 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
+      setLoading(false);
       Alert.alert('Giriş Hatası', translateError(error.message));
       return;
     }
+
+    const userId = data.user?.id;
+    if (userId) {
+      const banRow = await fetchAccountBanRow(userId);
+      const access = evaluateAccountAccess(banRow);
+      if (!access.allowed) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        Alert.alert('Giriş Engellendi', access.message);
+        return;
+      }
+      if (access.expiredBan && banRow) {
+        void clearExpiredBan(userId, banRow.table);
+      }
+    }
+
+    setLoading(false);
     onLogin(userType);
   };
 

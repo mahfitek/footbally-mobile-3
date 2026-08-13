@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -43,6 +44,7 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [position, setPosition] = useState('');
   const [positionModalVisible, setPositionModalVisible] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -58,6 +60,10 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
       Alert.alert('Hata', 'Şifre en az 6 karakter olmalı');
       return;
     }
+    if (!privacyAccepted) {
+      Alert.alert('Hata', "Devam etmek için Gizlilik Politikası ve KVKK Aydınlatma Metni'ni kabul etmelisin");
+      return;
+    }
 
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
@@ -67,6 +73,7 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
         data: {
           full_name: fullName.trim(),
           position,
+          kvkk_accepted_at: new Date().toISOString(),
         },
       },
     });
@@ -194,6 +201,29 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                 </Text>
               </HapticTouchable>
             </View>
+
+            <HapticTouchable
+              style={styles.privacyRow}
+              onPress={() => setPrivacyAccepted((v) => !v)}
+            >
+              <Text style={styles.privacyCheckbox}>{privacyAccepted ? '☑' : '☐'}</Text>
+              <Text style={styles.privacyText}>
+                <Text
+                  style={styles.privacyLink}
+                  onPress={() => Linking.openURL('https://getfootbally.com/privacy')}
+                >
+                  Gizlilik Politikası
+                </Text>
+                {' '}ve{' '}
+                <Text
+                  style={styles.privacyLink}
+                  onPress={() => Linking.openURL('https://getfootbally.com/terms')}
+                >
+                  KVKK Aydınlatma Metni
+                </Text>
+                {"'ni okudum, kabul ediyorum"}
+              </Text>
+            </HapticTouchable>
 
             <HapticTouchable
               style={[styles.btnGold, loading && styles.btnGoldDisabled]}
@@ -329,6 +359,27 @@ const createStyles = (theme: Theme) =>
     selectPlaceholder: {
       fontSize: 15,
       color: theme.textSecondary,
+    },
+    privacyRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      marginBottom: 16,
+    },
+    privacyCheckbox: {
+      fontSize: 18,
+      color: theme.gold,
+      lineHeight: 20,
+    },
+    privacyText: {
+      flex: 1,
+      fontSize: 13,
+      color: theme.textSecondary,
+      lineHeight: 19,
+    },
+    privacyLink: {
+      color: theme.gold,
+      fontWeight: '700',
     },
     btnGold: {
       height: 56,

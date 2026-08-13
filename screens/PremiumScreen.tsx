@@ -137,6 +137,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
     setModalVisible(true);
   };
 
+  // TODO: gerçek ödeme entegrasyonu (Iyzico/PayTR) gelince bu buton tekrar aktif edilecek
   const handleCompletePayment = async () => {
     if (!userId) return;
     setSubmitting(true);
@@ -284,10 +285,13 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
 
         {!isPremiumActive && (
           <>
-            <HapticTouchable style={styles.ctaBtn} onPress={handleOpenPayment}>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>✦ Çok Yakında Hizmetinizde</Text>
+            </View>
+            <HapticTouchable style={[styles.ctaBtn, styles.ctaBtnDisabled]} disabled>
               <Text style={styles.ctaText}>Hemen Başla - 7 Gün Ücretsiz Dene</Text>
             </HapticTouchable>
-            <Text style={styles.ctaSub}>İstediğin zaman iptal et · Güvenli ödeme</Text>
+            <Text style={styles.ctaSub}>Ödeme altyapımız hazırlanıyor · Çok yakında</Text>
           </>
         )}
       </ScrollView>
@@ -543,7 +547,19 @@ const createStyles = (theme: Theme) =>
       elevation: 8,
     },
     ctaText: { fontSize: 16, fontWeight: '800', color: '#000', letterSpacing: 0.3 },
+    ctaBtnDisabled: { opacity: 0.5 },
     ctaSub: { fontSize: 12, color: theme.textSecondary, textAlign: 'center', marginTop: 14 },
+    comingSoonBadge: {
+      alignSelf: 'center',
+      backgroundColor: hexToRgba(theme.gold, 0.12),
+      borderWidth: 1,
+      borderColor: theme.gold,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginBottom: 14,
+    },
+    comingSoonText: { fontSize: 12, fontWeight: '800', color: theme.gold, letterSpacing: 1 },
     btnDisabled: { opacity: 0.5 },
     modalBackdrop: {
       flex: 1,
