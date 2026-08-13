@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { MotiView } from 'moti';
+import FadeInView from './FadeInView';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
@@ -20,12 +20,7 @@ export default function PlayerCard({ emoji, name, position, age, city, score, on
   const styles = createStyles(theme);
 
   return (
-    <MotiView
-      style={styles.card}
-      from={{ opacity: 0, translateY: 12 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'timing', duration: 240 }}
-    >
+    <FadeInView style={styles.card} translateY={12} duration={240}>
       <View style={styles.avatar}>
         <Text style={styles.avatarEmoji}>{emoji}</Text>
       </View>
@@ -39,7 +34,7 @@ export default function PlayerCard({ emoji, name, position, age, city, score, on
         </HapticTouchable>
       </View>
       <Text style={styles.score}>{score}</Text>
-    </MotiView>
+    </FadeInView>
   );
 }
 

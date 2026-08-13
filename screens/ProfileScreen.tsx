@@ -20,7 +20,6 @@ import * as ImagePicker from 'expo-image-picker';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
-import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
@@ -30,6 +29,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 import PlayerShareCard from '../components/PlayerShareCard';
+import FadeInView from '../components/FadeInView';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
 import { FOOTBALL_POSITIONS } from '../constants/footballPositions';
 
@@ -714,12 +714,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         </View>
 
         {/* Avatar */}
-        <MotiView
-          style={styles.heroSection}
-          from={{ opacity: 0, translateY: 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 260 }}
-        >
+        <FadeInView style={styles.heroSection} translateY={16} duration={260}>
           <HapticTouchable
             style={[styles.avatarWrap, isPremiumActive && styles.avatarWrapPremium]}
             onPress={handleAvatarPress}
@@ -751,7 +746,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <Text style={styles.premiumMemberText}>✦ Premium Üye</Text>
             </View>
           )}
-        </MotiView>
+        </FadeInView>
 
         {/* Stats Row */}
         <View style={styles.statsRow}>

@@ -11,13 +11,13 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
 import HapticTouchable from '../components/HapticTouchable';
+import FadeInView from '../components/FadeInView';
 
 const ERROR_MESSAGES: Record<string, string> = {
   'Invalid login credentials': 'Email veya şifre hatalı',
@@ -98,12 +98,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
         </View>
 
         {/* Form */}
-        <MotiView
-          style={styles.form}
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 280 }}
-        >
+        <FadeInView style={styles.form} translateY={20} duration={280}>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
             <HapticTouchable
               onPress={() => setUserType('player')}
@@ -193,7 +188,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
               <Text style={styles.registerLink}>Hesap Oluştur</Text>
             </HapticTouchable>
           </View>
-        </MotiView>
+        </FadeInView>
 
       </ScrollView>
     </KeyboardAvoidingView>
