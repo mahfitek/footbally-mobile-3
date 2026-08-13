@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import HapticTouchable from '../components/HapticTouchable';
 
@@ -126,8 +127,8 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                   borderColor: userType === 'player' ? theme.gold : theme.border,
                 }}>
                 <Text style={{ fontSize: 28, marginBottom: 6 }}>⚽</Text>
-                <Text style={{ color: userType === 'player' ? '#000' : theme.text, fontWeight: '700', fontSize: 14 }}>Oyuncuyum</Text>
-                <Text style={{ color: userType === 'player' ? '#000' : theme.textSecondary, fontSize: 11, marginTop: 2 }}>Kariyer yönetimi</Text>
+                <Text style={{ color: userType === 'player' ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }}>Oyuncuyum</Text>
+                <Text style={{ color: userType === 'player' ? '#000' : theme.textSecondary, fontFamily: FontFamily.body, fontSize: 11, marginTop: 2 }}>Kariyer yönetimi</Text>
               </HapticTouchable>
 
               <HapticTouchable
@@ -139,8 +140,8 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                   borderColor: userType === 'team' ? theme.gold : theme.border,
                 }}>
                 <Text style={{ fontSize: 28, marginBottom: 6 }}>🏟️</Text>
-                <Text style={{ color: userType === 'team' ? '#000' : theme.text, fontWeight: '700', fontSize: 14 }}>Takımım Var</Text>
-                <Text style={{ color: userType === 'team' ? '#000' : theme.textSecondary, fontSize: 11, marginTop: 2 }}>Oyuncu & rakip bul</Text>
+                <Text style={{ color: userType === 'team' ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }}>Takımım Var</Text>
+                <Text style={{ color: userType === 'team' ? '#000' : theme.textSecondary, fontFamily: FontFamily.body, fontSize: 11, marginTop: 2 }}>Oyuncu & rakip bul</Text>
               </HapticTouchable>
             </View>
 
@@ -316,12 +317,13 @@ const createStyles = (theme: Theme) =>
       marginBottom: 32,
     },
     logo: {
-      fontSize: 28,
-      fontWeight: '900',
+      fontFamily: FontFamily.display,
+      fontSize: 34,
       color: theme.gold,
       letterSpacing: 6,
     },
     logoSub: {
+      fontFamily: FontFamily.mono,
       fontSize: 11,
       color: theme.textSecondary,
       letterSpacing: 4,
@@ -335,9 +337,9 @@ const createStyles = (theme: Theme) =>
       marginBottom: 16,
     },
     inputLabel: {
+      fontFamily: FontFamily.mono,
       fontSize: 11,
       color: theme.textSecondary,
-      fontWeight: '600',
       letterSpacing: 1,
       marginBottom: 8,
     },
@@ -347,16 +349,19 @@ const createStyles = (theme: Theme) =>
       borderRadius: 16,
       paddingHorizontal: 16,
       color: theme.text,
+      fontFamily: FontFamily.body,
       fontSize: 15,
       borderWidth: 1,
       borderColor: theme.border,
       justifyContent: 'center',
     },
     selectValue: {
+      fontFamily: FontFamily.body,
       fontSize: 15,
       color: theme.text,
     },
     selectPlaceholder: {
+      fontFamily: FontFamily.body,
       fontSize: 15,
       color: theme.textSecondary,
     },
@@ -373,13 +378,14 @@ const createStyles = (theme: Theme) =>
     },
     privacyText: {
       flex: 1,
+      fontFamily: FontFamily.body,
       fontSize: 13,
       color: theme.textSecondary,
       lineHeight: 19,
     },
     privacyLink: {
       color: theme.gold,
-      fontWeight: '700',
+      fontFamily: FontFamily.bodySemiBold,
     },
     btnGold: {
       height: 56,
@@ -394,8 +400,8 @@ const createStyles = (theme: Theme) =>
       opacity: 0.6,
     },
     btnGoldText: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 16,
-      fontWeight: '700',
       color: '#000',
       letterSpacing: 1,
     },
@@ -405,13 +411,14 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
     },
     loginText: {
+      fontFamily: FontFamily.body,
       fontSize: 14,
       color: theme.textSecondary,
     },
     loginLink: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 14,
       color: theme.gold,
-      fontWeight: '700',
     },
     modalBackdrop: {
       flex: 1,
@@ -427,7 +434,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 16 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
     optionRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -436,7 +443,7 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    optionText: { fontSize: 15, color: theme.textMuted, fontWeight: '600' },
+    optionText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.textMuted },
     optionTextActive: { color: theme.gold },
     optionCheck: { fontSize: 16, color: theme.gold, fontWeight: '700' },
   });

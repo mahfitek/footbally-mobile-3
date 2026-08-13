@@ -5,6 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
+import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
+import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
+import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { supabase } from './lib/supabase';
 import { registerForPushNotificationsAsync, setupNotificationHandler } from './lib/notifications';
 import { extractTeamIdFromJoinUrl, joinTeam } from './lib/teamJoin';
@@ -73,11 +76,19 @@ const TEAM_TAB_SCREENS: Screen[] = ['teamHome', 'findPlayer', 'findOpponent', 't
 const USER_TYPE_STORAGE_KEY = '@footbally/userType';
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    BebasNeue_400Regular,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+    Inter_400Regular,
+    Inter_600SemiBold,
+  });
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <LanguageProvider>
-          <AppContent />
+          {fontsLoaded ? <AppContent /> : <SplashScreen onDone={() => {}} />}
         </LanguageProvider>
       </ThemeProvider>
     </SafeAreaProvider>

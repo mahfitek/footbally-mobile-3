@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
 import LoadingScreen from '../components/LoadingScreen';
@@ -291,8 +292,8 @@ const createStyles = (theme: Theme) =>
     avatarEmoji: { fontSize: 18 },
     avatarImage: { width: 40, height: 40, borderRadius: 20 },
     titleWrap: { flex: 1 },
-    title: { fontSize: 16, fontWeight: '800', color: theme.text },
-    subtitle: { fontSize: 11, color: theme.gold, fontWeight: '600', marginTop: 1 },
+    title: { fontSize: 16, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
+    subtitle: { fontSize: 11, color: theme.gold, fontFamily: FontFamily.mono, marginTop: 1 },
     messagesContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16, flexGrow: 1 },
     empty: {
       flex: 1,
@@ -301,7 +302,7 @@ const createStyles = (theme: Theme) =>
       paddingTop: 60,
     },
     emptyIcon: { fontSize: 48, marginBottom: 16, color: theme.gold },
-    emptyText: { fontSize: 13, color: theme.textSecondary, fontWeight: '600', textAlign: 'center' },
+    emptyText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.bodySemiBold, textAlign: 'center' },
     bubbleWrap: { marginBottom: 14, maxWidth: '78%' },
     bubbleWrapMine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
     bubbleWrapOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
@@ -317,9 +318,9 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    bubbleText: { fontSize: 14, color: theme.text, lineHeight: 19 },
+    bubbleText: { fontSize: 14, fontFamily: FontFamily.body, color: theme.text, lineHeight: 19 },
     bubbleTextMine: { color: '#000' },
-    bubbleTime: { fontSize: 10, color: theme.textSecondary, marginTop: 4, marginHorizontal: 4 },
+    bubbleTime: { fontSize: 10, fontFamily: FontFamily.mono, color: theme.textSecondary, marginTop: 4, marginHorizontal: 4 },
     inputBar: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -339,6 +340,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 10,
       color: theme.text,
       fontSize: 14,
+      fontFamily: FontFamily.body,
       borderWidth: 1,
       borderColor: theme.border,
     },

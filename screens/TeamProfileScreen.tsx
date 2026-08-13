@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
@@ -511,8 +512,8 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
             {applications.length === 0 ? (
               <View style={{ alignItems: 'center', padding: 40 }}>
                 <Text style={{ fontSize: 40, marginBottom: 12 }}>📭</Text>
-                <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>Henüz başvuru yok</Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4 }}>Bu pozisyon için başvuru bekleniyor</Text>
+                <Text style={{ color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold }}>Henüz başvuru yok</Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4, fontFamily: FontFamily.body }}>Bu pozisyon için başvuru bekleniyor</Text>
               </View>
             ) : (
               applications.map((app) => (
@@ -563,7 +564,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginTop: 16,
     },
-    headerTitle: { color: theme.text, fontSize: 20, fontWeight: '800' },
+    headerTitle: { color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 },
     settingsBtn: {
       width: 40,
       height: 40,
@@ -592,7 +593,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center', justifyContent: 'center',
     },
     logoEditIcon: { fontSize: 13 },
-    name: { fontSize: 22, fontWeight: '800', color: theme.text, textAlign: 'center', marginBottom: 8 },
+    name: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, textAlign: 'center', marginBottom: 8, letterSpacing: 0.5 },
     leagueBadge: {
       backgroundColor: hexToRgba(theme.gold, 0.15),
       borderWidth: 1,
@@ -602,9 +603,9 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 4,
       marginBottom: 10,
     },
-    leagueBadgeText: { fontSize: 11, fontWeight: '800', color: theme.gold, letterSpacing: 0.5 },
-    location: { fontSize: 13, color: theme.textSecondary, marginBottom: 2 },
-    founded: { fontSize: 12, color: theme.textSecondary, marginBottom: 16 },
+    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
+    location: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginBottom: 2 },
+    founded: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 16 },
     editBtn: {
       borderWidth: 1,
       borderColor: theme.gold,
@@ -612,7 +613,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 10,
       paddingHorizontal: 20,
     },
-    editBtnText: { fontSize: 13, fontWeight: '700', color: theme.gold },
+    editBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
     statsBar: {
       flexDirection: 'row',
       marginHorizontal: 24,
@@ -630,8 +631,8 @@ const createStyles = (theme: Theme) =>
       borderRightWidth: 1,
       borderRightColor: theme.border,
     },
-    statVal: { fontSize: 16, fontWeight: '800', color: theme.gold },
-    statLabel: { fontSize: 9, color: theme.textSecondary, fontWeight: '600', marginTop: 2, textAlign: 'center' },
+    statVal: { fontFamily: FontFamily.monoMedium, fontSize: 16, color: theme.gold },
+    statLabel: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.textSecondary, marginTop: 2, textAlign: 'center' },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -641,8 +642,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 12 },
-    description: { fontSize: 13, color: theme.textMuted, lineHeight: 19, marginBottom: 14 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, marginBottom: 12, letterSpacing: 0.5 },
+    description: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, lineHeight: 19, marginBottom: 14 },
     pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
     pill: {
       backgroundColor: theme.card2,
@@ -652,7 +653,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    pillText: { fontSize: 12, fontWeight: '600', color: theme.textMuted },
+    pillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted },
     bioRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -660,10 +661,10 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    bioLabel: { fontSize: 12, color: theme.textSecondary },
-    bioValue: { fontSize: 13, color: theme.text, fontWeight: '600' },
+    bioLabel: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
+    bioValue: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
     mediaSection: { marginHorizontal: 24, marginBottom: 20 },
-    mediaSectionTitle: { color: theme.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+    mediaSectionTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 16, marginBottom: 12, letterSpacing: 0.5 },
     mediaThumb: { width: 120, height: 80, borderRadius: 12, marginRight: 10 },
     videoThumb: {
       width: 120, height: 80, borderRadius: 12,
@@ -679,7 +680,7 @@ const createStyles = (theme: Theme) =>
       marginRight: 10,
     },
     mediaAddIcon: { fontSize: 24, color: theme.gold },
-    mediaAddLabel: { color: theme.gold, fontSize: 11, fontWeight: '600' },
+    mediaAddLabel: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, fontSize: 11 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -687,8 +688,8 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
-    sectionLink: { fontSize: 13, color: theme.gold, fontWeight: '600' },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    sectionLink: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
     squadList: { paddingHorizontal: 24, gap: 10, marginBottom: 28 },
     squadRow: {
       flexDirection: 'row',
@@ -710,9 +711,9 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     squadAvatarIcon: { fontSize: 18 },
-    squadName: { fontSize: 14, fontWeight: '700', color: theme.text },
-    squadMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    squadScore: { fontSize: 18, fontWeight: '800', color: theme.gold },
+    squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
+    squadMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    squadScore: { fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold },
     openPositions: {
       marginHorizontal: 24,
       marginBottom: 28,
@@ -733,19 +734,19 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
     },
-    positionRowTitle: { color: theme.text, fontSize: 14, fontWeight: '700' },
-    positionRowSub: { color: theme.textSecondary, fontSize: 12, marginTop: 2 },
+    positionRowTitle: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 14 },
+    positionRowSub: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 12, marginTop: 2 },
     viewApplicationsBtn: {
       backgroundColor: theme.gold,
       borderRadius: 10,
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
-    viewApplicationsBtnText: { color: '#000', fontWeight: '700', fontSize: 12 },
+    viewApplicationsBtnText: { fontFamily: FontFamily.bodySemiBold, color: '#000', fontSize: 12 },
     appHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
     appBackText: { color: theme.gold, fontSize: 16 },
-    appTitle: { color: theme.text, fontSize: 18, fontWeight: '800' },
-    appSubtitle: { color: theme.textSecondary, fontSize: 12 },
+    appTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 19, letterSpacing: 0.5 },
+    appSubtitle: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12 },
     appCard: {
       backgroundColor: theme.card,
       borderRadius: 16,
@@ -760,10 +761,10 @@ const createStyles = (theme: Theme) =>
       backgroundColor: hexToRgba(theme.gold, 0.1),
       alignItems: 'center', justifyContent: 'center',
     },
-    appName: { color: theme.text, fontSize: 15, fontWeight: '700' },
-    appPosition: { color: theme.gold, fontSize: 12 },
-    appMeta: { color: theme.textSecondary, fontSize: 11 },
-    appScore: { color: theme.gold, fontSize: 22, fontWeight: '900' },
+    appName: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 15 },
+    appPosition: { fontFamily: FontFamily.mono, color: theme.gold, fontSize: 12 },
+    appMeta: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 11 },
+    appScore: { fontFamily: FontFamily.monoMedium, color: theme.gold, fontSize: 22 },
     acceptBtn: {
       flex: 1,
       backgroundColor: hexToRgba(theme.success, 0.1),
@@ -773,7 +774,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.success, 0.3),
     },
-    acceptBtnText: { color: theme.success, fontWeight: '700' },
+    acceptBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.success },
     rejectBtn: {
       flex: 1,
       backgroundColor: hexToRgba(theme.error, 0.1),
@@ -783,7 +784,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.error, 0.3),
     },
-    rejectBtnText: { color: theme.error, fontWeight: '700' },
+    rejectBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.error },
     msgBtn: {
       flex: 1,
       backgroundColor: hexToRgba(theme.gold, 0.1),
@@ -793,5 +794,5 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.gold, 0.3),
     },
-    msgBtnText: { color: theme.gold, fontWeight: '700' },
+    msgBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold },
   });

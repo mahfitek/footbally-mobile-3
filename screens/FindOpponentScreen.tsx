@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import { sendMatchChallenge } from '../lib/challenges';
@@ -244,7 +245,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                   borderColor: selectedFormat === n ? theme.gold : theme.border,
                 }}
               >
-                <Text style={{ color: selectedFormat === n ? '#000' : theme.text, fontWeight: '700', fontSize: 13 }}>{n}v{n}</Text>
+                <Text style={{ color: selectedFormat === n ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>{n}v{n}</Text>
               </HapticTouchable>
             ))}
           </View>
@@ -496,7 +497,7 @@ const createStyles = (theme: Theme) =>
     safe: { flex: 1, backgroundColor: theme.bg },
     container: { flex: 1 },
     header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12 },
-    title: { fontSize: 20, fontWeight: '800', color: theme.text },
+    title: { fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     content: { paddingHorizontal: 24, marginBottom: 8 },
     filterBtn: {
       flexDirection: 'row',
@@ -508,7 +509,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 8,
       borderWidth: 1,
     },
-    filterBtnText: { fontSize: 14, fontWeight: '600' },
+    filterBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold },
     chevron: { color: theme.textSecondary },
     dropdown: {
       backgroundColor: theme.card2,
@@ -526,11 +527,11 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
     },
-    dropdownAllText: { color: theme.gold, fontSize: 14, fontWeight: '600' },
-    dropdownRowText: { color: theme.text, fontSize: 14 },
+    dropdownAllText: { color: theme.gold, fontSize: 14, fontFamily: FontFamily.bodySemiBold },
+    dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.body },
     checkmark: { color: theme.gold, fontWeight: '700' },
     clearAllBtn: { padding: 8, alignItems: 'center', marginBottom: 8 },
-    clearText: { color: theme.error, fontSize: 13, fontWeight: '600' },
+    clearText: { color: theme.error, fontSize: 13, fontFamily: FontFamily.bodySemiBold },
     list: { paddingHorizontal: 24, gap: 14 },
     teamCard: {
       backgroundColor: theme.card,
@@ -551,11 +552,11 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     avatarEmoji: { fontSize: 24 },
-    teamName: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 2 },
-    teamMeta: { fontSize: 12, color: theme.textSecondary },
-    teamRecord: { fontSize: 12, fontWeight: '700', color: theme.gold },
+    teamName: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: theme.text, marginBottom: 2 },
+    teamMeta: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
+    teamRecord: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.gold },
     formRow: { flexDirection: 'row', gap: 6, marginBottom: 14 },
-    formEmpty: { fontSize: 12, color: theme.textSecondary },
+    formEmpty: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
     formPill: {
       width: 26,
       height: 26,
@@ -566,7 +567,7 @@ const createStyles = (theme: Theme) =>
     formWin: { backgroundColor: hexToRgba(theme.success, 0.2) },
     formLoss: { backgroundColor: hexToRgba(theme.error, 0.2) },
     formDraw: { backgroundColor: hexToRgba(theme.textSecondary, 0.2) },
-    formPillText: { fontSize: 11, fontWeight: '800', color: theme.text },
+    formPillText: { fontSize: 11, fontFamily: FontFamily.monoMedium, color: theme.text },
     tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
     formationTag: {
       backgroundColor: hexToRgba(theme.gold, 0.1),
@@ -574,15 +575,15 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 8,
       paddingVertical: 4,
     },
-    formationTagText: { fontSize: 11, fontWeight: '700', color: theme.gold },
+    formationTagText: { fontSize: 11, fontFamily: FontFamily.monoMedium, color: theme.gold },
     styleTag: {
       backgroundColor: theme.card2,
       borderRadius: 8,
       paddingHorizontal: 8,
       paddingVertical: 4,
     },
-    styleTagText: { fontSize: 11, color: theme.textSecondary, fontWeight: '600' },
-    matchDaysText: { fontSize: 12, color: theme.textSecondary, marginBottom: 12 },
+    styleTagText: { fontSize: 11, color: theme.textSecondary, fontFamily: FontFamily.mono },
+    matchDaysText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, marginBottom: 12 },
     challengeBtn: {
       height: 44,
       borderRadius: 14,
@@ -590,7 +591,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    challengeBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
+    challengeBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: '#000' },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
@@ -601,9 +602,9 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 16 },
+    modalTitle: { fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text, marginBottom: 16 },
     inputGroup: { marginBottom: 16 },
-    inputLabel: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', letterSpacing: 1, marginBottom: 8 },
+    inputLabel: { fontSize: 11, color: theme.textSecondary, fontFamily: FontFamily.mono, letterSpacing: 1, marginBottom: 8 },
     input: {
       height: 52,
       backgroundColor: theme.card2,
@@ -612,10 +613,11 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       color: theme.text,
       fontSize: 15,
+      fontFamily: FontFamily.body,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    inputValueText: { color: theme.text, fontSize: 15 },
+    inputValueText: { color: theme.text, fontSize: 15, fontFamily: FontFamily.body },
     sendBtn: {
       height: 56,
       backgroundColor: theme.gold,
@@ -624,7 +626,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       marginTop: 8,
     },
-    sendBtnText: { fontSize: 16, fontWeight: '700', color: '#000', letterSpacing: 1 },
+    sendBtnText: { fontSize: 16, fontFamily: FontFamily.bodySemiBold, color: '#000', letterSpacing: 1 },
     cancelBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-    cancelBtnText: { fontSize: 14, fontWeight: '700', color: theme.textMuted },
+    cancelBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
   });

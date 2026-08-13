@@ -11,8 +11,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
 import HapticTouchable from '../components/HapticTouchable';
@@ -96,7 +98,12 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
         </View>
 
         {/* Form */}
-        <View style={styles.form}>
+        <MotiView
+          style={styles.form}
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 280 }}
+        >
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
             <HapticTouchable
               onPress={() => setUserType('player')}
@@ -107,8 +114,8 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
                 borderColor: userType === 'player' ? theme.gold : theme.border,
               }}>
               <Text style={{ fontSize: 28, marginBottom: 6 }}>⚽</Text>
-              <Text style={{ color: userType === 'player' ? '#000' : theme.text, fontWeight: '700', fontSize: 14 }}>Oyuncuyum</Text>
-              <Text style={{ color: userType === 'player' ? '#000' : theme.textSecondary, fontSize: 11, marginTop: 2 }}>Kariyer yönetimi</Text>
+              <Text style={{ color: userType === 'player' ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }}>Oyuncuyum</Text>
+              <Text style={{ color: userType === 'player' ? '#000' : theme.textSecondary, fontFamily: FontFamily.body, fontSize: 11, marginTop: 2 }}>Kariyer yönetimi</Text>
             </HapticTouchable>
 
             <HapticTouchable
@@ -120,8 +127,8 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
                 borderColor: userType === 'team' ? theme.gold : theme.border,
               }}>
               <Text style={{ fontSize: 28, marginBottom: 6 }}>🏟️</Text>
-              <Text style={{ color: userType === 'team' ? '#000' : theme.text, fontWeight: '700', fontSize: 14 }}>Takımım Var</Text>
-              <Text style={{ color: userType === 'team' ? '#000' : theme.textSecondary, fontSize: 11, marginTop: 2 }}>Oyuncu & rakip bul</Text>
+              <Text style={{ color: userType === 'team' ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }}>Takımım Var</Text>
+              <Text style={{ color: userType === 'team' ? '#000' : theme.textSecondary, fontFamily: FontFamily.body, fontSize: 11, marginTop: 2 }}>Oyuncu & rakip bul</Text>
             </HapticTouchable>
           </View>
 
@@ -186,7 +193,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
               <Text style={styles.registerLink}>Hesap Oluştur</Text>
             </HapticTouchable>
           </View>
-        </View>
+        </MotiView>
 
       </ScrollView>
     </KeyboardAvoidingView>
@@ -231,7 +238,8 @@ const createStyles = (theme: Theme) =>
       marginBottom: 32,
     },
     logoSub: {
-      fontSize: 11,
+      fontFamily: FontFamily.display,
+      fontSize: 14,
       color: theme.textSecondary,
       letterSpacing: 4,
       marginTop: 4,
@@ -244,9 +252,9 @@ const createStyles = (theme: Theme) =>
       marginBottom: 16,
     },
     inputLabel: {
+      fontFamily: FontFamily.mono,
       fontSize: 11,
       color: theme.textSecondary,
-      fontWeight: '600',
       letterSpacing: 1,
       marginBottom: 8,
     },
@@ -256,6 +264,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: 16,
       paddingHorizontal: 16,
       color: theme.text,
+      fontFamily: FontFamily.body,
       fontSize: 15,
       borderWidth: 1,
       borderColor: theme.border,
@@ -273,8 +282,8 @@ const createStyles = (theme: Theme) =>
       opacity: 0.6,
     },
     btnGoldText: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 16,
-      fontWeight: '700',
       color: '#000',
       letterSpacing: 1,
     },
@@ -290,6 +299,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.border,
     },
     dividerText: {
+      fontFamily: FontFamily.body,
       fontSize: 12,
       color: theme.textSecondary,
     },
@@ -309,8 +319,8 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     socialBtnText: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 14,
-      fontWeight: '600',
       color: theme.text,
     },
     registerRow: {
@@ -319,12 +329,13 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
     },
     registerText: {
+      fontFamily: FontFamily.body,
       fontSize: 14,
       color: theme.textSecondary,
     },
     registerLink: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 14,
       color: theme.gold,
-      fontWeight: '700',
     },
   });

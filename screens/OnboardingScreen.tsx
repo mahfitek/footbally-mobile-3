@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import HapticTouchable from '../components/HapticTouchable';
 
 const slides = [
@@ -175,16 +176,18 @@ const createStyles = (theme: Theme) =>
       fontSize: 52,
     },
     title: {
-      fontSize: 36,
-      fontWeight: '800',
+      fontFamily: FontFamily.display,
+      fontSize: 38,
       color: theme.text,
       textAlign: 'center',
       marginBottom: 16,
+      letterSpacing: 0.5,
     },
     titleGold: {
       color: theme.gold,
     },
     desc: {
+      fontFamily: FontFamily.body,
       fontSize: 15,
       color: theme.textMuted,
       textAlign: 'center',
@@ -215,13 +218,13 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     btnText: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 16,
-      fontWeight: '700',
       color: '#000',
       letterSpacing: 1,
     },
     loginLink: { marginTop: 16, padding: 8 },
-    loginLinkText: { fontSize: 14, fontWeight: '600', color: theme.gold },
+    loginLinkText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.gold },
 
     // Slide 1 - phone mock
     phoneMock: {
@@ -268,7 +271,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 8,
       alignItems: 'center',
     },
-    phoneStatText: { fontSize: 11, fontWeight: '700', color: theme.gold },
+    phoneStatText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.gold },
 
     // Slide 2 - clubs
     clubsWrap: { alignItems: 'center', marginBottom: 32 },
@@ -283,8 +286,8 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    clubBadgeText: { fontSize: 14, fontWeight: '900', color: theme.gold },
-    clubsCaption: { fontSize: 12, fontWeight: '700', color: theme.textSecondary, letterSpacing: 0.5 },
+    clubBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 14, color: theme.gold },
+    clubsCaption: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, letterSpacing: 0.5 },
 
     // Slide 3 - success story
     successWrap: { alignItems: 'center', marginBottom: 8 },
@@ -298,11 +301,11 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 28,
       alignItems: 'center',
     },
-    successStatValue: { fontSize: 40, fontWeight: '900', color: theme.gold },
+    successStatValue: { fontFamily: FontFamily.monoMedium, fontSize: 40, color: theme.gold },
     successStatLabel: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 12,
       color: theme.textMuted,
-      fontWeight: '600',
       textAlign: 'center',
       marginTop: 4,
       maxWidth: 180,

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Sha
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
@@ -445,8 +446,8 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
 
       {playerCount === null ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: theme.text, fontSize: 22, fontWeight: '800', marginBottom: 8 }}>Kaç Kişilik?</Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 32 }}>Maç formatını seç</Text>
+          <Text style={{ color: theme.text, fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, marginBottom: 8 }}>Kaç Kişilik?</Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, fontFamily: FontFamily.body, marginBottom: 32 }}>Maç formatını seç</Text>
           {PLAYER_COUNTS.map((count) => (
             <TouchableOpacity
               key={count}
@@ -467,15 +468,15 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                 gap: 16,
               }}
             >
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(232,184,32,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.gold, fontSize: 22, fontWeight: '900' }}>{count}</Text>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: hexToRgba(theme.gold, 0.1), alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.gold, fontSize: 22, fontFamily: FontFamily.monoMedium }}>{count}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>{count}v{count}</Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.bodySemiBold }}>{count}v{count}</Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.body }}>
                   {count === 5 ? 'Halı saha (küçük)' : count === 7 ? 'Halı saha (büyük)' : count === 8 ? '8v8 Format' : '11v11 Tam saha'}
                 </Text>
-                <Text style={{ color: theme.gold, fontSize: 12, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} formasyon</Text>
+                <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} formasyon</Text>
               </View>
               <Text style={{ color: theme.textSecondary, fontSize: 20 }}>›</Text>
             </TouchableOpacity>
@@ -491,7 +492,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
           </TouchableOpacity>
 
           <View style={{ marginBottom: 12 }}>
-            <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 8, paddingHorizontal: 16 }}>
+            <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1, marginBottom: 8, paddingHorizontal: 16 }}>
               {playerCount}v{playerCount} FORMASYONLAR
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
@@ -510,8 +511,8 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                     borderColor: selectedFormation === f ? theme.gold : theme.border,
                   }}
                 >
-                  <Text style={{ color: selectedFormation === f ? '#000' : theme.text, fontWeight: '700', fontSize: 13 }}>{f.split(' ')[0]}</Text>
-                  <Text style={{ color: selectedFormation === f ? '#000' : theme.textSecondary, fontSize: 10, marginTop: 2 }}>
+                  <Text style={{ color: selectedFormation === f ? '#000' : theme.text, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{f.split(' ')[0]}</Text>
+                  <Text style={{ color: selectedFormation === f ? '#000' : theme.textSecondary, fontSize: 10, fontFamily: FontFamily.body, marginTop: 2 }}>
                     {f.includes('(') ? f.match(/\(([^)]+)\)/)?.[1] : ''}
                   </Text>
                 </TouchableOpacity>
@@ -656,7 +657,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 16, fontWeight: '700', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
     pitch: {
       width: PITCH_WIDTH,
       height: PITCH_HEIGHT,
@@ -716,7 +717,7 @@ const createStyles = (theme: Theme) =>
     },
     playerDotFilled: { backgroundColor: theme.gold, borderColor: '#fff' },
     playerDotEmpty: { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.4)' },
-    playerDotNumber: { fontSize: 12, fontWeight: '800', color: '#000' },
+    playerDotNumber: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: '#000' },
     playerDotPlus: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
     playerNameTag: {
       backgroundColor: 'rgba(0,0,0,0.7)',
@@ -725,7 +726,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 2,
       marginTop: 2,
     },
-    playerNameText: { color: '#fff', fontSize: 9, fontWeight: '600', textAlign: 'center' },
+    playerNameText: { fontFamily: FontFamily.bodySemiBold, color: '#fff', fontSize: 9, textAlign: 'center' },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -733,8 +734,8 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
-    sectionCount: { fontSize: 12, color: theme.textSecondary, fontWeight: '600' },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    sectionCount: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textSecondary },
     squadList: { paddingHorizontal: 24, gap: 10, marginBottom: 24 },
     squadRow: {
       flexDirection: 'row',
@@ -756,9 +757,9 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     squadAvatarIcon: { fontSize: 18 },
-    squadName: { fontSize: 14, fontWeight: '700', color: theme.text },
-    squadMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    squadScore: { fontSize: 16, fontWeight: '800', color: theme.gold },
+    squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
+    squadMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    squadScore: { fontFamily: FontFamily.monoMedium, fontSize: 16, color: theme.gold },
     removeBtn: {
       width: 32, height: 32,
       borderRadius: 16,
@@ -777,7 +778,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    inviteBtnText: { fontSize: 14, fontWeight: '700', color: '#000' },
+    inviteBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalSheet: {
       backgroundColor: theme.bg,
@@ -789,7 +790,7 @@ const createStyles = (theme: Theme) =>
       maxHeight: '75%',
     },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    modalTitle: { fontSize: 17, fontWeight: '800', color: theme.text },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
     modalClose: { fontSize: 18, color: theme.textSecondary },
     pickerRow: {
       flexDirection: 'row',

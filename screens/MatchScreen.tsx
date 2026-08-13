@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import { notifyUser } from '../lib/notify';
@@ -667,14 +668,14 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 20, color: theme.text },
-    title: { fontSize: 22, fontWeight: '800', color: theme.text },
+    title: { fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     createBtn: {
       backgroundColor: theme.gold,
       borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 10,
     },
-    createBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
+    createBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: '#000' },
     tabsScroll: { paddingHorizontal: 24, marginBottom: 12 },
     tabs: {
       flexDirection: 'row',
@@ -692,7 +693,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
     },
     tabBtnActive: { backgroundColor: theme.gold },
-    tabText: { fontSize: 13, fontWeight: '600', color: theme.textSecondary },
+    tabText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textSecondary },
     tabTextActive: { color: '#000' },
     nearbyChip: {
       alignSelf: 'flex-start',
@@ -706,7 +707,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     nearbyChipActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    nearbyChipText: { fontSize: 12, fontWeight: '700', color: theme.textSecondary },
+    nearbyChipText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.textSecondary },
     nearbyChipTextActive: { color: '#000' },
     list: { paddingHorizontal: 24, gap: 14 },
     card: {
@@ -733,21 +734,21 @@ const createStyles = (theme: Theme) =>
     },
     badgeIconText: { fontSize: 20 },
     cardTopText: { flex: 1 },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
-    cardMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
+    cardTitle: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    cardMeta: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, marginTop: 3 },
     statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-    statusBadgeText: { fontSize: 11, fontWeight: '700' },
+    statusBadgeText: { fontSize: 11, fontFamily: FontFamily.monoMedium },
     cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
     typeTag: {
       fontSize: 12,
-      fontWeight: '700',
+      fontFamily: FontFamily.monoMedium,
       color: theme.text,
       backgroundColor: theme.card2,
       borderRadius: 8,
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
-    participants: { fontSize: 12, color: theme.textSecondary, fontWeight: '600' },
+    participants: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
     resultPromptBtn: {
       marginTop: 12,
       backgroundColor: hexToRgba(theme.gold, 0.12),
@@ -757,7 +758,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 10,
       alignItems: 'center',
     },
-    resultPromptText: { fontSize: 12, fontWeight: '700', color: theme.gold },
+    resultPromptText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -772,7 +773,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 16 },
+    modalTitle: { fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text, marginBottom: 16 },
     detailRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -780,8 +781,8 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    detailLabel: { fontSize: 12, color: theme.textSecondary },
-    detailValue: { fontSize: 13, color: theme.text, fontWeight: '600' },
+    detailLabel: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
+    detailValue: { fontSize: 13, color: theme.text, fontFamily: FontFamily.bodySemiBold },
     mapBtn: {
       marginTop: 14,
       backgroundColor: theme.card2,
@@ -791,9 +792,9 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    mapBtnText: { fontSize: 13, fontWeight: '700', color: theme.text },
-    participantsHeader: { fontSize: 13, fontWeight: '700', color: theme.text, marginTop: 18, marginBottom: 10 },
-    noParticipantsText: { fontSize: 12, color: theme.textSecondary },
+    mapBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    participantsHeader: { fontSize: 13, fontFamily: FontFamily.display, letterSpacing: 0.3, color: theme.text, marginTop: 18, marginBottom: 10 },
+    noParticipantsText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
     participantsList: { gap: 8 },
     participantRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     participantAvatar: {
@@ -808,7 +809,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     participantAvatarImg: { width: 32, height: 32, borderRadius: 16 },
-    participantName: { fontSize: 13, color: theme.text, fontWeight: '600' },
+    participantName: { fontSize: 13, color: theme.text, fontFamily: FontFamily.bodySemiBold },
     ownerNotice: {
       marginTop: 18,
       backgroundColor: hexToRgba(theme.gold, 0.1),
@@ -816,7 +817,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 14,
       alignItems: 'center',
     },
-    ownerNoticeText: { fontSize: 13, fontWeight: '700', color: theme.gold },
+    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
     joinBtn: {
       marginTop: 18,
       height: 54,
@@ -826,13 +827,13 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     joinBtnDisabled: { opacity: 0.5 },
-    joinBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+    joinBtnText: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: '#000' },
     leaveBtn: { backgroundColor: hexToRgba(theme.error, 0.12), borderWidth: 1, borderColor: theme.error },
-    leaveBtnText: { fontSize: 15, fontWeight: '700', color: theme.error },
+    leaveBtnText: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.error },
     shareBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-    shareBtnText: { fontSize: 13, fontWeight: '700', color: theme.gold },
+    shareBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
     closeBtn: { alignItems: 'center', paddingVertical: 10 },
-    closeBtnText: { fontSize: 13, color: theme.textSecondary, fontWeight: '600' },
+    closeBtnText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.bodySemiBold },
     resultOptionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
     resultOptionBtn: {
       flex: 1,
@@ -843,7 +844,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    resultOptionText: { fontSize: 13, fontWeight: '700', color: theme.text },
+    resultOptionText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.text },
     goalsStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginTop: 8 },
     goalsBtn: {
       width: 40,
@@ -856,5 +857,5 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     goalsBtnText: { fontSize: 20, fontWeight: '700', color: theme.gold },
-    goalsValue: { fontSize: 22, fontWeight: '800', color: theme.text, width: 40, textAlign: 'center' },
+    goalsValue: { fontSize: 22, fontFamily: FontFamily.monoMedium, color: theme.text, width: 40, textAlign: 'center' },
   });

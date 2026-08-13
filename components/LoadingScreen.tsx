@@ -1,6 +1,7 @@
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 
 interface Props {
   message?: string;
@@ -27,9 +28,9 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     message: {
+      fontFamily: FontFamily.bodySemiBold,
       marginTop: 16,
       fontSize: 13,
       color: theme.textSecondary,
-      fontWeight: '600',
     },
   });

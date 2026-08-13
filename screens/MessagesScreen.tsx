@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
@@ -424,7 +425,7 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
       paddingBottom: 20,
     },
-    title: { fontSize: 22, fontWeight: '800', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 0.5 },
     headerUnreadBadge: {
       minWidth: 22,
       height: 22,
@@ -434,7 +435,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    headerUnreadText: { fontSize: 11, fontWeight: '800', color: '#000' },
+    headerUnreadText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: '#000' },
     newMessageBtn: {
       backgroundColor: hexToRgba(theme.gold, 0.12),
       borderWidth: 1,
@@ -443,7 +444,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    newMessageBtnText: { fontSize: 12, fontWeight: '700', color: theme.gold },
+    newMessageBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
@@ -464,13 +465,14 @@ const createStyles = (theme: Theme) =>
       paddingTop: 20,
       paddingBottom: 16,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, letterSpacing: 0.5 },
     modalClose: { fontSize: 18, color: theme.textSecondary, padding: 4 },
     modalEmptyText: {
       textAlign: 'center',
       color: theme.textSecondary,
       fontSize: 13,
       marginTop: 24,
+      fontFamily: FontFamily.body,
     },
     userResultRow: {
       flexDirection: 'row',
@@ -497,7 +499,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
     },
     tabBtnActive: { backgroundColor: theme.gold },
-    tabText: { fontSize: 13, fontWeight: '700', color: theme.textSecondary },
+    tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
     tabTextActive: { color: '#000' },
     connectionItem: {
       flexDirection: 'row',
@@ -507,7 +509,7 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    connectionRole: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    connectionRole: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
     messageBtn: {
       backgroundColor: hexToRgba(theme.gold, 0.12),
       borderWidth: 1,
@@ -516,7 +518,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    messageBtnText: { fontSize: 12, fontWeight: '700', color: theme.gold },
+    messageBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -530,7 +532,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 24,
     },
     searchIcon: { fontSize: 15, marginRight: 10 },
-    searchInput: { flex: 1, fontSize: 14, color: theme.text },
+    searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: theme.text },
     chatList: { paddingHorizontal: 24, gap: 4 },
     chatItem: {
       flexDirection: 'row',
@@ -570,16 +572,16 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       marginBottom: 4,
     },
-    chatName: { fontSize: 14, fontWeight: '700', color: theme.text },
-    chatTime: { fontSize: 11, color: theme.textSecondary },
+    chatName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
+    chatTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
     chatBottomRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       gap: 10,
     },
-    chatPreview: { flex: 1, fontSize: 13, color: theme.textSecondary },
-    chatPreviewUnread: { color: theme.textMuted, fontWeight: '600' },
+    chatPreview: { flex: 1, fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary },
+    chatPreviewUnread: { color: theme.textMuted, fontFamily: FontFamily.bodySemiBold },
     unreadBadge: {
       minWidth: 20,
       height: 20,
@@ -589,5 +591,5 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    unreadBadgeText: { fontSize: 11, fontWeight: '800', color: '#000' },
+    unreadBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: '#000' },
   });

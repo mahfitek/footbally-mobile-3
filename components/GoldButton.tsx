@@ -1,6 +1,7 @@
 import { Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 
 interface Props {
@@ -44,8 +45,8 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.gold,
     },
     text: {
+      fontFamily: FontFamily.bodySemiBold,
       fontSize: 16,
-      fontWeight: '700',
       letterSpacing: 1,
     },
     textFilled: {

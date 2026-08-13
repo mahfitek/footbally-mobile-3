@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import GoldButton from './GoldButton';
 
 interface Props {
@@ -36,7 +37,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 32,
     },
     icon: { fontSize: 48, marginBottom: 16, color: theme.gold },
-    title: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 6, textAlign: 'center' },
-    subtitle: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20 },
+    title: { fontFamily: FontFamily.bodySemiBold, fontSize: 18, color: theme.text, marginBottom: 6, textAlign: 'center' },
+    subtitle: { fontFamily: FontFamily.body, fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20 },
     action: { width: 200, height: 48, marginTop: 20 },
   });

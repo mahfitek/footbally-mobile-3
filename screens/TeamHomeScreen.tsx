@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
 import EmptyState from '../components/EmptyState';
@@ -90,8 +91,8 @@ function StatCard({ value, label }: { value: string; label: string }) {
       borderWidth: 1,
       borderColor: theme.border,
     }}>
-      <Text style={{ fontSize: 18, fontWeight: '800', color: theme.gold }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: theme.textSecondary, fontWeight: '600', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold }}>{value}</Text>
+      <Text style={{ fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -491,7 +492,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center', justifyContent: 'center',
     },
     logoPlaceholderIcon: { fontSize: 24 },
-    teamName: { fontSize: 20, fontWeight: '800', color: theme.text },
+    teamName: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
     leagueBadge: {
       alignSelf: 'flex-start',
       backgroundColor: hexToRgba(theme.gold, 0.15),
@@ -502,7 +503,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 3,
       marginTop: 4,
     },
-    leagueBadgeText: { fontSize: 10, fontWeight: '800', color: theme.gold, letterSpacing: 0.5 },
+    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold, letterSpacing: 0.5 },
     notifBtn: {
       width: 44, height: 44,
       backgroundColor: theme.card,
@@ -523,7 +524,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    notifDotText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+    notifDotText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
     statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 24 },
     sectionHeader: {
       flexDirection: 'row',
@@ -532,7 +533,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -560,8 +561,8 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     activityIcon: { fontSize: 16 },
-    activityText: { flex: 1, fontSize: 12, color: theme.textMuted, fontWeight: '600', lineHeight: 17 },
-    activityTime: { fontSize: 11, color: theme.textSecondary },
+    activityText: { fontFamily: FontFamily.bodySemiBold, flex: 1, fontSize: 12, color: theme.textMuted, lineHeight: 17 },
+    activityTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
     challengeCard: {
       backgroundColor: theme.card,
       borderRadius: 16,
@@ -569,14 +570,14 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.gold, 0.3),
     },
-    challengeTitle: { fontSize: 14, fontWeight: '800', color: theme.text, marginBottom: 4 },
-    challengeMeta: { fontSize: 12, color: theme.textSecondary, marginBottom: 12 },
+    challengeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, marginBottom: 4 },
+    challengeMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 12 },
     challengeActions: { flexDirection: 'row', gap: 10 },
     challengeBtn: { flex: 1, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     declineBtn: { backgroundColor: hexToRgba(theme.error, 0.1), borderWidth: 1, borderColor: theme.error },
-    declineBtnText: { fontSize: 13, fontWeight: '700', color: theme.error },
+    declineBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.error },
     acceptBtn: { backgroundColor: theme.gold },
-    acceptBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
+    acceptBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#000' },
   });
 
 const styles = StyleSheet.create({
@@ -596,7 +597,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   gridIcon: { fontSize: 20 },
-  gridTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4 },
-  gridSub: { fontSize: 11, lineHeight: 15 },
+  gridTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 4 },
+  gridSub: { fontFamily: FontFamily.body, fontSize: 11, lineHeight: 15 },
   gridArrow: { fontSize: 16, fontWeight: '800', marginTop: 10 },
 });

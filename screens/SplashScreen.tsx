@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View, Image, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { theme } = useTheme();
@@ -76,8 +77,8 @@ const createStyles = (theme: Theme) =>
     },
     tagline: {
       marginTop: 24,
+      fontFamily: FontFamily.display,
       fontSize: 13,
-      fontWeight: '700',
       letterSpacing: 2,
       color: theme.gold,
       textTransform: 'uppercase',

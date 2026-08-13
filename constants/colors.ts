@@ -1,10 +1,10 @@
 export const Colors = {
-  bg: '#050505',
-  gold: '#E8B820',
-  goldLight: '#F7D96A',
-  goldDark: '#C48F0C',
-  card: '#0D0D0D',
-  card2: '#121212',
-  text: '#FFFFFF',
-  textMuted: '#CFCFCF',
+  bg: '#060A12',
+  gold: '#FFB347',
+  goldLight: '#FFC670',
+  goldDark: '#D98F2B',
+  card: '#0E1524',
+  card2: '#121A2C',
+  text: '#EDEFF5',
+  textMuted: '#8A93A6',
 };

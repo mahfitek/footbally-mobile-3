@@ -20,8 +20,10 @@ import * as ImagePicker from 'expo-image-picker';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
+import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -698,8 +700,8 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           <TouchableOpacity
             onPress={() => navigate('settings')}
             style={{
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               backgroundColor: theme.card,
               borderRadius: 12,
               alignItems: 'center',
@@ -712,7 +714,12 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         </View>
 
         {/* Avatar */}
-        <View style={styles.heroSection}>
+        <MotiView
+          style={styles.heroSection}
+          from={{ opacity: 0, translateY: 16 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 260 }}
+        >
           <HapticTouchable
             style={[styles.avatarWrap, isPremiumActive && styles.avatarWrapPremium]}
             onPress={handleAvatarPress}
@@ -744,7 +751,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <Text style={styles.premiumMemberText}>✦ Premium Üye</Text>
             </View>
           )}
-        </View>
+        </MotiView>
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
@@ -954,7 +961,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginTop: 16,
     },
-    headerSpacer: { width: 40 },
+    headerSpacer: { width: 44 },
     heroSection: { alignItems: 'center', paddingVertical: 24 },
     avatarWrap: { position: 'relative', marginBottom: 16 },
     avatarWrapPremium: {
@@ -1015,12 +1022,12 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 4,
     },
-    premiumMemberText: { fontSize: 11, fontWeight: '800', color: theme.gold, letterSpacing: 0.5 },
+    premiumMemberText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
     avatarEmoji: { fontSize: 44 },
     avatarImage: { width: 100, height: 100, borderRadius: 50 },
-    name: { fontSize: 22, fontWeight: '800', color: theme.text, marginBottom: 4 },
-    position: { fontSize: 13, color: theme.gold, fontWeight: '600', letterSpacing: 1 },
-    club: { fontSize: 12, color: theme.textSecondary, marginTop: 4 },
+    name: { fontFamily: FontFamily.display, fontSize: 30, color: theme.text, marginBottom: 2 },
+    position: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1 },
+    club: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 4 },
     statsRow: {
       flexDirection: 'row',
       marginHorizontal: 24,
@@ -1038,8 +1045,8 @@ const createStyles = (theme: Theme) =>
       borderRightWidth: 1,
       borderRightColor: theme.border,
     },
-    statVal: { fontSize: 22, fontWeight: '800', color: theme.gold },
-    statLabel: { fontSize: 10, color: theme.textSecondary, fontWeight: '600', marginTop: 2 },
+    statVal: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
+    statLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -1048,13 +1055,18 @@ const createStyles = (theme: Theme) =>
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
+      shadowColor: theme.gold,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.1,
+      shadowRadius: 18,
+      elevation: 2,
     },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 16 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 14, letterSpacing: 0.5 },
     scoreCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    scoreCardValue: { fontSize: 20, fontWeight: '900', color: theme.gold },
+    scoreCardValue: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.gold },
     completionTrack: { height: 8, backgroundColor: theme.border, borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
     completionFill: { height: 8, backgroundColor: theme.gold, borderRadius: 4 },
-    scoreHint: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 10 },
+    scoreHint: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 10 },
     scoreSuggestionRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1065,7 +1077,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 6,
     },
     scoreSuggestionStar: { color: theme.gold },
-    scoreSuggestionText: { color: theme.text, flex: 1, fontSize: 13 },
+    scoreSuggestionText: { fontFamily: FontFamily.body, color: theme.text, flex: 1, fontSize: 13 },
     scoreSuggestionArrow: { color: theme.gold, fontSize: 12 },
     scoreCompleteBanner: {
       flexDirection: 'row',
@@ -1076,7 +1088,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: hexToRgba(theme.gold, 0.1),
       borderRadius: 12,
     },
-    scoreCompleteText: { color: theme.gold, fontWeight: '700', flex: 1 },
+    scoreCompleteText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, flex: 1 },
     bioRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -1084,8 +1096,8 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    bioLabel: { fontSize: 12, color: theme.textSecondary },
-    bioValue: { fontSize: 13, color: theme.text, fontWeight: '600' },
+    bioLabel: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
+    bioValue: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
     actionRow: {
       flexDirection: 'row',
       gap: 10,
@@ -1102,11 +1114,11 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 12,
       alignItems: 'center',
     },
-    editBtnText: { fontSize: 13, fontWeight: '700', color: theme.gold },
+    editBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
     skillItem: { marginBottom: 14 },
     skillTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    skillName: { fontSize: 13, color: theme.textMuted },
-    skillVal: { fontSize: 13, color: theme.text, fontWeight: '700' },
+    skillName: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
+    skillVal: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
     skillTrack: { height: 4, backgroundColor: theme.border, borderRadius: 2 },
     skillFill: {
       height: 4,
@@ -1120,8 +1132,8 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
-    sectionLink: { fontSize: 13, color: theme.gold, fontWeight: '600' },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    sectionLink: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
     gallery: { paddingLeft: 24, marginBottom: 20 },
     galleryItem: {
       width: 120,
@@ -1145,7 +1157,7 @@ const createStyles = (theme: Theme) =>
     playIcon: { fontSize: 12, color: '#000' },
     galleryAdd: { borderStyle: 'dashed', borderColor: theme.goldDark },
     galleryAddIcon: { fontSize: 20, color: theme.gold },
-    galleryAddText: { fontSize: 10, color: theme.gold, fontWeight: '600' },
+    galleryAddText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: theme.gold },
 
     // Full-screen edit view (rendered in place of the profile view, no Modal)
     editSafe: { flex: 1, backgroundColor: theme.bg },
@@ -1157,15 +1169,15 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     editHeaderBtn: { padding: 8 },
-    editHeaderTitle: { fontSize: 16, fontWeight: '700', color: theme.text },
-    editHeaderCancel: { fontSize: 15, color: theme.gold },
-    editHeaderSave: { fontSize: 15, fontWeight: '700', color: theme.gold },
+    editHeaderTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    editHeaderCancel: { fontFamily: FontFamily.body, fontSize: 15, color: theme.gold },
+    editHeaderSave: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.gold },
     editContent: { padding: 16, paddingBottom: 60 },
     inputGroup: { marginBottom: 16 },
     inputLabel: {
+      fontFamily: FontFamily.mono,
       fontSize: 11,
       color: theme.textSecondary,
-      fontWeight: '600',
       letterSpacing: 1,
       marginBottom: 8,
     },
@@ -1176,13 +1188,14 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
+      fontFamily: FontFamily.body,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     inputDisabled: { opacity: 0.5 },
-    inputValueText: { color: theme.text, fontSize: 14 },
-    inputPlaceholderText: { color: theme.textSecondary, fontSize: 14 },
+    inputValueText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 14 },
+    inputPlaceholderText: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 14 },
     footRow: { flexDirection: 'row', gap: 8 },
     footPill: {
       flex: 1,
@@ -1194,7 +1207,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     footPillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    footPillText: { color: theme.text, fontWeight: '600', fontSize: 11 },
+    footPillText: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 11 },
     footPillTextActive: { color: '#000' },
 
     // Inline expandable picker (renders directly below the tapped field)
@@ -1216,11 +1229,11 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.border,
       justifyContent: 'space-between',
     },
-    listRowText: { fontSize: 15, color: theme.text },
+    listRowText: { fontFamily: FontFamily.body, fontSize: 15, color: theme.text },
     checkmark: { fontSize: 15, color: theme.gold, fontWeight: '700' },
     pickerSectionHeader: {
+      fontFamily: FontFamily.mono,
       fontSize: 12,
-      fontWeight: '800',
       color: theme.gold,
       letterSpacing: 1,
       paddingVertical: 10,
@@ -1229,18 +1242,18 @@ const createStyles = (theme: Theme) =>
 
     // Share card modal (always dark, independent of app theme — matches the FIFA card style)
     shareModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
-    shareModalTitle: { color: '#E8B820', fontSize: 16, fontWeight: '700', marginBottom: 24 },
-    shareModalHint: { color: '#666', fontSize: 12, marginTop: 16, marginBottom: 24 },
+    shareModalTitle: { fontFamily: FontFamily.display, color: theme.gold, fontSize: 20, marginBottom: 24, letterSpacing: 0.5 },
+    shareModalHint: { fontFamily: FontFamily.body, color: '#666', fontSize: 12, marginTop: 16, marginBottom: 24 },
     shareModalCloseBtn: { backgroundColor: '#1a1a1a', borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: '#333' },
     shareModalCloseBtnCentered: { alignSelf: 'center', marginTop: 4 },
-    shareModalCloseBtnText: { color: '#888' },
+    shareModalCloseBtnText: { fontFamily: FontFamily.body, color: '#888' },
     shareOptionsList: { width: '100%', paddingHorizontal: 24, gap: 10 },
     shareOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
     shareOptionIcon: { fontSize: 22 },
     shareOptionTextWrap: { flex: 1 },
-    shareOptionTitle: { color: '#fff', fontWeight: '700', fontSize: 15 },
-    shareOptionSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+    shareOptionTitle: { fontFamily: FontFamily.bodySemiBold, color: '#fff', fontSize: 15 },
+    shareOptionSubtitle: { fontFamily: FontFamily.body, color: 'rgba(255,255,255,0.7)', fontSize: 12 },
     shareOptionArrow: { color: 'rgba(255,255,255,0.5)' },
     shareOptionMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14 },
-    shareOptionMoreText: { color: '#666', fontSize: 14 },
+    shareOptionMoreText: { fontFamily: FontFamily.body, color: '#666', fontSize: 14 },
   });

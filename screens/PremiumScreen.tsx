@@ -13,6 +13,7 @@ import HapticTouchable from '../components/HapticTouchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -432,16 +433,17 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 8,
       marginBottom: 20,
     },
-    badgeText: { fontSize: 12, fontWeight: '800', color: theme.gold, letterSpacing: 1.5 },
+    badgeText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1.5 },
     title: {
-      fontSize: 28,
-      fontWeight: '800',
+      fontFamily: FontFamily.display,
+      fontSize: 30,
       color: theme.text,
       textAlign: 'center',
       lineHeight: 36,
+      letterSpacing: 0.5,
     },
     titleGold: { color: theme.gold },
-    subtitle: { fontSize: 13, color: theme.textSecondary, marginTop: 10, fontWeight: '600', textAlign: 'center' },
+    subtitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary, marginTop: 10, textAlign: 'center' },
     statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 28 },
     statCard: {
       flex: 1,
@@ -452,14 +454,15 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    statValue: { color: theme.gold, fontSize: 24, fontWeight: '900' },
-    statLabel: { color: theme.textSecondary, fontSize: 11, marginTop: 4 },
+    statValue: { fontFamily: FontFamily.monoMedium, color: theme.gold, fontSize: 24 },
+    statLabel: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 11, marginTop: 4 },
     sectionTitle: {
-      fontSize: 15,
-      fontWeight: '700',
+      fontFamily: FontFamily.display,
+      fontSize: 17,
       color: theme.text,
       paddingHorizontal: 24,
       marginBottom: 12,
+      letterSpacing: 0.5,
     },
     plansRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 28 },
     planCard: {
@@ -481,13 +484,14 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 8,
       paddingVertical: 3,
     },
-    planBadgeText: { fontSize: 9, fontWeight: '800', color: '#000' },
-    planLabel: { fontSize: 12, fontWeight: '700', color: theme.textMuted, marginTop: 8 },
+    planBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: '#000' },
+    planLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted, marginTop: 8 },
     planLabelSelected: { color: theme.gold },
-    planPrice: { fontSize: 20, fontWeight: '900', color: theme.text, marginTop: 8 },
+    planPrice: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.text, marginTop: 8 },
     planPriceSelected: { color: theme.gold },
-    planPeriod: { fontSize: 11, color: theme.textSecondary, marginTop: 2 },
+    planPeriod: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
     planOriginal: {
+      fontFamily: FontFamily.mono,
       fontSize: 10,
       color: theme.textSecondary,
       marginTop: 4,
@@ -519,7 +523,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     checkIcon: { fontSize: 12, fontWeight: '800', color: theme.gold },
-    benefitText: { fontSize: 14, color: theme.text, fontWeight: '600', flex: 1 },
+    benefitText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, flex: 1 },
     testimonialsRow: { paddingHorizontal: 24, paddingBottom: 28 },
     testimonialCard: {
       width: 250,
@@ -531,8 +535,8 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     testimonialStars: { color: theme.gold, fontSize: 16, marginBottom: 8 },
-    testimonialText: { color: theme.text, fontSize: 13, lineHeight: 20, marginBottom: 12 },
-    testimonialName: { color: theme.textSecondary, fontSize: 12 },
+    testimonialText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 13, lineHeight: 20, marginBottom: 12 },
+    testimonialName: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 12 },
     ctaBtn: {
       marginHorizontal: 24,
       height: 58,
@@ -546,9 +550,9 @@ const createStyles = (theme: Theme) =>
       shadowRadius: 16,
       elevation: 8,
     },
-    ctaText: { fontSize: 16, fontWeight: '800', color: '#000', letterSpacing: 0.3 },
+    ctaText: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: '#000', letterSpacing: 0.3 },
     ctaBtnDisabled: { opacity: 0.5 },
-    ctaSub: { fontSize: 12, color: theme.textSecondary, textAlign: 'center', marginTop: 14 },
+    ctaSub: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, textAlign: 'center', marginTop: 14 },
     comingSoonBadge: {
       alignSelf: 'center',
       backgroundColor: hexToRgba(theme.gold, 0.12),
@@ -559,7 +563,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 8,
       marginBottom: 14,
     },
-    comingSoonText: { fontSize: 12, fontWeight: '800', color: theme.gold, letterSpacing: 1 },
+    comingSoonText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1 },
     btnDisabled: { opacity: 0.5 },
     modalBackdrop: {
       flex: 1,
@@ -574,7 +578,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 16 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
     planSummary: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -587,13 +591,13 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    planSummaryLabel: { fontSize: 13, color: theme.textMuted, fontWeight: '600' },
-    planSummaryValue: { fontSize: 15, color: theme.gold, fontWeight: '800' },
+    planSummaryLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
+    planSummaryValue: { fontFamily: FontFamily.monoMedium, fontSize: 15, color: theme.gold },
     field: { marginBottom: 14 },
     fieldLabel: {
+      fontFamily: FontFamily.mono,
       fontSize: 11,
       color: theme.textSecondary,
-      fontWeight: '600',
       letterSpacing: 1,
       marginBottom: 8,
     },
@@ -603,6 +607,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: 14,
       paddingHorizontal: 16,
       color: theme.text,
+      fontFamily: FontFamily.body,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
@@ -618,7 +623,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    modalCancelText: { fontSize: 14, fontWeight: '700', color: theme.textMuted },
+    modalCancelText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.textMuted },
     modalSaveBtn: {
       flex: 1,
       height: 52,
@@ -627,11 +632,12 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    modalSaveText: { fontSize: 14, fontWeight: '700', color: '#000' },
+    modalSaveText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
     successWrap: { alignItems: 'center', paddingVertical: 20 },
     successIcon: { fontSize: 56, marginBottom: 16 },
-    successTitle: { fontSize: 22, fontWeight: '900', color: theme.gold, marginBottom: 8 },
+    successTitle: { fontFamily: FontFamily.display, fontSize: 24, color: theme.gold, marginBottom: 8, letterSpacing: 0.5 },
     successSub: {
+      fontFamily: FontFamily.body,
       fontSize: 13,
       color: theme.textSecondary,
       textAlign: 'center',

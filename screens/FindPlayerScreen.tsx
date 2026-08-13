@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { sendLocalNotification } from '../lib/notifications';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
@@ -421,8 +422,8 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { color: theme.text, fontSize: 20, fontWeight: '800' },
-    count: { color: theme.gold, fontSize: 13, marginLeft: 'auto', fontWeight: '600' },
+    title: { color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 },
+    count: { color: theme.gold, fontSize: 13, marginLeft: 'auto', fontFamily: FontFamily.mono },
     content: { paddingHorizontal: 16, paddingBottom: 40 },
     filterBtn: {
       flexDirection: 'row',
@@ -434,7 +435,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 8,
       borderWidth: 1,
     },
-    filterBtnText: { fontSize: 14, fontWeight: '600' },
+    filterBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold },
     chevron: { color: theme.textSecondary },
     dropdown: {
       backgroundColor: theme.card2,
@@ -452,10 +453,10 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
     },
-    dropdownAllText: { color: theme.gold, fontSize: 14, fontWeight: '600' },
-    dropdownRowText: { color: theme.text, fontSize: 14 },
+    dropdownAllText: { color: theme.gold, fontSize: 14, fontFamily: FontFamily.bodySemiBold },
+    dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.body },
     checkmark: { color: theme.gold, fontWeight: '700' },
-    categoryLabel: { color: theme.gold, padding: 10, fontWeight: '700', fontSize: 12 },
+    categoryLabel: { color: theme.gold, padding: 10, fontFamily: FontFamily.monoMedium, fontSize: 12 },
     pillsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, paddingBottom: 8, gap: 6 },
     positionPill: {
       paddingHorizontal: 10,
@@ -466,11 +467,11 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     positionPillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    positionPillText: { fontSize: 12, fontWeight: '600', color: theme.text },
+    positionPillText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.text },
     positionPillTextActive: { color: '#000' },
     clearPositionsBtn: { margin: 12, padding: 10, alignItems: 'center' },
     clearAllBtn: { padding: 8, alignItems: 'center', marginBottom: 8 },
-    clearText: { color: theme.error, fontSize: 13, fontWeight: '600' },
+    clearText: { color: theme.error, fontSize: 13, fontFamily: FontFamily.bodySemiBold },
     playerCard: {
       backgroundColor: theme.card,
       borderRadius: 20,
@@ -489,20 +490,20 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       borderWidth: 1.5,
     },
-    playerName: { color: theme.text, fontSize: 16, fontWeight: '800' },
-    playerPosition: { color: theme.gold, fontSize: 12, fontWeight: '600', marginTop: 2 },
-    playerLocation: { color: theme.textSecondary, fontSize: 12 },
-    playerScore: { color: theme.gold, fontSize: 26, fontWeight: '900' },
-    scoreLabel: { color: theme.textSecondary, fontSize: 10 },
+    playerName: { color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold },
+    playerPosition: { color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 },
+    playerLocation: { color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body },
+    playerScore: { color: theme.gold, fontSize: 26, fontFamily: FontFamily.monoMedium },
+    scoreLabel: { color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.mono },
     infoPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
     infoPill: { backgroundColor: theme.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-    infoPillText: { color: theme.textSecondary, fontSize: 11 },
+    infoPillText: { color: theme.textSecondary, fontSize: 11, fontFamily: FontFamily.mono },
     statsBlock: { gap: 4, marginBottom: 12 },
     statRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    statLabel: { color: theme.textSecondary, fontSize: 10, width: 28 },
+    statLabel: { color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.mono, width: 28 },
     statTrack: { flex: 1, height: 4, backgroundColor: theme.border, borderRadius: 2 },
     statFill: { height: 4, backgroundColor: theme.gold, borderRadius: 2 },
-    statValue: { color: theme.text, fontSize: 10, fontWeight: '700', width: 24 },
+    statValue: { color: theme.text, fontSize: 10, fontFamily: FontFamily.monoMedium, width: 24 },
     actionsRow: { flexDirection: 'row', gap: 8 },
     pricedBadge: {
       flex: 1,
@@ -514,8 +515,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.gold, 0.2),
     },
-    pricedBadgeLabel: { color: theme.gold, fontSize: 11, fontWeight: '700' },
-    pricedBadgeValue: { color: theme.gold, fontSize: 13, fontWeight: '900' },
+    pricedBadgeLabel: { color: theme.gold, fontSize: 11, fontFamily: FontFamily.monoMedium },
+    pricedBadgeValue: { color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium },
     freeBadge: {
       flex: 1,
       backgroundColor: hexToRgba(theme.success, 0.08),
@@ -526,8 +527,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.success, 0.2),
     },
-    freeBadgeLabel: { color: theme.success, fontSize: 11, fontWeight: '700' },
-    freeBadgeValue: { color: theme.success, fontSize: 12 },
+    freeBadgeLabel: { color: theme.success, fontSize: 11, fontFamily: FontFamily.monoMedium },
+    freeBadgeValue: { color: theme.success, fontSize: 12, fontFamily: FontFamily.mono },
     inviteBtn: {
       flex: 1,
       backgroundColor: theme.gold,
@@ -536,5 +537,5 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    inviteBtnText: { color: '#000', fontSize: 13, fontWeight: '800' },
+    inviteBtnText: { color: '#000', fontSize: 13, fontFamily: FontFamily.bodySemiBold },
   });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendMatchChallenge } from '../lib/challenges';
 import { sendLocalNotification } from '../lib/notifications';
@@ -321,6 +322,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: 16,
       paddingHorizontal: 16,
       color: theme.text,
+      fontFamily: FontFamily.body,
       fontSize: 15,
       borderWidth: 1,
       borderColor: theme.border,
@@ -335,7 +337,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     tabBtnActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    tabText: { fontSize: 13, fontWeight: '600', color: theme.textMuted },
+    tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
     tabTextActive: { color: '#000' },
     row: {
       flexDirection: 'row',
@@ -356,9 +358,9 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    rowTitle: { fontSize: 14, fontWeight: '700', color: theme.text },
-    rowMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    scoreText: { fontSize: 15, fontWeight: '800', color: theme.gold },
+    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
+    rowMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    scoreText: { fontFamily: FontFamily.monoMedium, fontSize: 15, color: theme.gold },
     actionBtn: {
       backgroundColor: hexToRgba(theme.gold, 0.12),
       borderWidth: 1,
@@ -368,7 +370,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 8,
     },
     actionBtnDone: { backgroundColor: hexToRgba(theme.success, 0.12), borderColor: theme.success },
-    actionBtnText: { fontSize: 11, fontWeight: '700', color: theme.gold },
+    actionBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.gold },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
@@ -380,9 +382,9 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
       gap: 8,
     },
-    modalTitle: { fontSize: 17, fontWeight: '800', color: theme.text, marginBottom: 4 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, marginBottom: 4, letterSpacing: 0.5 },
     saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#000' },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontSize: 13, color: theme.textSecondary, fontWeight: '600' },
+    cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
   });

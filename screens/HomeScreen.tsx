@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { gridItemsData } from '../api/mockData';
 import { supabase } from '../lib/supabase';
 import Toast from '../components/Toast';
@@ -392,8 +393,8 @@ export default function HomeScreen({ navigate, userId }: Props) {
         {tasks.length > 0 && (
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ color: theme.text, fontSize: 17, fontWeight: '700' }}>🎯 Skoru Tamamla</Text>
-              <Text style={{ color: theme.gold, fontSize: 13, fontWeight: '700' }}>{completedPoints}/{totalPoints} puan</Text>
+              <Text style={{ color: theme.text, fontSize: 17, fontFamily: FontFamily.bodySemiBold }}>🎯 Skoru Tamamla</Text>
+              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints} puan</Text>
             </View>
 
             <View style={{ height: 6, backgroundColor: theme.border, borderRadius: 3, marginBottom: 16 }}>
@@ -413,7 +414,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 }}
               >
                 <Text style={{ fontSize: 22, marginBottom: 4 }}>🏆</Text>
-                <Text style={{ color: theme.gold, fontWeight: '700' }}>Tüm görevler tamamlandı!</Text>
+                <Text style={{ color: theme.gold, fontFamily: FontFamily.bodySemiBold }}>Tüm görevler tamamlandı!</Text>
               </View>
             ) : (
               pendingTasks.map((task) => (
@@ -445,12 +446,12 @@ export default function HomeScreen({ navigate, userId }: Props) {
                     <Text style={{ fontSize: 18 }}>{task.icon}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 2 }}>{task.title}</Text>
-                    <Text style={{ color: theme.textSecondary, fontSize: 12 }}>{task.desc}</Text>
+                    <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, marginBottom: 2 }}>{task.title}</Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>{task.desc}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <Text style={{ color: theme.gold, fontSize: 12, fontWeight: '700' }}>+{task.points}</Text>
-                    <Text style={{ color: theme.textSecondary, fontSize: 10 }}>puan</Text>
+                    <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.monoMedium }}>+{task.points}</Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.body }}>puan</Text>
                   </View>
                 </HapticTouchable>
               ))
@@ -470,7 +471,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 borderStyle: 'dashed',
               }}
             >
-              <Text style={{ color: theme.gold, fontSize: 13, fontWeight: '600' }}>Tüm Görevleri Gör</Text>
+              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.bodySemiBold }}>Tüm Görevleri Gör</Text>
               <Text style={{ color: theme.gold }}>→</Text>
             </HapticTouchable>
           </View>
@@ -602,14 +603,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
             <HapticTouchable onPress={() => setShowAllTasks(false)}>
               <Text style={{ color: theme.gold, fontSize: 16 }}>← Geri</Text>
             </HapticTouchable>
-            <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Görevler</Text>
-            <Text style={{ color: theme.gold, fontWeight: '700' }}>{completedPoints}/{totalPoints}</Text>
+            <Text style={{ color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>Görevler</Text>
+            <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints}</Text>
           </View>
 
           <View style={{ margin: 16, backgroundColor: theme.card2, borderRadius: 20, padding: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ color: theme.text, fontWeight: '600' }}>Genel İlerleme</Text>
-              <Text style={{ color: theme.gold, fontWeight: '700' }}>{Math.round(taskProgress)}%</Text>
+              <Text style={{ color: theme.text, fontFamily: FontFamily.bodySemiBold }}>Genel İlerleme</Text>
+              <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium }}>{Math.round(taskProgress)}%</Text>
             </View>
             <View style={{ height: 8, backgroundColor: theme.border, borderRadius: 4 }}>
               <View style={{ height: 8, backgroundColor: theme.gold, borderRadius: 4, width: `${taskProgress}%` }} />
@@ -632,7 +633,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   borderRadius: 16,
                   padding: 14,
                   borderWidth: 1,
-                  borderColor: task.done ? 'rgba(61,220,132,0.3)' : theme.border,
+                  borderColor: task.done ? hexToRgba(theme.success, 0.3) : theme.border,
                   opacity: task.done ? 0.8 : 1,
                 }}
               >
@@ -640,7 +641,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   style={{
                     width: 44,
                     height: 44,
-                    backgroundColor: task.done ? 'rgba(61,220,132,0.1)' : hexToRgba(theme.gold, 0.1),
+                    backgroundColor: task.done ? hexToRgba(theme.success, 0.1) : hexToRgba(theme.gold, 0.1),
                     borderRadius: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -651,19 +652,19 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      color: task.done ? '#3ddc84' : theme.text,
+                      color: task.done ? theme.success : theme.text,
                       fontSize: 14,
-                      fontWeight: '600',
+                      fontFamily: FontFamily.bodySemiBold,
                       marginBottom: 2,
                       textDecorationLine: task.done ? 'line-through' : 'none',
                     }}
                   >
                     {task.title}
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 12 }}>{task.desc}</Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>{task.desc}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: task.done ? '#3ddc84' : theme.gold, fontSize: 13, fontWeight: '700' }}>
+                  <Text style={{ color: task.done ? theme.success : theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>
                     {task.done ? '✓' : `+${task.points}`}
                   </Text>
                 </View>
@@ -682,8 +683,8 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 }}
               >
                 <Text style={{ fontSize: 40, marginBottom: 8 }}>🏆</Text>
-                <Text style={{ color: theme.gold, fontSize: 18, fontWeight: '800', marginBottom: 4 }}>Tebrikler!</Text>
-                <Text style={{ color: theme.textSecondary, textAlign: 'center' }}>
+                <Text style={{ color: theme.gold, fontSize: 22, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>Tebrikler!</Text>
+                <Text style={{ color: theme.textSecondary, textAlign: 'center', fontFamily: FontFamily.body }}>
                   Tüm görevleri tamamladın. Profilin mükemmel!
                 </Text>
               </View>
@@ -709,8 +710,8 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
     },
     greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    greeting: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', letterSpacing: 2 },
-    greetingName: { fontSize: 24, fontWeight: '800', color: theme.text, marginTop: 4 },
+    greeting: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 2 },
+    greetingName: { fontFamily: FontFamily.display, fontSize: 30, color: theme.text, marginTop: 2 },
     gold: { color: theme.gold },
     premiumBadge: {
       backgroundColor: hexToRgba(theme.gold, 0.15),
@@ -720,7 +721,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 8,
       paddingVertical: 2,
     },
-    premiumBadgeText: { fontSize: 9, fontWeight: '800', color: theme.gold, letterSpacing: 0.5 },
+    premiumBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.gold, letterSpacing: 0.5 },
     tipCard: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -730,7 +731,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: hexToRgba(theme.gold, 0.2),
     },
-    tipText: { fontSize: 13, color: theme.textMuted, fontWeight: '600', lineHeight: 19 },
+    tipText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted, lineHeight: 19 },
     scoreLevelPill: {
       alignSelf: 'flex-start',
       borderRadius: 10,
@@ -738,7 +739,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 4,
       marginTop: 6,
     },
-    scoreLevelText: { fontSize: 11, fontWeight: '800' },
+    scoreLevelText: { fontFamily: FontFamily.mono, fontSize: 11 },
     notifBtn: {
       width: 44, height: 44,
       backgroundColor: theme.card,
@@ -759,7 +760,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    notifDotText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+    notifDotText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
     scoreCard: {
       margin: 24,
       marginTop: 0,
@@ -771,12 +772,17 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       borderWidth: 1,
       borderColor: hexToRgba(theme.gold, 0.15),
+      shadowColor: theme.gold,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 24,
+      elevation: 4,
     },
     scoreInfo: { flex: 1 },
-    scoreLabel: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', letterSpacing: 2 },
-    scoreValue: { fontSize: 52, fontWeight: '900', color: theme.gold, lineHeight: 60 },
-    scoreSub: { fontSize: 13, color: theme.textSecondary, marginTop: 4 },
-    scoreUp: { color: theme.success, fontWeight: '600' },
+    scoreLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 2 },
+    scoreValue: { fontFamily: FontFamily.mono, fontSize: 52, color: theme.gold, lineHeight: 60 },
+    scoreSub: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 4 },
+    scoreUp: { fontFamily: FontFamily.bodySemiBold, color: theme.success },
     scoreRing: {
       width: 80, height: 80,
       borderRadius: 40,
@@ -785,7 +791,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    scoreRingText: { fontSize: 16, fontWeight: '800', color: theme.gold },
+    scoreRingText: { fontFamily: FontFamily.monoMedium, fontSize: 16, color: theme.gold },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -793,8 +799,8 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
-    sectionLink: { fontSize: 13, color: theme.gold, fontWeight: '600' },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    sectionLink: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -819,8 +825,8 @@ const createStyles = (theme: Theme) =>
       marginBottom: 10,
     },
     gridIcon: { fontSize: 20 },
-    gridTitle: { fontSize: 13, fontWeight: '700', color: theme.text, marginBottom: 4 },
-    gridSub: { fontSize: 11, color: theme.textSecondary },
+    gridTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 4 },
+    gridSub: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textSecondary },
     activityList: { paddingHorizontal: 24, marginBottom: 28, gap: 10 },
     activityItem: {
       flexDirection: 'row',
@@ -841,8 +847,8 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     activityIcon: { fontSize: 16 },
-    activityText: { flex: 1, fontSize: 12, color: theme.textMuted, fontWeight: '600', lineHeight: 17 },
-    activityTime: { fontSize: 11, color: theme.textSecondary },
+    activityText: { fontFamily: FontFamily.bodySemiBold, flex: 1, fontSize: 12, color: theme.textMuted, lineHeight: 17 },
+    activityTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
     matchItem: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -864,10 +870,10 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     matchBadgeIcon: { fontSize: 22 },
-    matchName: { fontSize: 14, fontWeight: '600', color: theme.text },
-    matchDate: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    matchName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
+    matchDate: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
     matchTag: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-    matchTagText: { fontSize: 11, fontWeight: '700' },
+    matchTagText: { fontFamily: FontFamily.mono, fontSize: 11 },
     notifItem: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -886,8 +892,8 @@ const createStyles = (theme: Theme) =>
     },
     notifAvatarIcon: { fontSize: 18 },
     notifText: { flex: 1 },
-    notifMsg: { fontSize: 13, color: theme.textMuted, lineHeight: 18 },
-    notifTime: { fontSize: 11, color: theme.textSecondary, marginTop: 3 },
+    notifMsg: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, lineHeight: 18 },
+    notifTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 3 },
     unreadDot: {
       width: 7, height: 7,
       borderRadius: 4,

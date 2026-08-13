@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, TextInput, Mod
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { hexToRgba } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 
 interface Props {
@@ -101,13 +103,13 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         borderRadius: 16,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: danger ? 'rgba(248,113,113,0.2)' : theme.border,
+        borderColor: danger ? hexToRgba(theme.error, 0.2) : theme.border,
       }}>
       <View
         style={{
           width: 40,
           height: 40,
-          backgroundColor: danger ? 'rgba(248,113,113,0.1)' : 'rgba(232,184,32,0.1)',
+          backgroundColor: danger ? hexToRgba(theme.error, 0.1) : hexToRgba(theme.gold, 0.1),
           borderRadius: 12,
           alignItems: 'center',
           justifyContent: 'center',
@@ -115,8 +117,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         <Text style={{ fontSize: 20 }}>{icon}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: danger ? '#f87171' : theme.text, fontSize: 14, fontWeight: '600' }}>{title}</Text>
-        {subtitle && <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>}
+        <Text style={{ color: danger ? theme.error : theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>{title}</Text>
+        {subtitle && <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2, fontFamily: FontFamily.body }}>{subtitle}</Text>}
       </View>
       {right || <Text style={{ color: theme.textSecondary }}>›</Text>}
     </TouchableOpacity>
@@ -140,7 +142,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           }}>
           <Text style={{ color: theme.text, fontSize: 18 }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ color: theme.text, fontSize: 20, fontWeight: '800' }}>Ayarlar</Text>
+        <Text style={{ color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>Ayarlar</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
@@ -161,7 +163,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
             style={{
               width: 50,
               height: 50,
-              backgroundColor: 'rgba(232,184,32,0.1)',
+              backgroundColor: 'rgba(255,179,71,0.1)',
               borderRadius: 25,
               alignItems: 'center',
               justifyContent: 'center',
@@ -169,16 +171,16 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
             <Text style={{ fontSize: 24 }}>👤</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: theme.text, fontWeight: '700', fontSize: 15 }}>Hesap</Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>{email}</Text>
+            <Text style={{ color: theme.text, fontSize: 15, fontFamily: FontFamily.bodySemiBold }}>Hesap</Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.body }}>{email}</Text>
           </View>
-          <View style={{ backgroundColor: 'rgba(232,184,32,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: theme.gold, fontSize: 11, fontWeight: '700' }}>Ücretsiz</Text>
+          <View style={{ backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ color: theme.gold, fontSize: 11, fontFamily: FontFamily.mono }}>Ücretsiz</Text>
           </View>
         </View>
 
         {/* HESAP AYARLARI */}
-        <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, paddingHorizontal: 4 }}>
+        <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, paddingHorizontal: 4 }}>
           HESAP
         </Text>
 
@@ -195,23 +197,23 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         {/* GÖRÜNÜM */}
         <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
+          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
           GÖRÜNÜM
         </Text>
 
         <View style={{ backgroundColor: theme.card, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
-            <View style={{ width: 40, height: 40, backgroundColor: 'rgba(232,184,32,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 20 }}>{isDark ? '🌙' : '☀️'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>Tema</Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 12 }}>{isDark ? 'Koyu Mod' : 'Açık Mod'}</Text>
+              <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>Tema</Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>{isDark ? 'Koyu Mod' : 'Açık Mod'}</Text>
             </View>
             <Switch
               value={isDark}
               onValueChange={toggleTheme}
-              trackColor={{ false: '#767577', true: 'rgba(232,184,32,0.4)' }}
+              trackColor={{ false: '#767577', true: 'rgba(255,179,71,0.4)' }}
               thumbColor={isDark ? theme.gold : '#f4f3f4'}
             />
           </View>
@@ -219,12 +221,12 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         <View style={{ backgroundColor: theme.card, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
-            <View style={{ width: 40, height: 40, backgroundColor: 'rgba(232,184,32,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 20 }}>🌐</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>Dil / Language</Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 12 }}>{lang === 'tr' ? 'Türkçe' : 'English'}</Text>
+              <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>Dil / Language</Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>{lang === 'tr' ? 'Türkçe' : 'English'}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity
@@ -237,7 +239,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
                   borderWidth: 1,
                   borderColor: lang === 'tr' ? theme.gold : theme.border,
                 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: lang === 'tr' ? '#000' : theme.textSecondary }}>TR 🇹🇷</Text>
+                <Text style={{ fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: lang === 'tr' ? '#000' : theme.textSecondary }}>TR 🇹🇷</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setLang('en')}
@@ -249,7 +251,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
                   borderWidth: 1,
                   borderColor: lang === 'en' ? theme.gold : theme.border,
                 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: lang === 'en' ? '#000' : theme.textSecondary }}>EN 🇬🇧</Text>
+                <Text style={{ fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: lang === 'en' ? '#000' : theme.textSecondary }}>EN 🇬🇧</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -257,7 +259,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         {/* BİLDİRİMLER */}
         <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
+          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
           BİLDİRİMLER
         </Text>
 
@@ -269,14 +271,14 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         ].map((item) => (
           <View key={item.key} style={{ backgroundColor: theme.card, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
-              <View style={{ width: 40, height: 40, backgroundColor: 'rgba(232,184,32,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontSize: 20 }}>{item.icon}</Text>
               </View>
-              <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', flex: 1 }}>{item.label}</Text>
+              <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, flex: 1 }}>{item.label}</Text>
               <Switch
                 value={item.value}
                 onValueChange={item.setter}
-                trackColor={{ false: '#767577', true: 'rgba(232,184,32,0.4)' }}
+                trackColor={{ false: '#767577', true: 'rgba(255,179,71,0.4)' }}
                 thumbColor={item.value ? theme.gold : '#f4f3f4'}
               />
             </View>
@@ -285,7 +287,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         {/* GİZLİLİK & DESTEK */}
         <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
+          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
           GİZLİLİK & DESTEK
         </Text>
 
@@ -309,18 +311,18 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         {/* UYGULAMA BİLGİSİ */}
         <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
+          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
           UYGULAMA
         </Text>
 
         <View style={{ backgroundColor: theme.card, borderRadius: 16, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
-          <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 4 }}>Footbally</Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 12 }}>Sürüm 1.0.0 Beta</Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 12 }}>© 2025 Footbally. Tüm hakları saklıdır.</Text>
+          <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, marginBottom: 4 }}>Footbally</Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>Sürüm 1.0.0 Beta</Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>© 2025 Footbally. Tüm hakları saklıdır.</Text>
         </View>
 
         {/* TEHLİKELİ ALAN */}
-        <Text style={{ color: '#f87171', fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
+        <Text style={{ color: theme.error, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
           HESAP İŞLEMLERİ
         </Text>
 
@@ -335,36 +337,36 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
       <Modal visible={showPasswordModal} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }}>
-            <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800', marginBottom: 20 }}>Şifre Değiştir</Text>
+            <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, marginBottom: 20 }}>Şifre Değiştir</Text>
 
-            <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 6 }}>YENİ ŞİFRE</Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, marginBottom: 6 }}>YENİ ŞİFRE</Text>
             <TextInput
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="En az 6 karakter"
               placeholderTextColor={theme.textSecondary}
               secureTextEntry
-              style={{ backgroundColor: theme.bg, borderRadius: 14, padding: 14, color: theme.text, marginBottom: 12, borderWidth: 1, borderColor: theme.border }}
+              style={{ backgroundColor: theme.bg, borderRadius: 14, padding: 14, color: theme.text, fontFamily: FontFamily.body, marginBottom: 12, borderWidth: 1, borderColor: theme.border }}
             />
 
-            <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 6 }}>YENİ ŞİFRE (TEKRAR)</Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, marginBottom: 6 }}>YENİ ŞİFRE (TEKRAR)</Text>
             <TextInput
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Şifreyi tekrar girin"
               placeholderTextColor={theme.textSecondary}
               secureTextEntry
-              style={{ backgroundColor: theme.bg, borderRadius: 14, padding: 14, color: theme.text, marginBottom: 20, borderWidth: 1, borderColor: theme.border }}
+              style={{ backgroundColor: theme.bg, borderRadius: 14, padding: 14, color: theme.text, fontFamily: FontFamily.body, marginBottom: 20, borderWidth: 1, borderColor: theme.border }}
             />
 
             <TouchableOpacity
               onPress={handleChangePassword}
               style={{ backgroundColor: theme.gold, borderRadius: 14, padding: 16, alignItems: 'center', marginBottom: 10 }}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 15 }}>{loading ? 'Değiştiriliyor...' : 'Şifreyi Değiştir'}</Text>
+              <Text style={{ color: '#000', fontFamily: FontFamily.bodySemiBold, fontSize: 15 }}>{loading ? 'Değiştiriliyor...' : 'Şifreyi Değiştir'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowPasswordModal(false)} style={{ padding: 14, alignItems: 'center' }}>
-              <Text style={{ color: theme.textSecondary }}>İptal</Text>
+              <Text style={{ color: theme.textSecondary, fontFamily: FontFamily.body }}>İptal</Text>
             </TouchableOpacity>
           </View>
         </View>

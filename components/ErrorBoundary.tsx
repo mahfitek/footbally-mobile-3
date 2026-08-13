@@ -2,6 +2,7 @@ import { Component, ReactNode } from 'react';
 import { View, Text, Image, StyleSheet, Linking } from 'react-native';
 import * as MailComposer from 'expo-mail-composer';
 import { DarkTheme, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import GoldButton from './GoldButton';
 
 interface Props {
@@ -83,8 +84,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontFamily: FontFamily.display,
+    fontSize: 22,
+    letterSpacing: 0.5,
     marginBottom: 24,
   },
   button: {

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -433,14 +434,14 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 16, fontWeight: '700', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
     saveBtn: { padding: 8, minWidth: 44, alignItems: 'flex-end' },
-    saveBtnText: { fontSize: 15, fontWeight: '700', color: theme.gold },
+    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.gold },
     content: { paddingHorizontal: 16, paddingBottom: 60 },
     row: { flexDirection: 'row', gap: 12 },
     half: { flex: 1 },
     inputGroup: { marginBottom: 16 },
-    inputLabel: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', letterSpacing: 1, marginBottom: 8 },
+    inputLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 1, marginBottom: 8 },
     input: {
       height: 48,
       backgroundColor: theme.card2,
@@ -448,13 +449,14 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
+      fontFamily: FontFamily.body,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     inputDisabled: { opacity: 0.5 },
-    inputValueText: { color: theme.text, fontSize: 14 },
-    inputPlaceholderText: { color: theme.textSecondary, fontSize: 14 },
+    inputValueText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 14 },
+    inputPlaceholderText: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 14 },
     textArea: { height: 100, paddingTop: 12, textAlignVertical: 'top' },
     pillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stylePill: {
@@ -466,7 +468,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     stylePillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    stylePillText: { fontSize: 12, fontWeight: '600', color: theme.textMuted },
+    stylePillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted },
     stylePillTextActive: { color: '#000' },
     inlinePicker: {
       backgroundColor: theme.card2,
@@ -486,6 +488,6 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.border,
       justifyContent: 'space-between',
     },
-    listRowText: { fontSize: 15, color: theme.text },
+    listRowText: { fontFamily: FontFamily.body, fontSize: 15, color: theme.text },
     checkmark: { fontSize: 15, color: theme.gold, fontWeight: '700' },
   });

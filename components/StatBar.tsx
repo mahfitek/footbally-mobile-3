@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 
 interface Props {
   name: string;
@@ -45,12 +46,16 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     item: { marginTop: 16 },
     top: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    name: { fontSize: 13, color: theme.textMuted },
-    value: { fontSize: 13, color: theme.text, fontWeight: '700' },
+    name: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
+    value: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
     track: { height: 4, backgroundColor: theme.border, borderRadius: 2, overflow: 'hidden' },
     fill: {
       height: 4,
       backgroundColor: theme.gold,
       borderRadius: 2,
+      shadowColor: theme.gold,
+      shadowOpacity: 0.6,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 0 },
     },
   });

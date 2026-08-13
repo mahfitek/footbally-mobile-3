@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
+import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 
 interface Props {
   message: string;
@@ -23,9 +25,14 @@ export default function Toast({ message, type = 'info', visible, onHide }: Props
   if (!visible) return null;
 
   return (
-    <View style={[styles.container, styles[type]]}>
+    <MotiView
+      style={[styles.container, styles[type]]}
+      from={{ opacity: 0, translateY: 16 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 250 }}
+    >
       <Text style={styles.text} numberOfLines={2}>{message}</Text>
-    </View>
+    </MotiView>
   );
 }
 
@@ -49,9 +56,9 @@ const createStyles = (theme: Theme) =>
     error: { borderColor: theme.error },
     info: { borderColor: theme.gold },
     text: {
+      fontFamily: FontFamily.bodySemiBold,
       color: theme.text,
       fontSize: 13,
-      fontWeight: '600',
       textAlign: 'center',
     },
   });

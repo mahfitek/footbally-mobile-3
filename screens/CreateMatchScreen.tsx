@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import Toast from '../components/Toast';
@@ -391,14 +392,14 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 20, fontWeight: '800', color: theme.text },
+    title: { fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     row: { flexDirection: 'row', gap: 12 },
     half: { flex: 1 },
     inputGroup: { marginBottom: 16 },
     inputLabel: {
       fontSize: 11,
       color: theme.textSecondary,
-      fontWeight: '600',
+      fontFamily: FontFamily.mono,
       letterSpacing: 1,
       marginBottom: 8,
     },
@@ -410,12 +411,13 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       color: theme.text,
       fontSize: 15,
+      fontFamily: FontFamily.body,
       borderWidth: 1,
       borderColor: theme.border,
     },
     inputDisabled: { opacity: 0.5 },
-    inputValueText: { color: theme.text, fontSize: 15 },
-    inputPlaceholderText: { color: theme.textSecondary, fontSize: 15 },
+    inputValueText: { color: theme.text, fontSize: 15, fontFamily: FontFamily.body },
+    inputPlaceholderText: { color: theme.textSecondary, fontSize: 15, fontFamily: FontFamily.body },
     typeRow: { flexDirection: 'row', gap: 10 },
     typePill: {
       flex: 1,
@@ -427,7 +429,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     typePillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    typePillText: { fontSize: 13, fontWeight: '700', color: theme.textMuted },
+    typePillText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
     typePillTextActive: { color: '#000' },
     submitBtn: {
       height: 56,
@@ -438,7 +440,7 @@ const createStyles = (theme: Theme) =>
       marginTop: 8,
     },
     submitBtnDisabled: { opacity: 0.6 },
-    submitBtnText: { fontSize: 16, fontWeight: '700', color: '#000', letterSpacing: 1 },
+    submitBtnText: { fontSize: 16, fontFamily: FontFamily.bodySemiBold, color: '#000', letterSpacing: 1 },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -453,7 +455,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 16 },
+    modalTitle: { fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text, marginBottom: 16 },
     searchInput: {
       height: 48,
       backgroundColor: theme.card2,
@@ -461,6 +463,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 16,
       color: theme.text,
       fontSize: 14,
+      fontFamily: FontFamily.body,
       borderWidth: 1,
       borderColor: theme.border,
       marginBottom: 12,
@@ -478,10 +481,10 @@ const createStyles = (theme: Theme) =>
     listRowPlate: {
       width: 28,
       fontSize: 13,
-      fontWeight: '700',
+      fontFamily: FontFamily.monoMedium,
       color: theme.gold,
     },
-    listRowText: { fontSize: 15, color: theme.text },
+    listRowText: { fontSize: 15, fontFamily: FontFamily.body, color: theme.text },
     modalCancelBtn: {
       height: 52,
       borderRadius: 18,
@@ -491,5 +494,5 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       marginTop: 12,
     },
-    modalCancelText: { fontSize: 14, fontWeight: '700', color: theme.textMuted },
+    modalCancelText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
   });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -181,7 +182,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 20, fontWeight: '800', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
     headerUnreadBadge: {
       minWidth: 22,
       height: 22,
@@ -191,7 +192,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    headerUnreadText: { fontSize: 11, fontWeight: '800', color: '#000' },
+    headerUnreadText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: '#000' },
     list: { paddingHorizontal: 24, gap: 12 },
     item: {
       flexDirection: 'row',
@@ -216,8 +217,8 @@ const createStyles = (theme: Theme) =>
     },
     avatarIcon: { fontSize: 20 },
     text: { flex: 1 },
-    msg: { fontSize: 13, color: theme.textMuted, lineHeight: 18, fontWeight: '600' },
-    time: { fontSize: 11, color: theme.textSecondary, marginTop: 4 },
+    msg: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted, lineHeight: 18 },
+    time: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 4 },
     unreadDot: {
       width: 8,
       height: 8,

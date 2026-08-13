@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
 import Toast from '../components/Toast';
@@ -359,7 +360,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 20, fontWeight: '800', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
     viewersHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -367,7 +368,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 12,
     },
-    viewersHeaderText: { fontSize: 13, fontWeight: '700', color: theme.text, flex: 1 },
+    viewersHeaderText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, flex: 1 },
     onlineToggle: {
       paddingHorizontal: 12,
       paddingVertical: 6,
@@ -377,7 +378,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     onlineToggleActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    onlineToggleText: { fontSize: 11, fontWeight: '700', color: theme.textSecondary },
+    onlineToggleText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.textSecondary },
     onlineToggleTextActive: { color: '#000' },
     viewersRow: { paddingHorizontal: 24, gap: 12, marginBottom: 24 },
     viewerCard: {
@@ -411,8 +412,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 2,
       borderColor: theme.card,
     },
-    viewerName: { fontSize: 12, fontWeight: '700', color: theme.text, textAlign: 'center' },
-    viewerRole: { fontSize: 10, color: theme.textSecondary, textAlign: 'center', marginTop: 2, marginBottom: 10 },
+    viewerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.text, textAlign: 'center' },
+    viewerRole: { fontFamily: FontFamily.body, fontSize: 10, color: theme.textSecondary, textAlign: 'center', marginTop: 2, marginBottom: 10 },
     viewerMsgBtn: {
       backgroundColor: hexToRgba(theme.gold, 0.12),
       borderWidth: 1,
@@ -421,7 +422,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
-    viewerMsgBtnText: { fontSize: 10, fontWeight: '700', color: theme.gold },
+    viewerMsgBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: theme.gold },
     ageRangeCard: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -431,7 +432,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    ageRangeLabel: { fontSize: 11, fontWeight: '700', color: theme.textSecondary, letterSpacing: 1, marginBottom: 12 },
+    ageRangeLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 1, marginBottom: 12 },
     ageRangeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
     ageRangeDash: { color: theme.textSecondary, fontSize: 14 },
     ageStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -446,7 +447,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     ageStepBtnText: { fontSize: 16, fontWeight: '700', color: theme.gold },
-    ageStepValue: { fontSize: 15, fontWeight: '800', color: theme.text, width: 28, textAlign: 'center' },
+    ageStepValue: { fontFamily: FontFamily.monoMedium, fontSize: 15, color: theme.text, width: 28, textAlign: 'center' },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -460,7 +461,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 18,
     },
     searchIcon: { fontSize: 15, marginRight: 10 },
-    searchInput: { flex: 1, fontSize: 14, color: theme.text },
+    searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: theme.text },
     filters: { paddingHorizontal: 24, gap: 10, marginBottom: 20 },
     pill: {
       paddingHorizontal: 16,
@@ -471,7 +472,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     pillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    pillText: { fontSize: 13, fontWeight: '600', color: theme.textMuted },
+    pillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
     pillTextActive: { color: '#000' },
     aiCard: {
       marginHorizontal: 24,
@@ -484,8 +485,8 @@ const createStyles = (theme: Theme) =>
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     aiIcon: { fontSize: 16 },
-    aiLabel: { fontSize: 11, fontWeight: '700', color: theme.gold, letterSpacing: 1.5 },
-    aiText: { fontSize: 15, color: theme.text, lineHeight: 22, fontWeight: '600' },
+    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
+    aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     list: { paddingHorizontal: 24, gap: 14 },
     playerCard: {
       flexDirection: 'row',
@@ -509,8 +510,8 @@ const createStyles = (theme: Theme) =>
     },
     avatarEmoji: { fontSize: 24 },
     playerInfo: { flex: 1 },
-    playerName: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 2 },
-    playerMeta: { fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
+    playerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, marginBottom: 2 },
+    playerMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
     contactBtn: {
       alignSelf: 'flex-start',
       backgroundColor: hexToRgba(theme.gold, 0.12),
@@ -520,6 +521,6 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    contactBtnText: { fontSize: 12, fontWeight: '700', color: theme.gold },
-    playerScore: { fontSize: 22, fontWeight: '800', color: theme.gold },
+    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
+    playerScore: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
   });

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
+import { FontFamily } from '../constants/fonts';
 
 interface PlayerCardStats {
   hiz: number;
@@ -87,8 +88,8 @@ export default function PlayerShareCard({
 function StatItem({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ color, fontSize: 18, fontWeight: '900', fontFamily: 'System' }}>{value || 50}</Text>
-      <Text style={{ color: '#888', fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>{label}</Text>
+      <Text style={{ color, fontSize: 18, fontFamily: FontFamily.monoMedium }}>{value || 50}</Text>
+      <Text style={{ color: '#888', fontSize: 9, fontFamily: FontFamily.mono, letterSpacing: 1 }}>{label}</Text>
     </View>
   );
 }
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     height: 400,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#E8B820',
+    shadowColor: '#FFB347',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
@@ -126,12 +127,12 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#E8B820',
+    borderColor: '#FFB347',
     padding: 16,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#0E1524',
   },
   shimmerTop: {
     position: 'absolute',
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#E8B820',
+    backgroundColor: '#FFB347',
     opacity: 0.8,
   },
   topLeft: {
@@ -150,14 +151,14 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   scoreNum: {
-    fontSize: 36,
-    fontWeight: '900',
-    lineHeight: 36,
+    fontFamily: FontFamily.display,
+    fontSize: 44,
+    lineHeight: 44,
   },
   positionShort: {
-    color: '#E8B820',
+    fontFamily: FontFamily.mono,
+    color: '#FFB347',
     fontSize: 14,
-    fontWeight: '800',
     letterSpacing: 1,
   },
   flags: {
@@ -190,20 +191,20 @@ const styles = StyleSheet.create({
     height: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(232,184,32,0.05)',
+    backgroundColor: 'rgba(255,179,71,0.05)',
     borderRadius: 12,
   },
   divider: {
     width: '80%',
     height: 1,
-    backgroundColor: '#E8B820',
+    backgroundColor: '#FFB347',
     opacity: 0.4,
     marginVertical: 8,
   },
   playerName: {
+    fontFamily: FontFamily.display,
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 26,
     letterSpacing: 3,
     marginBottom: 12,
   },
@@ -220,18 +221,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   watermarkText: {
-    color: 'rgba(232,184,32,0.4)',
-    fontSize: 10,
-    fontWeight: '900',
+    fontFamily: FontFamily.display,
+    color: 'rgba(255,179,71,0.4)',
+    fontSize: 12,
     letterSpacing: 2,
   },
   premiumBadge: {
-    color: '#E8B820',
+    fontFamily: FontFamily.mono,
+    color: '#FFB347',
     fontSize: 9,
-    fontWeight: '700',
   },
-  cornerTL: { position: 'absolute', top: 8, left: 8, width: 12, height: 12, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(232,184,32,0.5)', borderTopLeftRadius: 4 },
-  cornerTR: { position: 'absolute', top: 8, right: 8, width: 12, height: 12, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(232,184,32,0.5)', borderTopRightRadius: 4 },
-  cornerBL: { position: 'absolute', bottom: 8, left: 8, width: 12, height: 12, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(232,184,32,0.5)', borderBottomLeftRadius: 4 },
-  cornerBR: { position: 'absolute', bottom: 8, right: 8, width: 12, height: 12, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(232,184,32,0.5)', borderBottomRightRadius: 4 },
+  cornerTL: { position: 'absolute', top: 8, left: 8, width: 12, height: 12, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(255,179,71,0.5)', borderTopLeftRadius: 4 },
+  cornerTR: { position: 'absolute', top: 8, right: 8, width: 12, height: 12, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(255,179,71,0.5)', borderTopRightRadius: 4 },
+  cornerBL: { position: 'absolute', bottom: 8, left: 8, width: 12, height: 12, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(255,179,71,0.5)', borderBottomLeftRadius: 4 },
+  cornerBR: { position: 'absolute', bottom: 8, right: 8, width: 12, height: 12, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(255,179,71,0.5)', borderBottomRightRadius: 4 },
 });

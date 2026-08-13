@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
@@ -269,7 +270,7 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
       paddingBottom: 20,
     },
-    title: { fontSize: 22, fontWeight: '800', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 0.5 },
     aiCard: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -281,8 +282,8 @@ const createStyles = (theme: Theme) =>
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     aiIcon: { fontSize: 16 },
-    aiLabel: { fontSize: 11, fontWeight: '700', color: theme.gold, letterSpacing: 1.5 },
-    aiText: { fontSize: 15, color: theme.text, lineHeight: 22, fontWeight: '600' },
+    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
+    aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     miniRow: {
       flexDirection: 'row',
       marginHorizontal: 24,
@@ -301,8 +302,8 @@ const createStyles = (theme: Theme) =>
       borderRightColor: theme.border,
     },
     miniIcon: { fontSize: 20, marginBottom: 6 },
-    miniVal: { fontSize: 20, fontWeight: '800', color: theme.gold },
-    miniLabel: { fontSize: 10, color: theme.textSecondary, fontWeight: '600', marginTop: 2 },
+    miniVal: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.gold },
+    miniLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -312,14 +313,14 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     chartHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 20,
     },
-    chartAvg: { fontSize: 12, color: theme.gold, fontWeight: '700' },
+    chartAvg: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.gold },
     chartRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -340,17 +341,17 @@ const createStyles = (theme: Theme) =>
       borderRadius: 6,
     },
     barFillToday: { backgroundColor: theme.gold },
-    barLabel: { fontSize: 10, color: theme.textSecondary, fontWeight: '600' },
+    barLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary },
     compareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-    compareLabel: { fontSize: 12, color: theme.textSecondary, width: 70, fontWeight: '600' },
+    compareLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textSecondary, width: 70 },
     compareTrack: { flex: 1, height: 10, backgroundColor: theme.border, borderRadius: 5, overflow: 'hidden' },
     compareFill: { height: 10, borderRadius: 5 },
-    compareValue: { fontSize: 13, color: theme.text, fontWeight: '800', width: 30, textAlign: 'right' },
-    compareHint: { fontSize: 12, color: theme.textSecondary, marginTop: 14 },
+    compareValue: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text, width: 30, textAlign: 'right' },
+    compareHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 14 },
     skillItem: { marginTop: 16 },
     skillTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    skillName: { fontSize: 13, color: theme.textMuted },
-    skillVal: { fontSize: 13, color: theme.text, fontWeight: '700' },
+    skillName: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
+    skillVal: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
     skillTrack: { height: 4, backgroundColor: theme.border, borderRadius: 2 },
     skillFill: {
       height: 4,
@@ -367,8 +368,9 @@ const createStyles = (theme: Theme) =>
       borderColor: hexToRgba(theme.gold, 0.2),
     },
     premiumIcon: { fontSize: 26, color: theme.gold, marginBottom: 10 },
-    premiumTitle: { fontSize: 17, fontWeight: '800', color: theme.text, marginBottom: 6 },
+    premiumTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 17, color: theme.text, marginBottom: 6 },
     premiumSub: {
+      fontFamily: FontFamily.body,
       fontSize: 13,
       color: theme.textSecondary,
       textAlign: 'center',
@@ -381,5 +383,5 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       paddingVertical: 13,
     },
-    premiumBtnText: { fontSize: 14, fontWeight: '700', color: '#000' },
+    premiumBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
   });

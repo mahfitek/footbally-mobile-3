@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { MotiView } from 'moti';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 
 interface Props {
@@ -18,7 +20,12 @@ export default function PlayerCard({ emoji, name, position, age, city, score, on
   const styles = createStyles(theme);
 
   return (
-    <View style={styles.card}>
+    <MotiView
+      style={styles.card}
+      from={{ opacity: 0, translateY: 12 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 240 }}
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarEmoji}>{emoji}</Text>
       </View>
@@ -32,7 +39,7 @@ export default function PlayerCard({ emoji, name, position, age, city, score, on
         </HapticTouchable>
       </View>
       <Text style={styles.score}>{score}</Text>
-    </View>
+    </MotiView>
   );
 }
 
@@ -60,8 +67,8 @@ const createStyles = (theme: Theme) =>
     },
     avatarEmoji: { fontSize: 24 },
     info: { flex: 1 },
-    name: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 2 },
-    meta: { fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
+    name: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, marginBottom: 2 },
+    meta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
     contactBtn: {
       alignSelf: 'flex-start',
       backgroundColor: hexToRgba(theme.gold, 0.12),
@@ -71,6 +78,6 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    contactBtnText: { fontSize: 12, fontWeight: '700', color: theme.gold },
-    score: { fontSize: 22, fontWeight: '800', color: theme.gold },
+    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
+    score: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
   });

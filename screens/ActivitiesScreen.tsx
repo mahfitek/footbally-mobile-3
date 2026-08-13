@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { activityFiltersData } from '../api/mockData';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
@@ -257,7 +258,7 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
       paddingBottom: 20,
     },
-    title: { fontSize: 22, fontWeight: '800', color: theme.text },
+    title: { fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     filters: {
       paddingHorizontal: 24,
       gap: 10,
@@ -278,7 +279,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.gold,
       borderColor: theme.gold,
     },
-    pillText: { fontSize: 13, fontWeight: '600', color: theme.textMuted },
+    pillText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
     pillTextActive: { color: '#000' },
     pillBadge: {
       minWidth: 18,
@@ -290,7 +291,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 5,
     },
     pillBadgeActive: { backgroundColor: 'rgba(0,0,0,0.2)' },
-    pillBadgeText: { fontSize: 10, fontWeight: '800', color: theme.gold },
+    pillBadgeText: { fontSize: 10, fontFamily: FontFamily.monoMedium, color: theme.gold },
     pillBadgeTextActive: { color: '#000' },
     list: { paddingHorizontal: 24, gap: 16 },
     card: {
@@ -310,8 +311,8 @@ const createStyles = (theme: Theme) =>
     },
     icon: { fontSize: 22 },
     cardTopText: { flex: 1 },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 4 },
-    cardSubtitle: { fontSize: 12, color: theme.textSecondary, lineHeight: 17 },
+    cardTitle: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.text, marginBottom: 4 },
+    cardSubtitle: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, lineHeight: 17 },
     badge: {
       borderRadius: 8,
       paddingHorizontal: 10,
@@ -319,9 +320,9 @@ const createStyles = (theme: Theme) =>
       alignSelf: 'flex-start',
       marginBottom: 16,
     },
-    badgeText: { fontSize: 11, fontWeight: '700' },
+    badgeText: { fontSize: 11, fontFamily: FontFamily.monoMedium },
     metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 16 },
-    metaText: { fontSize: 12, color: theme.textSecondary },
+    metaText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
     applyBtn: {
       backgroundColor: theme.gold,
       borderRadius: 14,
@@ -333,6 +334,6 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.success,
     },
-    applyBtnText: { fontSize: 14, fontWeight: '700', color: '#000' },
+    applyBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: '#000' },
     applyBtnTextDone: { color: theme.success },
   });

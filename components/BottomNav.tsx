@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 
 export type TabName =
@@ -196,15 +197,15 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    badgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+    badgeText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
     label: {
+      fontFamily: FontFamily.body,
       fontSize: 10,
-      fontWeight: '500',
       color: theme.textSecondary,
     },
     labelActive: {
+      fontFamily: FontFamily.bodySemiBold,
       color: theme.gold,
-      fontWeight: '700',
     },
     centerBtn: {
       width: 56,

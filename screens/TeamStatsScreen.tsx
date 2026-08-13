@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { hexToRgba, Theme } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -439,7 +440,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 16, fontWeight: '700', color: theme.text },
+    title: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
     statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
     statCard: {
       flex: 1,
@@ -450,8 +451,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    statValue: { fontSize: 18, fontWeight: '800', color: theme.gold },
-    statLabel: { fontSize: 10, color: theme.textSecondary, fontWeight: '600', marginTop: 2 },
+    statValue: { fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold },
+    statLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -462,16 +463,16 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 16 },
-    upcomingText: { fontSize: 12, color: theme.gold, fontWeight: '700' },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
+    upcomingText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     goalsRow: { flexDirection: 'row', justifyContent: 'space-around' },
     goalsItem: { alignItems: 'center' },
-    goalsValue: { fontSize: 24, fontWeight: '900', color: theme.gold },
-    goalsLabel: { fontSize: 11, color: theme.textSecondary, marginTop: 4 },
+    goalsValue: { fontFamily: FontFamily.monoMedium, fontSize: 24, color: theme.gold },
+    goalsLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 4 },
     formRow: { flexDirection: 'row', gap: 8 },
     formPill: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    formPillText: { fontSize: 13, fontWeight: '800', color: theme.text },
-    emptyHint: { fontSize: 12, color: theme.textSecondary },
+    formPillText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
+    emptyHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary },
     scorerRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -480,9 +481,9 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    scorerRank: { width: 20, fontSize: 14, fontWeight: '800', color: theme.gold },
-    scorerName: { flex: 1, fontSize: 13, color: theme.text, fontWeight: '600' },
-    scorerGoals: { fontSize: 13, color: theme.gold, fontWeight: '700' },
+    scorerRank: { width: 20, fontFamily: FontFamily.monoMedium, fontSize: 14, color: theme.gold },
+    scorerName: { flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
+    scorerGoals: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.gold },
     scorableRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -491,8 +492,8 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    scorableTitle: { fontSize: 13, fontWeight: '700', color: theme.text },
-    scorableMeta: { fontSize: 11, color: theme.textSecondary, marginTop: 2 },
+    scorableTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
+    scorableMeta: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
     scoreEntryBtn: {
       backgroundColor: hexToRgba(theme.gold, 0.12),
       borderWidth: 1,
@@ -501,7 +502,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    scoreEntryBtnText: { fontSize: 12, fontWeight: '700', color: theme.gold },
+    scoreEntryBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
@@ -512,10 +513,10 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 6 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 6, letterSpacing: 0.5 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 20, marginBottom: 20 },
     scoreInputCol: { alignItems: 'center', width: 100 },
-    scoreInputLabel: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
+    scoreInputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.textSecondary, marginBottom: 8, textAlign: 'center' },
     scoreInput: {
       width: 64,
       height: 56,
@@ -524,13 +525,13 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
       color: theme.text,
+      fontFamily: FontFamily.monoMedium,
       fontSize: 24,
-      fontWeight: '800',
       textAlign: 'center',
     },
-    scoreDash: { fontSize: 20, color: theme.textSecondary, marginTop: 20 },
+    scoreDash: { fontFamily: FontFamily.mono, fontSize: 20, color: theme.textSecondary, marginTop: 20 },
     saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center' },
-    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#000' },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontSize: 13, color: theme.textSecondary, fontWeight: '600' },
+    cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
   });
