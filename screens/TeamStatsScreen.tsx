@@ -1,0 +1,536 @@
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../context/ThemeContext';
+import { hexToRgba, Theme } from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import EmptyState from '../components/EmptyState';
+import SkeletonCard from '../components/SkeletonCard';
+import HapticTouchable from '../components/HapticTouchable';
+import Toast from '../components/Toast';
+
+type TeamRecord = {
+  id: string;
+  name: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  goals_scored: number;
+  goals_conceded: number;
+  clean_sheets: number;
+};
+
+type ScorerRow = { user_id: string; full_name: string; goals: number };
+
+type ChallengeRow = {
+  id: string;
+  challenger_team_id: string;
+  opponent_team_id: string;
+  date: string;
+  time: string;
+  location: string;
+  status: string;
+  challenger_goals: number | null;
+  opponent_goals: number | null;
+  challengerName: string;
+  opponentName: string;
+};
+
+interface Props {
+  navigate: (screen: string, params?: any) => void;
+  userId?: string | null;
+}
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+export default function TeamStatsScreen({ navigate, userId }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [team, setTeam] = useState<TeamRecord | null>(null);
+  const [form, setForm] = useState<('W' | 'L' | 'D')[]>([]);
+  const [scorers, setScorers] = useState<ScorerRow[]>([]);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [scorable, setScorable] = useState<ChallengeRow[]>([]);
+  const [scoreTarget, setScoreTarget] = useState<ChallengeRow | null>(null);
+  const [challengerGoalsInput, setChallengerGoalsInput] = useState('0');
+  const [opponentGoalsInput, setOpponentGoalsInput] = useState('0');
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
+
+  const resolveUserId = async () => {
+    if (userId) return userId;
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id ?? null;
+  };
+
+  const loadAll = async () => {
+    setLoading(true);
+    const uid = await resolveUserId();
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+
+    const { data: teamRow, error } = await supabase
+      .from('teams')
+      .select('id, name, wins, losses, draws, goals_scored, goals_conceded, clean_sheets')
+      .eq('owner_id', uid)
+      .maybeSingle();
+
+    if (error || !teamRow) {
+      if (__DEV__ && error) console.log('Takım yüklenemedi:', error);
+      setTeam(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    setTeam(teamRow as TeamRecord);
+    await Promise.all([loadChallenges(teamRow.id), loadScorers(teamRow.id)]);
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  const loadChallenges = async (teamId: string) => {
+    const { data, error } = await supabase
+      .from('match_challenges')
+      .select(
+        'id, challenger_team_id, opponent_team_id, date, time, location, status, challenger_goals, opponent_goals, challenger:teams!match_challenges_challenger_team_id_fkey(name), opponent:teams!match_challenges_opponent_team_id_fkey(name)'
+      )
+      .or(`challenger_team_id.eq.${teamId},opponent_team_id.eq.${teamId}`)
+      .order('date', { ascending: false });
+
+    if (error || !data) {
+      if (__DEV__ && error) console.log('Maç geçmişi yüklenemedi:', error);
+      setForm([]);
+      setScorable([]);
+      setUpcomingCount(0);
+      return;
+    }
+
+    const rows: ChallengeRow[] = data.map((c: any) => ({
+      id: c.id,
+      challenger_team_id: c.challenger_team_id,
+      opponent_team_id: c.opponent_team_id,
+      date: c.date,
+      time: c.time,
+      location: c.location,
+      status: c.status,
+      challenger_goals: c.challenger_goals,
+      opponent_goals: c.opponent_goals,
+      challengerName: c.challenger?.name ?? 'Takım',
+      opponentName: c.opponent?.name ?? 'Takım',
+    }));
+
+    const today = todayStr();
+    const completed = rows.filter((r) => r.status === 'completed' && r.challenger_goals !== null && r.opponent_goals !== null);
+    const last5Form = completed.slice(0, 5).map((r) => {
+      const isChallenger = r.challenger_team_id === teamId;
+      const mine = isChallenger ? r.challenger_goals! : r.opponent_goals!;
+      const theirs = isChallenger ? r.opponent_goals! : r.challenger_goals!;
+      return mine > theirs ? 'W' : mine < theirs ? 'L' : 'D';
+    }) as ('W' | 'L' | 'D')[];
+    setForm(last5Form);
+
+    setUpcomingCount(rows.filter((r) => r.status === 'accepted' && r.date >= today).length);
+    setScorable(rows.filter((r) => r.status === 'accepted'));
+  };
+
+  const loadScorers = async (teamId: string) => {
+    const { data: members, error } = await supabase
+      .from('team_members')
+      .select('user_id, goals')
+      .eq('team_id', teamId)
+      .order('goals', { ascending: false })
+      .limit(3);
+
+    if (error || !members || members.length === 0) {
+      setScorers([]);
+      return;
+    }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, full_name')
+      .in('user_id', members.map((m: any) => m.user_id));
+    const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
+
+    setScorers(members.map((m: any) => ({ user_id: m.user_id, full_name: nameMap.get(m.user_id) ?? 'Oyuncu', goals: m.goals ?? 0 })));
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadAll();
+  };
+
+  const openScoreEntry = (challenge: ChallengeRow) => {
+    setScoreTarget(challenge);
+    setChallengerGoalsInput('0');
+    setOpponentGoalsInput('0');
+  };
+
+  const submitScore = async () => {
+    if (!scoreTarget || !team) return;
+    const challengerGoals = Math.max(0, parseInt(challengerGoalsInput, 10) || 0);
+    const opponentGoals = Math.max(0, parseInt(opponentGoalsInput, 10) || 0);
+
+    setSaving(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('match_challenges')
+        .update({ challenger_goals: challengerGoals, opponent_goals: opponentGoals, status: 'completed' })
+        .eq('id', scoreTarget.id);
+      if (updateError) throw updateError;
+
+      const [{ data: challengerTeam }, { data: opponentTeam }] = await Promise.all([
+        supabase.from('teams').select('*').eq('id', scoreTarget.challenger_team_id).maybeSingle(),
+        supabase.from('teams').select('*').eq('id', scoreTarget.opponent_team_id).maybeSingle(),
+      ]);
+
+      const updates: { id: string; wins: number; losses: number; draws: number; goals_scored: number; goals_conceded: number; clean_sheets: number }[] = [];
+      if (challengerTeam) {
+        const won = challengerGoals > opponentGoals;
+        const drew = challengerGoals === opponentGoals;
+        updates.push({
+          id: challengerTeam.id,
+          wins: (challengerTeam.wins ?? 0) + (won ? 1 : 0),
+          losses: (challengerTeam.losses ?? 0) + (!won && !drew ? 1 : 0),
+          draws: (challengerTeam.draws ?? 0) + (drew ? 1 : 0),
+          goals_scored: (challengerTeam.goals_scored ?? 0) + challengerGoals,
+          goals_conceded: (challengerTeam.goals_conceded ?? 0) + opponentGoals,
+          clean_sheets: (challengerTeam.clean_sheets ?? 0) + (opponentGoals === 0 ? 1 : 0),
+        });
+      }
+      if (opponentTeam) {
+        const won = opponentGoals > challengerGoals;
+        const drew = opponentGoals === challengerGoals;
+        updates.push({
+          id: opponentTeam.id,
+          wins: (opponentTeam.wins ?? 0) + (won ? 1 : 0),
+          losses: (opponentTeam.losses ?? 0) + (!won && !drew ? 1 : 0),
+          draws: (opponentTeam.draws ?? 0) + (drew ? 1 : 0),
+          goals_scored: (opponentTeam.goals_scored ?? 0) + opponentGoals,
+          goals_conceded: (opponentTeam.goals_conceded ?? 0) + challengerGoals,
+          clean_sheets: (opponentTeam.clean_sheets ?? 0) + (challengerGoals === 0 ? 1 : 0),
+        });
+      }
+
+      await Promise.all(
+        updates.map((u) =>
+          supabase
+            .from('teams')
+            .update({
+              wins: u.wins,
+              losses: u.losses,
+              draws: u.draws,
+              goals_scored: u.goals_scored,
+              goals_conceded: u.goals_conceded,
+              clean_sheets: u.clean_sheets,
+            })
+            .eq('id', u.id)
+        )
+      );
+
+      setToast({ message: 'Maç sonucu kaydedildi', type: 'success' });
+      setScoreTarget(null);
+      loadAll();
+    } catch (err) {
+      if (__DEV__) console.log('Skor kaydedilemedi:', err);
+      setToast({ message: 'Skor kaydedilemedi', type: 'error' });
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={{ padding: 24, gap: 12 }}>
+          <SkeletonCard height={120} />
+          <SkeletonCard height={160} />
+          <SkeletonCard height={160} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!team) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <EmptyState icon="📈" title="Henüz takımın yok" subtitle="Takım profilini oluşturarak başla" actionLabel="Takım Oluştur" onAction={() => navigate('teamEdit')} />
+      </SafeAreaView>
+    );
+  }
+
+  const totalMatches = team.wins + team.losses + team.draws;
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
+          <Text style={styles.backIcon}>←</Text>
+        </HapticTouchable>
+        <Text style={styles.title}>İstatistikler</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.gold} colors={[theme.gold]} />}
+      >
+        <View style={styles.statsRow}>
+          {[
+            { value: String(totalMatches), label: 'Maç' },
+            { value: String(team.wins), label: 'Galibiyet' },
+            { value: String(team.draws), label: 'Beraberlik' },
+            { value: String(team.losses), label: 'Mağlubiyet' },
+          ].map((s) => (
+            <View key={s.label} style={styles.statCard}>
+              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Gol İstatistikleri</Text>
+          <View style={styles.goalsRow}>
+            <View style={styles.goalsItem}>
+              <Text style={styles.goalsValue}>{team.goals_scored}</Text>
+              <Text style={styles.goalsLabel}>Atılan Gol</Text>
+            </View>
+            <View style={styles.goalsItem}>
+              <Text style={styles.goalsValue}>{team.goals_conceded}</Text>
+              <Text style={styles.goalsLabel}>Yenen Gol</Text>
+            </View>
+            <View style={styles.goalsItem}>
+              <Text style={styles.goalsValue}>{team.clean_sheets}</Text>
+              <Text style={styles.goalsLabel}>Gol Yemeden</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Son 5 Maç Formu</Text>
+            <Text style={styles.upcomingText}>{upcomingCount} yaklaşan maç</Text>
+          </View>
+          {form.length === 0 ? (
+            <Text style={styles.emptyHint}>Henüz tamamlanmış maç verisi yok</Text>
+          ) : (
+            <View style={styles.formRow}>
+              {form.map((r, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.formPill,
+                    r === 'W' && { backgroundColor: hexToRgba(theme.success, 0.2) },
+                    r === 'L' && { backgroundColor: hexToRgba(theme.error, 0.2) },
+                    r === 'D' && { backgroundColor: hexToRgba(theme.textSecondary, 0.2) },
+                  ]}
+                >
+                  <Text style={styles.formPillText}>{r}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Gol Kralları</Text>
+          {scorers.length === 0 ? (
+            <Text style={styles.emptyHint}>Henüz gol verisi girilmedi</Text>
+          ) : (
+            scorers.map((s, i) => (
+              <View key={s.user_id} style={styles.scorerRow}>
+                <Text style={styles.scorerRank}>{i + 1}</Text>
+                <Text style={styles.scorerName}>{s.full_name}</Text>
+                <Text style={styles.scorerGoals}>{s.goals} gol</Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        {scorable.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Kabul Edilen Maçlar</Text>
+            {scorable.map((c) => (
+              <View key={c.id} style={styles.scorableRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.scorableTitle}>{c.challengerName} vs {c.opponentName}</Text>
+                  <Text style={styles.scorableMeta}>{c.date} · {c.time}</Text>
+                </View>
+                <HapticTouchable style={styles.scoreEntryBtn} onPress={() => openScoreEntry(c)}>
+                  <Text style={styles.scoreEntryBtnText}>Skor Gir</Text>
+                </HapticTouchable>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      <Modal visible={!!scoreTarget} animationType="slide" transparent onRequestClose={() => setScoreTarget(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Maç Sonucu</Text>
+            <Text style={styles.scorableMeta}>{scoreTarget?.challengerName} vs {scoreTarget?.opponentName}</Text>
+
+            <View style={styles.scoreInputRow}>
+              <View style={styles.scoreInputCol}>
+                <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.challengerName}</Text>
+                <TextInput
+                  style={styles.scoreInput}
+                  keyboardType="number-pad"
+                  value={challengerGoalsInput}
+                  onChangeText={setChallengerGoalsInput}
+                />
+              </View>
+              <Text style={styles.scoreDash}>—</Text>
+              <View style={styles.scoreInputCol}>
+                <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.opponentName}</Text>
+                <TextInput
+                  style={styles.scoreInput}
+                  keyboardType="number-pad"
+                  value={opponentGoalsInput}
+                  onChangeText={setOpponentGoalsInput}
+                />
+              </View>
+            </View>
+
+            <HapticTouchable style={styles.saveBtn} onPress={submitScore} disabled={saving}>
+              {saving ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
+            </HapticTouchable>
+            <HapticTouchable style={styles.cancelBtn} onPress={() => setScoreTarget(null)}>
+              <Text style={styles.cancelBtnText}>Vazgeç</Text>
+            </HapticTouchable>
+          </View>
+        </View>
+      </Modal>
+
+      <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
+    </SafeAreaView>
+  );
+}
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 16,
+    },
+    backBtn: {
+      width: 44, height: 44,
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    backIcon: { fontSize: 18, color: theme.text },
+    title: { fontSize: 16, fontWeight: '700', color: theme.text },
+    statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
+    statCard: {
+      flex: 1,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    statValue: { fontSize: 18, fontWeight: '800', color: theme.gold },
+    statLabel: { fontSize: 10, color: theme.textSecondary, fontWeight: '600', marginTop: 2 },
+    card: {
+      marginHorizontal: 24,
+      marginBottom: 20,
+      backgroundColor: theme.card,
+      borderRadius: 24,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 16 },
+    upcomingText: { fontSize: 12, color: theme.gold, fontWeight: '700' },
+    goalsRow: { flexDirection: 'row', justifyContent: 'space-around' },
+    goalsItem: { alignItems: 'center' },
+    goalsValue: { fontSize: 24, fontWeight: '900', color: theme.gold },
+    goalsLabel: { fontSize: 11, color: theme.textSecondary, marginTop: 4 },
+    formRow: { flexDirection: 'row', gap: 8 },
+    formPill: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    formPillText: { fontSize: 13, fontWeight: '800', color: theme.text },
+    emptyHint: { fontSize: 12, color: theme.textSecondary },
+    scorerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    scorerRank: { width: 20, fontSize: 14, fontWeight: '800', color: theme.gold },
+    scorerName: { flex: 1, fontSize: 13, color: theme.text, fontWeight: '600' },
+    scorerGoals: { fontSize: 13, color: theme.gold, fontWeight: '700' },
+    scorableRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    scorableTitle: { fontSize: 13, fontWeight: '700', color: theme.text },
+    scorableMeta: { fontSize: 11, color: theme.textSecondary, marginTop: 2 },
+    scoreEntryBtn: {
+      backgroundColor: hexToRgba(theme.gold, 0.12),
+      borderWidth: 1,
+      borderColor: theme.gold,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    scoreEntryBtnText: { fontSize: 12, fontWeight: '700', color: theme.gold },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    modalCard: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      padding: 24,
+      paddingBottom: 36,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 6 },
+    scoreInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 20, marginBottom: 20 },
+    scoreInputCol: { alignItems: 'center', width: 100 },
+    scoreInputLabel: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
+    scoreInput: {
+      width: 64,
+      height: 56,
+      borderRadius: 16,
+      backgroundColor: theme.card2,
+      borderWidth: 1,
+      borderColor: theme.border,
+      color: theme.text,
+      fontSize: 24,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    scoreDash: { fontSize: 20, color: theme.textSecondary, marginTop: 20 },
+    saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center' },
+    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+    cancelBtn: { alignItems: 'center', paddingVertical: 14 },
+    cancelBtnText: { fontSize: 13, color: theme.textSecondary, fontWeight: '600' },
+  });

@@ -1,30 +1,66 @@
 {
   "expo": {
-    "name": "footbally-mobile-3",
-    "slug": "footbally-mobile-3",
+    "name": "Footbally",
+    "slug": "footbally",
+    "scheme": "footbally",
     "version": "1.0.0",
+    "description": "Futbolcuların, takımların ve scoutların buluşma noktası",
+    "primaryColor": "#E8B820",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#050505"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.footbally.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["instagram-stories", "instagram", "twitter", "whatsapp"]
+      }
     },
     "android": {
+      "package": "com.footbally.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/logo-icon.png",
+        "backgroundColor": "#050505"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Footbally, video analizi ve profil fotoğrafın için galerine erişim istiyor.",
+          "cameraPermission": "Footbally profil fotoğrafı çekmenize izin verir.",
+          "microphonePermission": "Footbally video kaydı için mikrofon erişimi gerektirir."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-web-browser",
+      "expo-mail-composer",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Footbally, oyuncu kartını galerine kaydetmek için erişim istiyor.",
+          "savePhotosPermission": "Footbally, oyuncu kartını galerine kaydetmek için erişim istiyor."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5c7da171-4aeb-470d-8fe0-5f3ba986fa63"
+      }
+    },
+    "owner": "osmantemur"
   }
 }

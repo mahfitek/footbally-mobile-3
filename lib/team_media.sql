@@ -1,0 +1,2 @@
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS photos text[];
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS videos text[];
