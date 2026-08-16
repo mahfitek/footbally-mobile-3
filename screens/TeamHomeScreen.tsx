@@ -225,7 +225,6 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           type: challenge.format,
           category: 'Takım Maçı',
           creator_id: resolvedUserId,
-          status: 'upcoming',
         });
       }
 
