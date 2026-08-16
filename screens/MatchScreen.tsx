@@ -24,7 +24,7 @@ import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
 type MatchView = {
-  id: string;
+  id: number;
   title: string;
   date: string;
   time: string;
@@ -68,7 +68,9 @@ export default function MatchScreen({ navigate }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadedScope, setLoadedScope] = useState<'active' | 'all'>('active');
   const [joining, setJoining] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [nearbyOnly, setNearbyOnly] = useState(false);
@@ -86,37 +88,31 @@ export default function MatchScreen({ navigate }: Props) {
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
   useEffect(() => {
-    loadMatches();
+    loadInitial();
   }, []);
 
-  const loadMatches = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (activeTab !== 'upcoming' && loadedScope !== 'all') {
+      setTabLoading(true);
+      fetchMatches('all', userId).finally(() => setTabLoading(false));
+    }
+  }, [activeTab]);
+
+  // "Aktif İlanlar" (Yaklaşan) sekmesi için DB seviyesinde tarih filtresi;
+  // diğer sekmeler (Geçmiş/Başvurulan/Benim Maçlarım) geçmiş tarihli maçlara
+  // da ihtiyaç duyduğundan, o sekmelere ilk geçişte 'all' scope ayrıca çekilir.
+  const fetchMatches = async (scope: 'active' | 'all', currentUserId: string | null) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      setUserId(user?.id ?? null);
-
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, city')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        setMyName(profile?.full_name ?? '');
-        setMyCity(profile?.city ?? '');
+      let query = supabase.from('matches').select('*').order('date', { ascending: true });
+      if (scope === 'active') {
+        query = query.gte('date', todayStr());
       }
-
-      const { data, error } = await supabase
-        .from('matches')
-        .select('*')
-        .order('date', { ascending: true });
+      const { data, error } = await query;
 
       if (error) {
         if (__DEV__) console.log('Maçlar yüklenemedi:', error);
         if (!error.code) setToast({ message: 'Maçlar yüklenemedi', type: 'error' });
         setMatches([]);
-        setLoading(false);
-        setRefreshing(false);
         return;
       }
 
@@ -133,7 +129,7 @@ export default function MatchScreen({ navigate }: Props) {
 
       setMatches(
         rows.map((m: any) => {
-          const myApp = user ? appRows.find((a) => a.match_id === m.id && a.user_id === user.id) : null;
+          const myApp = currentUserId ? appRows.find((a) => a.match_id === m.id && a.user_id === currentUserId) : null;
           return {
             id: m.id,
             title: m.title,
@@ -153,6 +149,31 @@ export default function MatchScreen({ navigate }: Props) {
           };
         })
       );
+      setLoadedScope(scope);
+    } catch (err) {
+      if (__DEV__) console.log('Maçlar yüklenirken beklenmeyen hata:', err);
+      setMatches([]);
+    }
+  };
+
+  const loadInitial = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      setUserId(user?.id ?? null);
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, city')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setMyName(profile?.full_name ?? '');
+        setMyCity(profile?.city ?? '');
+      }
+
+      await fetchMatches('active', user?.id ?? null);
     } catch (err) {
       if (__DEV__) console.log('Maçlar yüklenirken beklenmeyen hata:', err);
       setMatches([]);
@@ -163,10 +184,10 @@ export default function MatchScreen({ navigate }: Props) {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadMatches();
+    fetchMatches(loadedScope, userId).finally(() => setRefreshing(false));
   };
 
-  const loadParticipants = async (matchId: string) => {
+  const loadParticipants = async (matchId: number) => {
     setLoadingParticipants(true);
     const { data: apps } = await supabase
       .from('match_applications')
@@ -392,7 +413,12 @@ export default function MatchScreen({ navigate }: Props) {
           />
         }
       >
-        {filtered.length === 0 ? (
+        {tabLoading ? (
+          <View style={{ paddingHorizontal: 24, gap: 14 }}>
+            <SkeletonCard height={130} />
+            <SkeletonCard height={130} />
+          </View>
+        ) : filtered.length === 0 ? (
           activeTab === 'upcoming' ? (
             <EmptyState
               icon="⚽"

@@ -110,7 +110,6 @@ export default function CreateMatchScreen({ navigate }: Props) {
         type: `${playersPerSide}v${playersPerSide}`,
         category: category,
         creator_id: user.id,
-        status: 'upcoming',
       });
 
       if (error) {

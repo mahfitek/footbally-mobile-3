@@ -16,7 +16,7 @@ export type Profile = {
 };
 
 export type Match = {
-  id: string;
+  id: number; // bigint identity in the live DB — PostgREST/supabase-js return it as a JS number, not a uuid string
   title: string;
   date: string;
   time: string;
