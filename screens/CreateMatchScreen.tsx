@@ -108,6 +108,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
         city: `${city}, ${district}`,
         required_players: playersPerSide * 2,
         type: `${playersPerSide}v${playersPerSide}`,
+        category: category,
         creator_id: user.id,
         status: 'upcoming',
       });
