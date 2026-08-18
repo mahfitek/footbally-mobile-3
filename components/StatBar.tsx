@@ -53,9 +53,5 @@ const createStyles = (theme: Theme) =>
       height: 4,
       backgroundColor: theme.gold,
       borderRadius: 2,
-      shadowColor: theme.gold,
-      shadowOpacity: 0.6,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 0 },
     },
   });

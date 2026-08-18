@@ -10,9 +10,12 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
 import LoadingScreen from '../components/LoadingScreen';
@@ -158,7 +161,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       setText(content);
     } else if (data) {
       setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
-      notifyUser(otherUserId, '💬', `${myName || 'Bir kullanıcı'} sana mesaj gönderdi`, 'chat', 'Yeni Mesaj 💬');
+      notifyUser(otherUserId, 'chatbubble-outline', `${myName || 'Bir kullanıcı'} sana mesaj gönderdi`, 'chat', 'Yeni Mesaj');
     }
   };
 
@@ -174,13 +177,13 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       >
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('messages')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
           <View style={styles.avatar}>
             {otherProfile?.avatar_url ? (
               <Image source={{ uri: otherProfile.avatar_url }} style={styles.avatarImage} />
             ) : (
-              <Text style={styles.avatarEmoji}>👤</Text>
+              <Ionicons name="person-outline" size={17} color={theme.gold} />
             )}
           </View>
           <View style={styles.titleWrap}>
@@ -202,7 +205,9 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
         >
           {messages.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>💬</Text>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="chatbubble-outline" size={22} color={theme.gold} />
+              </View>
               <Text style={styles.emptyText}>Henüz mesaj yok, ilk mesajı sen gönder</Text>
             </View>
           ) : (
@@ -239,7 +244,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
             onPress={handleSend}
             disabled={!text.trim()}
           >
-            <Text style={styles.sendBtnText}>➤</Text>
+            <Ionicons name="send" size={16} color={Paper.ink} />
           </HapticTouchable>
         </View>
       </KeyboardAvoidingView>
@@ -269,30 +274,28 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.border,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
     avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 38,
+      height: 38,
+      borderRadius: RADIUS,
       backgroundColor: theme.card,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    avatarEmoji: { fontSize: 18 },
-    avatarImage: { width: 40, height: 40, borderRadius: 20 },
+    avatarImage: { width: 38, height: 38, borderRadius: RADIUS },
     titleWrap: { flex: 1 },
-    title: { fontSize: 16, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
+    title: { fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     subtitle: { fontSize: 11, color: theme.gold, fontFamily: FontFamily.mono, marginTop: 1 },
     messagesContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16, flexGrow: 1 },
     empty: {
@@ -301,25 +304,35 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       paddingTop: 60,
     },
-    emptyIcon: { fontSize: 48, marginBottom: 16, color: theme.gold },
-    emptyText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.bodySemiBold, textAlign: 'center' },
+    emptyIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptyText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.mono, textAlign: 'center' },
     bubbleWrap: { marginBottom: 14, maxWidth: '78%' },
     bubbleWrapMine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
     bubbleWrapOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
     bubble: {
-      borderRadius: 18,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 11,
     },
-    bubbleMine: { backgroundColor: theme.gold, borderTopRightRadius: 4 },
+    bubbleMine: { backgroundColor: theme.gold, borderBottomRightRadius: 2 },
     bubbleOther: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 4,
+      borderBottomLeftRadius: 2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     bubbleText: { fontSize: 14, fontFamily: FontFamily.body, color: theme.text, lineHeight: 19 },
-    bubbleTextMine: { color: '#000' },
+    bubbleTextMine: { color: Paper.ink },
     bubbleTime: { fontSize: 10, fontFamily: FontFamily.mono, color: theme.textSecondary, marginTop: 4, marginHorizontal: 4 },
     inputBar: {
       flexDirection: 'row',
@@ -335,23 +348,22 @@ const createStyles = (theme: Theme) =>
       minHeight: 44,
       maxHeight: 110,
       backgroundColor: theme.card2,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 10,
       color: theme.text,
       fontSize: 14,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       borderWidth: 1,
       borderColor: theme.border,
     },
     sendBtn: {
       width: 44,
       height: 44,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sendBtnDisabled: { backgroundColor: hexToRgba(theme.gold, 0.4) },
-    sendBtnText: { fontSize: 16, color: '#000', fontWeight: '700' },
+    sendBtnDisabled: { opacity: 0.4 },
   });

@@ -11,8 +11,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import Toast from '../components/Toast';
@@ -20,9 +21,11 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
 type ChatView = {
   id: string | number;
-  emoji: string;
   name: string;
   preview: string;
   time: string;
@@ -35,13 +38,13 @@ type ConnectionView = {
   name: string;
   role: string;
   online: boolean;
-  avatar: string;
+  icon: IoniconName;
 };
 
 const CONNECTIONS: ConnectionView[] = [
-  { id: 'c1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', online: true, avatar: '🏟️' },
-  { id: 'c2', name: 'Hans Mueller', role: 'Bundesliga Scout', online: false, avatar: '🌍' },
-  { id: 'c3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', online: true, avatar: '⚡' },
+  { id: 'c1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', online: true, icon: 'business-outline' },
+  { id: 'c2', name: 'Hans Mueller', role: 'Bundesliga Scout', online: false, icon: 'globe-outline' },
+  { id: 'c3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', online: true, icon: 'flash-outline' },
 ];
 
 const formatRelativeTime = (iso: string) => {
@@ -183,7 +186,6 @@ export default function MessagesScreen({ navigate }: Props) {
       const unread = msgs.filter((m) => !m.read && m.receiver_id === user.id).length;
       return {
         id: otherId,
-        emoji: '👤',
         name: nameMap.get(otherId) ?? 'Kullanıcı',
         preview: last.content,
         time: formatRelativeTime(last.created_at),
@@ -202,7 +204,7 @@ export default function MessagesScreen({ navigate }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>Mesajlar</Text>
+          <Text style={styles.title}>MESAJLAR</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 12 }}>
           <SkeletonCard height={80} />
@@ -229,15 +231,16 @@ export default function MessagesScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Mesajlar</Text>
+          <Text style={styles.title}>MESAJLAR</Text>
           {unreadCount > 0 && (
             <View style={styles.headerUnreadBadge}>
               <Text style={styles.headerUnreadText}>{unreadCount}</Text>
             </View>
           )}
           <View style={{ flex: 1 }} />
-          <HapticTouchable style={styles.newMessageBtn} onPress={openNewMessage}>
-            <Text style={styles.newMessageBtnText}>✎ Yeni Mesaj</Text>
+          <HapticTouchable style={[styles.newMessageBtn, { flexDirection: 'row', alignItems: 'center', gap: 6 }]} onPress={openNewMessage}>
+            <Ionicons name="create-outline" size={13} color={theme.gold} />
+            <Text style={styles.newMessageBtnText}>Yeni Mesaj</Text>
           </HapticTouchable>
         </View>
 
@@ -259,7 +262,7 @@ export default function MessagesScreen({ navigate }: Props) {
         {tab === 'messages' && (
           <>
             <View style={styles.searchWrap}>
-              <Text style={styles.searchIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Sohbet ara..."
@@ -271,7 +274,7 @@ export default function MessagesScreen({ navigate }: Props) {
 
             {chats.length === 0 ? (
               <EmptyState
-                icon="💬"
+                icon="chatbubble-outline"
                 title="Henüz mesaj yok"
                 subtitle="Scout veya takımlarla iletişime geç"
                 actionLabel="Scout Ara"
@@ -287,7 +290,7 @@ export default function MessagesScreen({ navigate }: Props) {
                   >
                     <View style={styles.chatAvatarWrap}>
                       <View style={styles.chatAvatar}>
-                        <Text style={styles.chatAvatarEmoji}>{c.emoji}</Text>
+                        <Ionicons name="person-outline" size={20} color={theme.gold} />
                       </View>
                       {c.online && <View style={styles.chatOnlineDot} />}
                     </View>
@@ -323,7 +326,7 @@ export default function MessagesScreen({ navigate }: Props) {
               <View key={c.id} style={styles.connectionItem}>
                 <View style={styles.chatAvatarWrap}>
                   <View style={styles.chatAvatar}>
-                    <Text style={styles.chatAvatarEmoji}>{c.avatar}</Text>
+                    <Ionicons name={c.icon} size={20} color={theme.gold} />
                   </View>
                   {c.online && <View style={styles.chatOnlineDot} />}
                 </View>
@@ -352,14 +355,14 @@ export default function MessagesScreen({ navigate }: Props) {
         <View style={styles.modalOverlay}>
           <SafeAreaView style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Yeni Mesaj</Text>
+              <Text style={styles.modalTitle}>YENİ MESAJ</Text>
               <HapticTouchable onPress={() => setNewMessageModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Ionicons name="close" size={20} color={theme.textSecondary} />
               </HapticTouchable>
             </View>
 
             <View style={styles.searchWrap}>
-              <Text style={styles.searchIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="İsimle ara..."
@@ -387,7 +390,7 @@ export default function MessagesScreen({ navigate }: Props) {
                     onPress={() => handleSelectUser(item)}
                   >
                     <View style={styles.chatAvatar}>
-                      <Text style={styles.chatAvatarEmoji}>👤</Text>
+                      <Ionicons name="person-outline" size={20} color={theme.gold} />
                     </View>
                     <View style={styles.chatText}>
                       <Text style={styles.chatName}>{item.full_name || 'Kullanıcı'}</Text>
@@ -425,26 +428,26 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
       paddingBottom: 20,
     },
-    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
     headerUnreadBadge: {
       minWidth: 22,
       height: 22,
-      borderRadius: 11,
+      borderRadius: RADIUS - 2,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    headerUnreadText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: '#000' },
+    headerUnreadText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: Paper.ink },
     newMessageBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    newMessageBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
+    newMessageBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
@@ -452,8 +455,8 @@ const createStyles = (theme: Theme) =>
     },
     modalSheet: {
       backgroundColor: theme.bg,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       maxHeight: '85%',
       minHeight: '60%',
     },
@@ -465,14 +468,13 @@ const createStyles = (theme: Theme) =>
       paddingTop: 20,
       paddingBottom: 16,
     },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, letterSpacing: 0.5 },
-    modalClose: { fontSize: 18, color: theme.textSecondary, padding: 4 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
     modalEmptyText: {
       textAlign: 'center',
       color: theme.textSecondary,
       fontSize: 13,
       marginTop: 24,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
     },
     userResultRow: {
       flexDirection: 'row',
@@ -487,7 +489,7 @@ const createStyles = (theme: Theme) =>
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 4,
       borderWidth: 1,
       borderColor: theme.border,
@@ -495,12 +497,12 @@ const createStyles = (theme: Theme) =>
     tabBtn: {
       flex: 1,
       paddingVertical: 10,
-      borderRadius: 12,
+      borderRadius: RADIUS - 2,
       alignItems: 'center',
     },
     tabBtnActive: { backgroundColor: theme.gold },
-    tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
-    tabTextActive: { color: '#000' },
+    tabText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textSecondary },
+    tabTextActive: { color: Paper.ink },
     connectionItem: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -511,28 +513,27 @@ const createStyles = (theme: Theme) =>
     },
     connectionRole: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
     messageBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    messageBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
+    messageBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
       marginHorizontal: 24,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       height: 48,
       borderWidth: 1,
       borderColor: theme.border,
       marginBottom: 24,
     },
-    searchIcon: { fontSize: 15, marginRight: 10 },
-    searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: theme.text },
+    searchInput: { flex: 1, fontFamily: FontFamily.mono, fontSize: 14, color: theme.text },
     chatList: { paddingHorizontal: 24, gap: 4 },
     chatItem: {
       flexDirection: 'row',
@@ -544,16 +545,15 @@ const createStyles = (theme: Theme) =>
     },
     chatAvatarWrap: { position: 'relative' },
     chatAvatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: theme.card,
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    chatAvatarEmoji: { fontSize: 24 },
     chatOnlineDot: {
       position: 'absolute',
       bottom: 0,
@@ -585,11 +585,11 @@ const createStyles = (theme: Theme) =>
     unreadBadge: {
       minWidth: 20,
       height: 20,
-      borderRadius: 10,
+      borderRadius: RADIUS - 2,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    unreadBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: '#000' },
+    unreadBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: Paper.ink },
   });

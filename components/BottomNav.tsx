@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { hexToRgba, Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 export type TabName =
   | 'home'
@@ -25,18 +28,18 @@ interface Props {
   userType?: 'player' | 'team';
 }
 
-const PLAYER_ITEMS: { tab: TabName; icon: string; label: string }[] = [
-  { tab: 'home', icon: '🏠', label: 'Ana Sayfa' },
-  { tab: 'activities', icon: '⚡', label: 'Aktiviteler' },
-  { tab: 'messages', icon: '💬', label: 'Mesajlar' },
-  { tab: 'profile', icon: '👤', label: 'Profil' },
+const PLAYER_ITEMS: { tab: TabName; icon: IoniconName; label: string }[] = [
+  { tab: 'home', icon: 'home-outline', label: 'Ana Sayfa' },
+  { tab: 'activities', icon: 'flag-outline', label: 'Aktiviteler' },
+  { tab: 'messages', icon: 'chatbubble-outline', label: 'Mesajlar' },
+  { tab: 'profile', icon: 'person-outline', label: 'Profil' },
 ];
 
-const TEAM_ITEMS: { tab: TabName; icon: string; label: string }[] = [
-  { tab: 'teamHome', icon: '🏠', label: 'Ana Sayfa' },
-  { tab: 'findPlayer', icon: '🔍', label: 'Oyuncu Bul' },
-  { tab: 'teamSquad', icon: '📋', label: 'Kadro' },
-  { tab: 'teamProfile', icon: '🏟️', label: 'Takım' },
+const TEAM_ITEMS: { tab: TabName; icon: IoniconName; label: string }[] = [
+  { tab: 'teamHome', icon: 'home-outline', label: 'Ana Sayfa' },
+  { tab: 'findPlayer', icon: 'search-outline', label: 'Oyuncu Bul' },
+  { tab: 'teamSquad', icon: 'list-outline', label: 'Kadro' },
+  { tab: 'teamProfile', icon: 'business-outline', label: 'Takım' },
 ];
 
 const PLAYER_TABS: TabName[] = ['home', 'activities', 'footbally', 'messages', 'profile'];
@@ -102,7 +105,11 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
               {active === item.tab && <View style={styles.activeDot} />}
             </View>
             <View style={styles.iconWrap}>
-              <Text style={[styles.icon, active === item.tab && styles.iconActive]}>{item.icon}</Text>
+              <Ionicons
+                name={item.icon}
+                size={active === item.tab ? 24 : 21}
+                color={active === item.tab ? theme.gold : theme.textSecondary}
+              />
               {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
@@ -117,7 +124,7 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
       <TouchableOpacity style={styles.centerBtn} activeOpacity={0.7} onPress={() => handlePress(centerTab)}>
         <Animated.View style={{ transform: [{ scale: scales[centerTab] }] }}>
           {isTeam ? (
-            <Text style={styles.centerBtnIcon}>⚔️</Text>
+            <Ionicons name="shield-outline" size={24} color={Paper.ink} />
           ) : (
             <Image
               source={require('../assets/logo-icon.png')}
@@ -134,7 +141,11 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
               {active === item.tab && <View style={styles.activeDot} />}
             </View>
             <View style={styles.iconWrap}>
-              <Text style={[styles.icon, active === item.tab && styles.iconActive]}>{item.icon}</Text>
+              <Ionicons
+                name={item.icon}
+                size={active === item.tab ? 24 : 21}
+                color={active === item.tab ? theme.gold : theme.textSecondary}
+              />
               {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
@@ -184,14 +195,12 @@ const createStyles = (theme: Theme) =>
       borderRadius: 3,
       backgroundColor: theme.gold,
     },
-    icon: { fontSize: 22 },
-    iconActive: { fontSize: 26 },
     iconWrap: { position: 'relative' },
     badge: {
       position: 'absolute',
       top: -4, right: -10,
       minWidth: 16, height: 16,
-      borderRadius: 8,
+      borderRadius: CARD_RADIUS - 3,
       paddingHorizontal: 3,
       backgroundColor: theme.error,
       alignItems: 'center',
@@ -199,28 +208,22 @@ const createStyles = (theme: Theme) =>
     },
     badgeText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
     label: {
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       fontSize: 10,
       color: theme.textSecondary,
     },
     labelActive: {
-      fontFamily: FontFamily.bodySemiBold,
+      fontFamily: FontFamily.monoMedium,
       color: theme.gold,
     },
     centerBtn: {
-      width: 56,
-      height: 56,
-      borderRadius: 18,
+      width: 52,
+      height: 52,
+      borderRadius: CARD_RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 0,
       alignSelf: 'center',
-      shadowColor: theme.gold,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.4,
-      shadowRadius: 12,
-      elevation: 8,
     },
-    centerBtnIcon: { fontSize: 26 },
   });

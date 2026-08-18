@@ -11,9 +11,10 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { hexToRgba, Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { gridItemsData } from '../api/mockData';
 import { supabase } from '../lib/supabase';
@@ -22,9 +23,21 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
+type IoniconName = keyof typeof Ionicons.glyphMap;
+const RADIUS = CARD_RADIUS;
+
+const GRID_ICONS: Record<string, IoniconName> = {
+  '📈': 'trending-up-outline',
+  '⏱️': 'time-outline',
+  '🎯': 'flag-outline',
+  '⭐': 'star-outline',
+  '🤖': 'hardware-chip-outline',
+  '🔍': 'search-outline',
+};
+
 type MatchItem = {
   id: string;
-  icon: string;
+  icon: IoniconName;
   name: string;
   date: string;
   time: string;
@@ -35,7 +48,6 @@ type MatchItem = {
 
 type NotificationItem = {
   id: string;
-  icon: string;
   msg: string;
   time: string;
   unread: boolean;
@@ -48,22 +60,22 @@ type Task = {
   points: number;
   done: boolean;
   screen: string;
-  icon: string;
+  icon: IoniconName;
 };
 
 const DAILY_TIPS = [
-  "💡 Profilini tamamla, scout'ların seni bulma ihtimalini %3 artır",
-  '⚽ Bugün bir maça katıl ve performansını kaydet',
-  '🎯 AI analizin için bir maç fotoğrafı yükle',
-  '🏆 Scout ağında 12 scout aktif, profilini güncel tut',
-  '📈 Bu hafta 3 yeni fırsat eklendi, kaçırma!',
+  "Profilini tamamla, scout'ların seni bulma ihtimalini %3 artır",
+  'Bugün bir maça katıl ve performansını kaydet',
+  'AI analizin için bir maç fotoğrafı yükle',
+  'Scout ağında 12 scout aktif, profilini güncel tut',
+  'Bu hafta 3 yeni fırsat eklendi, kaçırma!',
 ];
 
-const PLATFORM_ACTIVITY = [
-  { icon: '🏟️', text: 'Galatasaray Akademi 2 yeni oyuncu aradı', time: '5 dk' },
-  { icon: '👤', text: "İstanbul'da 8 yeni oyuncu kayıt oldu", time: '1 sa' },
-  { icon: '⚽', text: "Kadıköy'de yeni maç oluşturuldu", time: '2 sa' },
-  { icon: '🎯', text: 'Bundesliga scout 3 profil inceledi', time: '3 sa' },
+const PLATFORM_ACTIVITY: { icon: IoniconName; text: string; time: string }[] = [
+  { icon: 'business-outline', text: 'Galatasaray Akademi 2 yeni oyuncu aradı', time: '5 dk' },
+  { icon: 'person-outline', text: "İstanbul'da 8 yeni oyuncu kayıt oldu", time: '1 sa' },
+  { icon: 'football-outline', text: "Kadıköy'de yeni maç oluşturuldu", time: '2 sa' },
+  { icon: 'flag-outline', text: 'Bundesliga scout 3 profil inceledi', time: '3 sa' },
 ];
 
 const getGreeting = () => {
@@ -74,11 +86,11 @@ const getGreeting = () => {
 };
 
 const getScoreLevel = (score: number, theme: Theme) => {
-  if (score >= 100) return { label: '🏆 Mükemmel', color: theme.gold };
-  if (score >= 81) return { label: '🔵 Elit', color: theme.goldLight };
-  if (score >= 61) return { label: '🟡 İyi Seviye', color: theme.gold };
-  if (score >= 31) return { label: '🟠 Gelişiyor', color: '#f59e0b' };
-  return { label: '🔴 Başlangıç', color: theme.error };
+  if (score >= 100) return { label: 'Mükemmel', color: theme.gold };
+  if (score >= 81) return { label: 'Elit', color: theme.goldLight };
+  if (score >= 61) return { label: 'İyi Seviye', color: theme.gold };
+  if (score >= 31) return { label: 'Gelişiyor', color: '#f59e0b' };
+  return { label: 'Başlangıç', color: theme.error };
 };
 
 const formatRelativeTime = (iso: string) => {
@@ -189,18 +201,18 @@ export default function HomeScreen({ navigate, userId }: Props) {
 
   const calculateTasks = (p: any, premiumActive: boolean) => {
     setTasks([
-      { id: 'name', title: 'İsmini ekle', desc: 'Profilinde adın görünsün', points: 10, done: !!p.full_name, screen: 'profile', icon: '👤' },
-      { id: 'position', title: 'Pozisyon seç', desc: 'Oynadığın mevkii belirt', points: 10, done: !!p.position, screen: 'profile', icon: '⚽' },
-      { id: 'age', title: 'Yaşını ekle', desc: "Scout'lar yaş bilgine bakıyor", points: 5, done: !!p.age, screen: 'profile', icon: '🎂' },
-      { id: 'height', title: 'Boy bilgini gir', desc: 'Fiziksel özelliklerini tamamla', points: 5, done: !!p.height, screen: 'profile', icon: '📏' },
-      { id: 'weight', title: 'Kilo bilgini gir', desc: 'Fiziksel özelliklerini tamamla', points: 5, done: !!p.weight, screen: 'profile', icon: '⚖️' },
-      { id: 'city', title: 'Şehir ekle', desc: 'Yakınındaki fırsatları gör', points: 5, done: !!p.city, screen: 'profile', icon: '📍' },
-      { id: 'district', title: 'İlçe ekle', desc: 'Daha doğru eşleşme için', points: 3, done: !!p.district, screen: 'profile', icon: '🗺️' },
-      { id: 'foot', title: 'Baskın ayak seç', desc: 'Sol mu sağ mı?', points: 3, done: !!p.foot, screen: 'profile', icon: '👟' },
-      { id: 'match', title: 'İlk maça katıl', desc: 'Performansını kayıt altına al', points: 15, done: false, screen: 'match', icon: '🏟️' },
-      { id: 'apply', title: 'Bir fırsata başvur', desc: 'Kariyerinde ilk adımı at', points: 10, done: false, screen: 'activities', icon: '🎯' },
-      { id: 'photo', title: 'Profil fotoğrafı ekle', desc: "Scout'lar fotoğraflı profili tercih eder", points: 10, done: !!p.avatar_url, screen: 'profile', icon: '📸' },
-      { id: 'premium', title: "Premium'a geç", desc: 'Tüm özelliklerin kilidini aç', points: 19, done: premiumActive, screen: 'premium', icon: '⭐' },
+      { id: 'name', title: 'İsmini ekle', desc: 'Profilinde adın görünsün', points: 10, done: !!p.full_name, screen: 'profile', icon: 'person-outline' },
+      { id: 'position', title: 'Pozisyon seç', desc: 'Oynadığın mevkii belirt', points: 10, done: !!p.position, screen: 'profile', icon: 'football-outline' },
+      { id: 'age', title: 'Yaşını ekle', desc: "Scout'lar yaş bilgine bakıyor", points: 5, done: !!p.age, screen: 'profile', icon: 'calendar-outline' },
+      { id: 'height', title: 'Boy bilgini gir', desc: 'Fiziksel özelliklerini tamamla', points: 5, done: !!p.height, screen: 'profile', icon: 'resize-outline' },
+      { id: 'weight', title: 'Kilo bilgini gir', desc: 'Fiziksel özelliklerini tamamla', points: 5, done: !!p.weight, screen: 'profile', icon: 'barbell-outline' },
+      { id: 'city', title: 'Şehir ekle', desc: 'Yakınındaki fırsatları gör', points: 5, done: !!p.city, screen: 'profile', icon: 'location-outline' },
+      { id: 'district', title: 'İlçe ekle', desc: 'Daha doğru eşleşme için', points: 3, done: !!p.district, screen: 'profile', icon: 'map-outline' },
+      { id: 'foot', title: 'Baskın ayak seç', desc: 'Sol mu sağ mı?', points: 3, done: !!p.foot, screen: 'profile', icon: 'footsteps-outline' },
+      { id: 'match', title: 'İlk maça katıl', desc: 'Performansını kayıt altına al', points: 15, done: false, screen: 'match', icon: 'football-outline' },
+      { id: 'apply', title: 'Bir fırsata başvur', desc: 'Kariyerinde ilk adımı at', points: 10, done: false, screen: 'activities', icon: 'flag-outline' },
+      { id: 'photo', title: 'Profil fotoğrafı ekle', desc: "Scout'lar fotoğraflı profili tercih eder", points: 10, done: !!p.avatar_url, screen: 'profile', icon: 'camera-outline' },
+      { id: 'premium', title: "Premium'a geç", desc: 'Tüm özelliklerin kilidini aç', points: 19, done: premiumActive, screen: 'premium', icon: 'star-outline' },
     ]);
   };
 
@@ -223,7 +235,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
       setMatches(
         data.map((m: any) => ({
           id: m.id,
-          icon: '⚽',
+          icon: 'football-outline' as IoniconName,
           name: m.title,
           date: m.date,
           time: m.time,
@@ -255,7 +267,6 @@ export default function HomeScreen({ navigate, userId }: Props) {
       setNotifications(
         data.map((n: any) => ({
           id: String(n.id),
-          icon: n.icon ?? '🔔',
           msg: n.message ?? n.msg ?? '',
           time: formatRelativeTime(n.created_at),
           unread: !n.read,
@@ -305,19 +316,11 @@ export default function HomeScreen({ navigate, userId }: Props) {
         }
       >
 
-        <View style={{ backgroundColor: 'transparent' }}>
-          <Image
-            source={require('../assets/logo-text.png')}
-            style={{
-              width: 300,
-              height: 80,
-              resizeMode: 'contain',
-              alignSelf: 'center',
-              marginTop: 16,
-              marginBottom: 4,
-              backgroundColor: 'transparent',
-            }}
-          />
+        <View style={styles.topStrip}>
+          <Text style={styles.topStripText}>FOOTBALLY</Text>
+          <Text style={styles.topStripText}>
+            {new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+          </Text>
         </View>
 
         {/* Header */}
@@ -327,26 +330,26 @@ export default function HomeScreen({ navigate, userId }: Props) {
               <Text style={styles.greeting}>{getGreeting().toUpperCase()}</Text>
               {isPremiumActive && (
                 <View style={styles.premiumBadge}>
-                  <Text style={styles.premiumBadgeText}>✦ Premium</Text>
+                  <Text style={styles.premiumBadgeText}>PREMIUM</Text>
                 </View>
               )}
             </View>
             <Text style={styles.greetingName}>
               {firstName ? (
                 <>
-                  {t('hello')} <Text style={styles.gold}>{firstName}</Text> 👋
+                  {t('hello')} <Text style={styles.gold}>{firstName}</Text>
                 </>
               ) : (
-                <>{t('hello')} 👋</>
+                t('hello')
               )}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <HapticTouchable style={styles.notifBtn} onPress={() => navigate('search')}>
-              <Text style={styles.notifIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={19} color={theme.text} />
             </HapticTouchable>
             <HapticTouchable style={styles.notifBtn} onPress={() => navigate('notifications')}>
-              <Text style={styles.notifIcon}>🔔</Text>
+              <Ionicons name="notifications-outline" size={19} color={theme.text} />
               {unreadCount > 0 && (
                 <View style={styles.notifDot}>
                   <Text style={styles.notifDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -379,12 +382,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
             <View style={styles.scoreInfo}>
               <Text style={styles.scoreLabel}>GENEL SKOR</Text>
               <Text style={[styles.scoreValue, { color: scoreLevel.color }]}>{displayScore}</Text>
-              <View style={[styles.scoreLevelPill, { backgroundColor: hexToRgba(scoreLevel.color, 0.15) }]}>
+              <View style={[styles.scoreLevelPill, { borderColor: scoreLevel.color }]}>
                 <Text style={[styles.scoreLevelText, { color: scoreLevel.color }]}>{scoreLevel.label}</Text>
               </View>
             </View>
-            <View style={[styles.scoreRing, { borderColor: scoreLevel.color }]}>
+            <View style={styles.scoreDivider} />
+            <View style={styles.scorePercent}>
               <Text style={[styles.scoreRingText, { color: scoreLevel.color }]}>{displayScore}%</Text>
+              <Text style={styles.scorePercentLabel}>TAMAMLANDI</Text>
             </View>
           </HapticTouchable>
         </Animated.View>
@@ -393,28 +398,27 @@ export default function HomeScreen({ navigate, userId }: Props) {
         {tasks.length > 0 && (
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ color: theme.text, fontSize: 17, fontFamily: FontFamily.bodySemiBold }}>🎯 Skoru Tamamla</Text>
+              <Text style={{ color: theme.text, fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>SKORU TAMAMLA</Text>
               <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints} puan</Text>
             </View>
 
-            <View style={{ height: 6, backgroundColor: theme.border, borderRadius: 3, marginBottom: 16 }}>
-              <View style={{ height: 6, backgroundColor: theme.gold, borderRadius: 3, width: `${taskProgress}%` }} />
+            <View style={{ height: 4, backgroundColor: theme.border, marginBottom: 16 }}>
+              <View style={{ height: 4, backgroundColor: theme.gold, width: `${taskProgress}%` }} />
             </View>
 
             {pendingTasks.length === 0 ? (
               <View
                 style={{
-                  backgroundColor: hexToRgba(theme.gold, 0.08),
-                  borderRadius: 16,
+                  backgroundColor: theme.card,
+                  borderRadius: RADIUS,
                   padding: 16,
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: hexToRgba(theme.gold, 0.2),
+                  borderColor: theme.gold,
                   marginBottom: 8,
                 }}
               >
-                <Text style={{ fontSize: 22, marginBottom: 4 }}>🏆</Text>
-                <Text style={{ color: theme.gold, fontFamily: FontFamily.bodySemiBold }}>Tüm görevler tamamlandı!</Text>
+                <Text style={{ color: theme.gold, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>TÜM GÖREVLER TAMAMLANDI</Text>
               </View>
             ) : (
               pendingTasks.map((task) => (
@@ -426,7 +430,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                     alignItems: 'center',
                     gap: 12,
                     backgroundColor: theme.card,
-                    borderRadius: 16,
+                    borderRadius: RADIUS,
                     padding: 14,
                     marginBottom: 8,
                     borderWidth: 1,
@@ -435,15 +439,15 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 >
                   <View
                     style={{
-                      width: 40,
-                      height: 40,
-                      backgroundColor: hexToRgba(theme.gold, 0.1),
-                      borderRadius: 12,
+                      width: 38,
+                      height: 38,
+                      backgroundColor: theme.card2,
+                      borderRadius: RADIUS,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 18 }}>{task.icon}</Text>
+                    <Ionicons name={task.icon} size={17} color={theme.gold} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, marginBottom: 2 }}>{task.title}</Text>
@@ -465,14 +469,13 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 justifyContent: 'center',
                 gap: 6,
                 padding: 12,
-                borderRadius: 14,
+                borderRadius: RADIUS,
                 borderWidth: 1,
                 borderColor: theme.border,
-                borderStyle: 'dashed',
               }}
             >
-              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.bodySemiBold }}>Tüm Görevleri Gör</Text>
-              <Text style={{ color: theme.gold }}>→</Text>
+              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>Tüm Görevleri Gör</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.gold} />
             </HapticTouchable>
           </View>
         )}
@@ -500,10 +503,10 @@ export default function HomeScreen({ navigate, userId }: Props) {
             >
               <HapticTouchable style={styles.gridCard} onPress={() => navigate(item.screen)}>
                 <View style={styles.gridIconWrap}>
-                  <Text style={styles.gridIcon}>{item.icon}</Text>
+                  <Ionicons name={GRID_ICONS[item.icon] ?? 'ellipse-outline'} size={19} color={theme.gold} />
                 </View>
                 <Text style={styles.gridTitle}>{item.title}</Text>
-                <Text style={styles.gridSub}>{item.sub} →</Text>
+                <Text style={styles.gridSub}>{item.sub}</Text>
               </HapticTouchable>
             </Animated.View>
           ))}
@@ -517,7 +520,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
           {PLATFORM_ACTIVITY.map((a, i) => (
             <View key={i} style={styles.activityItem}>
               <View style={styles.activityIconWrap}>
-                <Text style={styles.activityIcon}>{a.icon}</Text>
+                <Ionicons name={a.icon} size={16} color={theme.gold} />
               </View>
               <Text style={styles.activityText}>{a.text}</Text>
               <Text style={styles.activityTime}>{a.time}</Text>
@@ -529,12 +532,12 @@ export default function HomeScreen({ navigate, userId }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('upcomingMatches')}</Text>
           <HapticTouchable onPress={() => navigate('match')}>
-            <Text style={styles.sectionLink}>Tümü →</Text>
+            <Text style={styles.sectionLink}>Tümü</Text>
           </HapticTouchable>
         </View>
         {matches.length === 0 && (
           <EmptyState
-            icon="⚽"
+            icon="football-outline"
             title="Henüz maç yok"
             subtitle="Yaklaşan maçlar burada görünecek"
           />
@@ -547,7 +550,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
           >
             <View style={styles.matchLeft}>
               <View style={styles.matchBadge}>
-                <Text style={styles.matchBadgeIcon}>{match.icon}</Text>
+                <Ionicons name={match.icon} size={19} color={theme.gold} />
               </View>
               <View>
                 <Text style={styles.matchName}>{match.name}</Text>
@@ -556,7 +559,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 </Text>
               </View>
             </View>
-            <View style={[styles.matchTag, { backgroundColor: match.tagColor + '20' }]}>
+            <View style={[styles.matchTag, { borderColor: match.tagColor }]}>
               <Text style={[styles.matchTagText, { color: match.tagColor }]}>{match.tag}</Text>
             </View>
           </HapticTouchable>
@@ -566,12 +569,12 @@ export default function HomeScreen({ navigate, userId }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('recentNotifications')}</Text>
           <HapticTouchable onPress={() => navigate('notifications')}>
-            <Text style={styles.sectionLink}>Tümü →</Text>
+            <Text style={styles.sectionLink}>Tümü</Text>
           </HapticTouchable>
         </View>
         {notifications.length === 0 && (
           <EmptyState
-            icon="🔔"
+            icon="notifications-outline"
             title="Henüz bildirim yok"
             subtitle="Bildirimler burada görünecek"
           />
@@ -579,7 +582,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         {notifications.map((notif) => (
           <View key={notif.id} style={styles.notifItem}>
             <View style={styles.notifAvatar}>
-              <Text style={styles.notifAvatarIcon}>{notif.icon}</Text>
+              <Ionicons name="notifications-outline" size={16} color={theme.gold} />
             </View>
             <View style={styles.notifText}>
               <Text style={styles.notifMsg}>{notif.msg}</Text>
@@ -599,21 +602,22 @@ export default function HomeScreen({ navigate, userId }: Props) {
       />
       <Modal visible={showAllTasks} animationType="slide" onRequestClose={() => setShowAllTasks(false)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
-            <HapticTouchable onPress={() => setShowAllTasks(false)}>
-              <Text style={{ color: theme.gold, fontSize: 16 }}>← Geri</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+            <HapticTouchable style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => setShowAllTasks(false)}>
+              <Ionicons name="chevron-back" size={16} color={theme.gold} />
+              <Text style={{ color: theme.gold, fontFamily: FontFamily.mono, fontSize: 13 }}>Geri</Text>
             </HapticTouchable>
-            <Text style={{ color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>Görevler</Text>
-            <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints}</Text>
+            <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>GÖREVLER</Text>
+            <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{completedPoints}/{totalPoints}</Text>
           </View>
 
-          <View style={{ margin: 16, backgroundColor: theme.card2, borderRadius: 20, padding: 16 }}>
+          <View style={{ margin: 16, backgroundColor: theme.card2, borderRadius: RADIUS, padding: 16, borderWidth: 1, borderColor: theme.border }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ color: theme.text, fontFamily: FontFamily.bodySemiBold }}>Genel İlerleme</Text>
-              <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium }}>{Math.round(taskProgress)}%</Text>
+              <Text style={{ color: theme.text, fontFamily: FontFamily.mono, fontSize: 12 }}>Genel İlerleme</Text>
+              <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium, fontSize: 12 }}>{Math.round(taskProgress)}%</Text>
             </View>
-            <View style={{ height: 8, backgroundColor: theme.border, borderRadius: 4 }}>
-              <View style={{ height: 8, backgroundColor: theme.gold, borderRadius: 4, width: `${taskProgress}%` }} />
+            <View style={{ height: 4, backgroundColor: theme.border }}>
+              <View style={{ height: 4, backgroundColor: theme.gold, width: `${taskProgress}%` }} />
             </View>
           </View>
 
@@ -630,24 +634,24 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   alignItems: 'center',
                   gap: 12,
                   backgroundColor: theme.card,
-                  borderRadius: 16,
+                  borderRadius: RADIUS,
                   padding: 14,
                   borderWidth: 1,
-                  borderColor: task.done ? hexToRgba(theme.success, 0.3) : theme.border,
+                  borderColor: task.done ? theme.success : theme.border,
                   opacity: task.done ? 0.8 : 1,
                 }}
               >
                 <View
                   style={{
-                    width: 44,
-                    height: 44,
-                    backgroundColor: task.done ? hexToRgba(theme.success, 0.1) : hexToRgba(theme.gold, 0.1),
-                    borderRadius: 12,
+                    width: 40,
+                    height: 40,
+                    backgroundColor: theme.card2,
+                    borderRadius: RADIUS,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 20 }}>{task.done ? '✅' : task.icon}</Text>
+                  <Ionicons name={task.done ? 'checkmark-circle' : task.icon} size={18} color={task.done ? theme.success : theme.gold} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
@@ -674,16 +678,15 @@ export default function HomeScreen({ navigate, userId }: Props) {
             {tasks.length > 0 && completedPoints === totalPoints && (
               <View
                 style={{
-                  backgroundColor: hexToRgba(theme.gold, 0.1),
-                  borderRadius: 20,
+                  backgroundColor: theme.card,
+                  borderRadius: RADIUS,
                   padding: 20,
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: hexToRgba(theme.gold, 0.3),
+                  borderColor: theme.gold,
                 }}
               >
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>🏆</Text>
-                <Text style={{ color: theme.gold, fontSize: 22, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>Tebrikler!</Text>
+                <Text style={{ color: theme.gold, fontSize: 18, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>TEBRİKLER!</Text>
                 <Text style={{ color: theme.textSecondary, textAlign: 'center', fontFamily: FontFamily.body }}>
                   Tüm görevleri tamamladın. Profilin mükemmel!
                 </Text>
@@ -709,15 +712,30 @@ const createStyles = (theme: Theme) =>
       padding: 24,
       paddingTop: 16,
     },
+    topStrip: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      paddingTop: 18,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    topStripText: {
+      fontFamily: FontFamily.mono,
+      fontSize: 11,
+      color: theme.textSecondary,
+      letterSpacing: 1,
+    },
     greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     greeting: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 2 },
     greetingName: { fontFamily: FontFamily.display, fontSize: 30, color: theme.text, marginTop: 2 },
     gold: { color: theme.gold },
     premiumBadge: {
-      backgroundColor: hexToRgba(theme.gold, 0.15),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 8,
+      borderRadius: RADIUS,
       paddingHorizontal: 8,
       paddingVertical: 2,
     },
@@ -725,36 +743,36 @@ const createStyles = (theme: Theme) =>
     tipCard: {
       marginHorizontal: 24,
       marginBottom: 20,
-      backgroundColor: hexToRgba(theme.gold, 0.08),
-      borderRadius: 16,
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.2),
+      borderColor: theme.border,
     },
-    tipText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted, lineHeight: 19 },
+    tipText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textMuted, lineHeight: 18 },
     scoreLevelPill: {
       alignSelf: 'flex-start',
-      borderRadius: 10,
+      borderRadius: RADIUS,
+      borderWidth: 1,
       paddingHorizontal: 10,
       paddingVertical: 4,
       marginTop: 6,
     },
     scoreLevelText: { fontFamily: FontFamily.mono, fontSize: 11 },
     notifBtn: {
-      width: 44, height: 44,
+      width: 42, height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    notifIcon: { fontSize: 18 },
     notifDot: {
       position: 'absolute',
       top: 6, right: 6,
       minWidth: 16, height: 16,
-      borderRadius: 8,
+      borderRadius: RADIUS - 3,
       paddingHorizontal: 3,
       backgroundColor: theme.error,
       alignItems: 'center',
@@ -765,33 +783,28 @@ const createStyles = (theme: Theme) =>
       margin: 24,
       marginTop: 0,
       backgroundColor: theme.card2,
-      borderRadius: 24,
-      padding: 24,
+      borderRadius: RADIUS,
+      padding: 22,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.15),
-      shadowColor: theme.gold,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.18,
-      shadowRadius: 24,
-      elevation: 4,
+      borderColor: theme.border,
     },
     scoreInfo: { flex: 1 },
     scoreLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 2 },
-    scoreValue: { fontFamily: FontFamily.mono, fontSize: 52, color: theme.gold, lineHeight: 60 },
+    scoreValue: { fontFamily: FontFamily.display, fontSize: 48, color: theme.gold, lineHeight: 54 },
     scoreSub: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 4 },
     scoreUp: { fontFamily: FontFamily.bodySemiBold, color: theme.success },
-    scoreRing: {
-      width: 80, height: 80,
-      borderRadius: 40,
-      borderWidth: 6,
-      borderColor: theme.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
+    scoreDivider: {
+      width: 1,
+      alignSelf: 'stretch',
+      backgroundColor: theme.border,
+      marginHorizontal: 18,
     },
-    scoreRingText: { fontFamily: FontFamily.monoMedium, fontSize: 16, color: theme.gold },
+    scorePercent: { alignItems: 'center' },
+    scoreRingText: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold },
+    scorePercentLabel: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.textSecondary, letterSpacing: 1, marginTop: 2 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -799,8 +812,8 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    sectionLink: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
+    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -810,51 +823,49 @@ const createStyles = (theme: Theme) =>
     },
     gridCard: {
       backgroundColor: theme.card,
-      borderRadius: 20,
-      padding: 20,
+      borderRadius: RADIUS,
+      padding: 18,
       borderWidth: 1,
       borderColor: theme.border,
     },
     gridIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      width: 40,
+      height: 40,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 10,
     },
-    gridIcon: { fontSize: 20 },
     gridTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 4 },
-    gridSub: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textSecondary },
+    gridSub: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
     activityList: { paddingHorizontal: 24, marginBottom: 28, gap: 10 },
     activityItem: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     activityIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 34,
+      height: 34,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    activityIcon: { fontSize: 16 },
-    activityText: { fontFamily: FontFamily.bodySemiBold, flex: 1, fontSize: 12, color: theme.textMuted, lineHeight: 17 },
+    activityText: { fontFamily: FontFamily.body, flex: 1, fontSize: 12, color: theme.textMuted, lineHeight: 17 },
     activityTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
     matchItem: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       padding: 16,
       marginHorizontal: 24,
       marginBottom: 12,
@@ -863,16 +874,15 @@ const createStyles = (theme: Theme) =>
     },
     matchLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     matchBadge: {
-      width: 44, height: 44,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 12,
+      width: 42, height: 42,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    matchBadgeIcon: { fontSize: 22 },
     matchName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
     matchDate: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    matchTag: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+    matchTag: { borderRadius: RADIUS, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
     matchTagText: { fontFamily: FontFamily.mono, fontSize: 11 },
     notifItem: {
       flexDirection: 'row',
@@ -884,20 +894,19 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.border,
     },
     notifAvatar: {
-      width: 40, height: 40,
-      borderRadius: 20,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 38, height: 38,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    notifAvatarIcon: { fontSize: 18 },
     notifText: { flex: 1 },
     notifMsg: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, lineHeight: 18 },
     notifTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 3 },
     unreadDot: {
-      width: 7, height: 7,
-      borderRadius: 4,
+      width: 6, height: 6,
+      borderRadius: 3,
       backgroundColor: theme.gold,
-      marginTop: 5,
+      marginTop: 6,
     },
   });

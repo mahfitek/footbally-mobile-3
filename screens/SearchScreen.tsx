@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendMatchChallenge } from '../lib/challenges';
@@ -11,6 +12,9 @@ import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
 
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
 type PlayerResult = { user_id: string; full_name: string; position: string | null; city: string | null; score: number };
 type TeamResult = { id: string; name: string; city: string | null; league: string | null; rating: number };
 type MatchResult = { id: string; title: string; date: string; time: string; location: string; creator_id: string };
@@ -18,11 +22,11 @@ type OpportunityResult = { id: string | number; title: string; subtitle: string;
 
 type TabKey = 'players' | 'teams' | 'matches' | 'opportunities';
 
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'players', label: 'Oyuncular', icon: '👤' },
-  { key: 'teams', label: 'Takımlar', icon: '🏟️' },
-  { key: 'matches', label: 'Maçlar', icon: '⚽' },
-  { key: 'opportunities', label: 'Fırsatlar', icon: '⚡' },
+const TABS: { key: TabKey; label: string; icon: IoniconName }[] = [
+  { key: 'players', label: 'Oyuncular', icon: 'person-outline' },
+  { key: 'teams', label: 'Takımlar', icon: 'business-outline' },
+  { key: 'matches', label: 'Maçlar', icon: 'football-outline' },
+  { key: 'opportunities', label: 'Fırsatlar', icon: 'flash-outline' },
 ];
 
 interface Props {
@@ -146,7 +150,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <HapticTouchable style={styles.backBtn} onPress={() => navigate(userType === 'team' ? 'teamHome' : 'home')}>
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
         <TextInput
           style={styles.searchInput}
@@ -165,7 +169,8 @@ export default function SearchScreen({ navigate, userType }: Props) {
             style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
             onPress={() => setActiveTab(t.key)}
           >
-            <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>{t.icon} {t.label}</Text>
+            <Ionicons name={t.icon} size={13} color={activeTab === t.key ? Paper.ink : theme.textMuted} />
+            <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>{t.label}</Text>
           </HapticTouchable>
         ))}
       </ScrollView>
@@ -176,12 +181,12 @@ export default function SearchScreen({ navigate, userType }: Props) {
         <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {activeTab === 'players' && (
             players.length === 0 ? (
-              <EmptyState icon="👤" title="Oyuncu bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="person-outline" title="Oyuncu bulunamadı" subtitle="Farklı bir arama dene" />
             ) : (
               <View style={{ gap: 12 }}>
                 {players.map((p) => (
                   <View key={p.user_id} style={styles.row}>
-                    <View style={styles.avatar}><Text style={{ fontSize: 20 }}>👤</Text></View>
+                    <View style={styles.avatar}><Ionicons name="person-outline" size={19} color={theme.gold} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>{p.full_name || 'Oyuncu'}</Text>
                       <Text style={styles.rowMeta}>{[p.position, p.city].filter(Boolean).join(' · ') || '-'}</Text>
@@ -198,12 +203,12 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'teams' && (
             teams.length === 0 ? (
-              <EmptyState icon="🏟️" title="Takım bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="business-outline" title="Takım bulunamadı" subtitle="Farklı bir arama dene" />
             ) : (
               <View style={{ gap: 12 }}>
                 {teams.map((tm) => (
                   <View key={tm.id} style={styles.row}>
-                    <View style={styles.avatar}><Text style={{ fontSize: 20 }}>🏟️</Text></View>
+                    <View style={styles.avatar}><Ionicons name="business-outline" size={19} color={theme.gold} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>{tm.name}</Text>
                       <Text style={styles.rowMeta}>{[tm.city, tm.league].filter(Boolean).join(' · ') || '-'}</Text>
@@ -222,7 +227,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'matches' && (
             matches.length === 0 ? (
-              <EmptyState icon="⚽" title="Maç bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="football-outline" title="Maç bulunamadı" subtitle="Farklı bir arama dene" />
             ) : (
               <View style={{ gap: 12 }}>
                 {matches.map((m) => {
@@ -230,7 +235,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                   const mine = m.creator_id === userId;
                   return (
                     <View key={m.id} style={styles.row}>
-                      <View style={styles.avatar}><Text style={{ fontSize: 20 }}>⚽</Text></View>
+                      <View style={styles.avatar}><Ionicons name="football-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{m.title}</Text>
                         <Text style={styles.rowMeta}>{m.date} · {m.time} · {m.location}</Text>
@@ -241,7 +246,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                           onPress={() => handleJoinMatch(m)}
                           disabled={joined}
                         >
-                          <Text style={styles.actionBtnText}>{joined ? '✓ Katıldın' : 'Katıl'}</Text>
+                          <Text style={styles.actionBtnText}>{joined ? 'Katıldın' : 'Katıl'}</Text>
                         </HapticTouchable>
                       )}
                     </View>
@@ -253,14 +258,14 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'opportunities' && (
             opportunities.length === 0 ? (
-              <EmptyState icon="⚡" title="Fırsat bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="flash-outline" title="Fırsat bulunamadı" subtitle="Farklı bir arama dene" />
             ) : (
               <View style={{ gap: 12 }}>
                 {opportunities.map((op) => {
                   const applied = appliedIds[String(op.id)];
                   return (
                     <View key={op.id} style={styles.row}>
-                      <View style={styles.avatar}><Text style={{ fontSize: 20 }}>⚡</Text></View>
+                      <View style={styles.avatar}><Ionicons name="flash-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{op.title}</Text>
                         <Text style={styles.rowMeta} numberOfLines={1}>{op.subtitle} · {op.location}</Text>
@@ -270,7 +275,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                         onPress={() => handleApplyOpportunity(op)}
                         disabled={applied}
                       >
-                        <Text style={styles.actionBtnText}>{applied ? '✓ Başvuruldu' : 'Başvur'}</Text>
+                        <Text style={styles.actionBtnText}>{applied ? 'Başvuruldu' : 'Başvur'}</Text>
                       </HapticTouchable>
                     </View>
                   );
@@ -308,83 +313,83 @@ const createStyles = (theme: Theme) =>
     backBtn: {
       width: 44, height: 44,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
     searchInput: {
       flex: 1,
       height: 48,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       color: theme.text,
-      fontFamily: FontFamily.body,
-      fontSize: 15,
+      fontFamily: FontFamily.mono,
+      fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     tabsScroll: { paddingHorizontal: 16, gap: 8, marginBottom: 12 },
     tabBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
       paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     tabBtnActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
-    tabTextActive: { color: '#000' },
+    tabText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    tabTextActive: { color: Paper.ink },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     avatar: {
-      width: 44, height: 44,
-      borderRadius: 22,
+      width: 42, height: 42,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
     rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    rowMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    scoreText: { fontFamily: FontFamily.monoMedium, fontSize: 15, color: theme.gold },
+    rowMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    scoreText: { fontFamily: FontFamily.display, fontSize: 16, color: theme.gold },
     actionBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
-    actionBtnDone: { backgroundColor: hexToRgba(theme.success, 0.12), borderColor: theme.success },
-    actionBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.gold },
+    actionBtnDone: { backgroundColor: theme.card2, borderColor: theme.success },
+    actionBtnText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       paddingBottom: 36,
       borderWidth: 1,
       borderColor: theme.border,
       gap: 8,
     },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, marginBottom: 4, letterSpacing: 0.5 },
-    saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#000' },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 4, letterSpacing: 0.5 },
+    saveBtn: { height: 52, borderRadius: RADIUS, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+    saveBtnText: { fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 1, color: Paper.ink },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
+    cancelBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
   });

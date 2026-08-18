@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -263,7 +266,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
   if (!team) {
     return (
       <SafeAreaView style={styles.safe}>
-        <EmptyState icon="📈" title="Henüz takımın yok" subtitle="Takım profilini oluşturarak başla" actionLabel="Takım Oluştur" onAction={() => navigate('teamEdit')} />
+        <EmptyState icon="trending-up-outline" title="Henüz takımın yok" subtitle="Takım profilini oluşturarak başla" actionLabel="Takım Oluştur" onAction={() => navigate('teamEdit')} />
       </SafeAreaView>
     );
   }
@@ -274,10 +277,10 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>İstatistikler</Text>
-        <View style={{ width: 44 }} />
+        <Text style={styles.title}>İSTATİSTİKLER</Text>
+        <View style={{ width: 42 }} />
       </View>
 
       <ScrollView
@@ -331,9 +334,9 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
                   key={i}
                   style={[
                     styles.formPill,
-                    r === 'W' && { backgroundColor: hexToRgba(theme.success, 0.2) },
-                    r === 'L' && { backgroundColor: hexToRgba(theme.error, 0.2) },
-                    r === 'D' && { backgroundColor: hexToRgba(theme.textSecondary, 0.2) },
+                    r === 'W' && { borderColor: theme.success },
+                    r === 'L' && { borderColor: theme.error },
+                    r === 'D' && { borderColor: theme.border },
                   ]}
                 >
                   <Text style={styles.formPillText}>{r}</Text>
@@ -405,7 +408,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
             </View>
 
             <HapticTouchable style={styles.saveBtn} onPress={submitScore} disabled={saving}>
-              {saving ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
+              {saving ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
             </HapticTouchable>
             <HapticTouchable style={styles.cancelBtn} onPress={() => setScoreTarget(null)}>
               <Text style={styles.cancelBtnText}>Vazgeç</Text>
@@ -431,48 +434,47 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     backBtn: {
-      width: 44, height: 44,
+      width: 42, height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
     statCard: {
       flex: 1,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingVertical: 14,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    statValue: { fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold },
+    statValue: { fontFamily: FontFamily.display, fontSize: 17, color: theme.gold },
     statLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
     },
     cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 16, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
     upcomingText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     goalsRow: { flexDirection: 'row', justifyContent: 'space-around' },
     goalsItem: { alignItems: 'center' },
-    goalsValue: { fontFamily: FontFamily.monoMedium, fontSize: 24, color: theme.gold },
+    goalsValue: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold },
     goalsLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 4 },
     formRow: { flexDirection: 'row', gap: 8 },
-    formPill: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    formPill: { width: 30, height: 30, borderRadius: RADIUS, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     formPillText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
-    emptyHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary },
+    emptyHint: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     scorerRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -495,43 +497,43 @@ const createStyles = (theme: Theme) =>
     scorableTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
     scorableMeta: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
     scoreEntryBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    scoreEntryBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
+    scoreEntryBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       paddingBottom: 36,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 6, letterSpacing: 0.5 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 6, letterSpacing: 0.5 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 20, marginBottom: 20 },
     scoreInputCol: { alignItems: 'center', width: 100 },
-    scoreInputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.textSecondary, marginBottom: 8, textAlign: 'center' },
+    scoreInputLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginBottom: 8, textAlign: 'center' },
     scoreInput: {
       width: 64,
       height: 56,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
       color: theme.text,
-      fontFamily: FontFamily.monoMedium,
-      fontSize: 24,
+      fontFamily: FontFamily.display,
+      fontSize: 22,
       textAlign: 'center',
     },
     scoreDash: { fontFamily: FontFamily.mono, fontSize: 20, color: theme.textSecondary, marginTop: 20 },
-    saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center' },
-    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#000' },
+    saveBtn: { height: 52, borderRadius: RADIUS, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center' },
+    saveBtnText: { fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 0.5, color: Paper.ink },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
+    cancelBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
   });

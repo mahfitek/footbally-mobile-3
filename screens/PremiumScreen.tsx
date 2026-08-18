@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import HapticTouchable from '../components/HapticTouchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -156,7 +159,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
       setIsPremium(true);
       setPremiumUntil(until ? until.toISOString() : null);
       setSuccess(true);
-      sendLocalNotification('Premium Aktif 🏆', 'Footbally Pro üyeliğiniz başarıyla aktifleştirildi.');
+      sendLocalNotification('Premium Aktif', 'Footbally Pro üyeliğiniz başarıyla aktifleştirildi.');
     } catch (err) {
       if (__DEV__) console.log('Premium aktifleştirilemedi:', err);
       setToast({ message: 'Ödeme tamamlanamadı, tekrar deneyin', type: 'error' });
@@ -183,7 +186,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
       >
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate(previousScreen ?? 'home')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
         </View>
 
@@ -196,7 +199,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
 
         <View style={styles.hero}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>✦ FOOTBALLY PRO</Text>
+            <Text style={styles.badgeText}>FOOTBALLY PRO</Text>
           </View>
           {isPremiumActive ? (
             <Text style={styles.title}>
@@ -260,7 +263,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
               style={[styles.benefitRow, i === BENEFITS.length - 1 && { borderBottomWidth: 0 }]}
             >
               <View style={styles.check}>
-                <Text style={styles.checkIcon}>✦</Text>
+                <Ionicons name="checkmark" size={13} color={theme.gold} />
               </View>
               <Text style={styles.benefitText}>{b}</Text>
             </View>
@@ -275,7 +278,11 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
         >
           {TESTIMONIALS.map((t, i) => (
             <View key={i} style={styles.testimonialCard}>
-              <Text style={styles.testimonialStars}>{'⭐'.repeat(t.rating)}</Text>
+              <View style={styles.testimonialStars}>
+                {Array.from({ length: t.rating }).map((_, si) => (
+                  <Ionicons key={si} name="star" size={12} color={theme.gold} />
+                ))}
+              </View>
               <Text style={styles.testimonialText}>"{t.text}"</Text>
               <Text style={styles.testimonialName}>
                 {t.name}, {t.age} yaş
@@ -287,7 +294,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
         {!isPremiumActive && (
           <>
             <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>✦ Çok Yakında Hizmetinizde</Text>
+              <Text style={styles.comingSoonText}>Çok Yakında Hizmetinizde</Text>
             </View>
             <HapticTouchable style={[styles.ctaBtn, styles.ctaBtnDisabled]} disabled>
               <Text style={styles.ctaText}>Hemen Başla - 7 Gün Ücretsiz Dene</Text>
@@ -307,7 +314,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
           <View style={styles.modalCard}>
             {success ? (
               <View style={styles.successWrap}>
-                <Text style={styles.successIcon}>🏆</Text>
+                <Ionicons name="trophy-outline" size={44} color={theme.gold} style={{ marginBottom: 16 }} />
                 <Text style={styles.successTitle}>Premium Aktif!</Text>
                 <Text style={styles.successSub}>
                   Footbally Pro ayrıcalıkların hemen kullanıma hazır.
@@ -318,7 +325,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
               </View>
             ) : (
               <>
-                <Text style={styles.modalTitle}>🔒 Güvenli Ödeme</Text>
+                <Text style={styles.modalTitle}>GÜVENLİ ÖDEME</Text>
                 <View style={styles.planSummary}>
                   <Text style={styles.planSummaryLabel}>{plan.label} Plan</Text>
                   <Text style={styles.planSummaryValue}>
@@ -381,7 +388,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
                     disabled={submitting}
                   >
                     {submitting ? (
-                      <ActivityIndicator color="#000" />
+                      <ActivityIndicator color={Paper.ink} />
                     ) : (
                       <Text style={styles.modalSaveText}>Ödemeyi Tamamla</Text>
                     )}
@@ -413,22 +420,21 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 8,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
     hero: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 },
     badge: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 8,
       marginBottom: 20,
@@ -436,29 +442,29 @@ const createStyles = (theme: Theme) =>
     badgeText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1.5 },
     title: {
       fontFamily: FontFamily.display,
-      fontSize: 30,
+      fontSize: 28,
       color: theme.text,
       textAlign: 'center',
-      lineHeight: 36,
+      lineHeight: 34,
       letterSpacing: 0.5,
     },
     titleGold: { color: theme.gold },
-    subtitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary, marginTop: 10, textAlign: 'center' },
+    subtitle: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 10, textAlign: 'center' },
     statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 28 },
     statCard: {
       flex: 1,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 14,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    statValue: { fontFamily: FontFamily.monoMedium, color: theme.gold, fontSize: 24 },
+    statValue: { fontFamily: FontFamily.display, color: theme.gold, fontSize: 22 },
     statLabel: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 11, marginTop: 4 },
     sectionTitle: {
       fontFamily: FontFamily.display,
-      fontSize: 17,
+      fontSize: 16,
       color: theme.text,
       paddingHorizontal: 24,
       marginBottom: 12,
@@ -468,26 +474,26 @@ const createStyles = (theme: Theme) =>
     planCard: {
       flex: 1,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 14,
       alignItems: 'center',
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.border,
       position: 'relative',
     },
-    planCardSelected: { borderColor: theme.gold, backgroundColor: hexToRgba(theme.gold, 0.06) },
+    planCardSelected: { borderColor: theme.gold, backgroundColor: theme.card2 },
     planBadge: {
       position: 'absolute',
       top: -10,
       backgroundColor: theme.gold,
-      borderRadius: 8,
+      borderRadius: RADIUS - 3,
       paddingHorizontal: 8,
       paddingVertical: 3,
     },
-    planBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: '#000' },
-    planLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted, marginTop: 8 },
+    planBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: Paper.ink },
+    planLabel: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted, marginTop: 8 },
     planLabelSelected: { color: theme.gold },
-    planPrice: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.text, marginTop: 8 },
+    planPrice: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, marginTop: 8 },
     planPriceSelected: { color: theme.gold },
     planPeriod: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
     planOriginal: {
@@ -501,7 +507,7 @@ const createStyles = (theme: Theme) =>
       marginHorizontal: 24,
       marginBottom: 28,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       paddingHorizontal: 20,
       borderWidth: 1,
       borderColor: theme.border,
@@ -515,50 +521,44 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.border,
     },
     check: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: hexToRgba(theme.gold, 0.15),
+      width: 22,
+      height: 22,
+      borderRadius: RADIUS - 2,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    checkIcon: { fontSize: 12, fontWeight: '800', color: theme.gold },
     benefitText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, flex: 1 },
     testimonialsRow: { paddingHorizontal: 24, paddingBottom: 28 },
     testimonialCard: {
       width: 250,
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       padding: 16,
       marginRight: 12,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    testimonialStars: { color: theme.gold, fontSize: 16, marginBottom: 8 },
+    testimonialStars: { flexDirection: 'row', gap: 2, marginBottom: 8 },
     testimonialText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 13, lineHeight: 20, marginBottom: 12 },
-    testimonialName: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 12 },
+    testimonialName: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12 },
     ctaBtn: {
       marginHorizontal: 24,
-      height: 58,
+      height: 56,
       backgroundColor: theme.gold,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: theme.gold,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.4,
-      shadowRadius: 16,
-      elevation: 8,
     },
-    ctaText: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: '#000', letterSpacing: 0.3 },
+    ctaText: { fontFamily: FontFamily.display, fontSize: 14, color: Paper.ink, letterSpacing: 0.5 },
     ctaBtnDisabled: { opacity: 0.5 },
-    ctaSub: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, textAlign: 'center', marginTop: 14 },
+    ctaSub: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginTop: 14 },
     comingSoonBadge: {
       alignSelf: 'center',
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 8,
       marginBottom: 14,
@@ -572,19 +572,19 @@ const createStyles = (theme: Theme) =>
     },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
     planSummary: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 14,
       marginBottom: 20,
@@ -604,10 +604,10 @@ const createStyles = (theme: Theme) =>
     cardInput: {
       height: 48,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       color: theme.text,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
@@ -616,26 +616,25 @@ const createStyles = (theme: Theme) =>
     modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     modalCancelBtn: {
       flex: 1,
-      height: 52,
-      borderRadius: 18,
+      height: 50,
+      borderRadius: RADIUS,
       borderWidth: 1,
       borderColor: theme.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    modalCancelText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.textMuted },
+    modalCancelText: { fontFamily: FontFamily.mono, fontSize: 13, color: theme.textMuted },
     modalSaveBtn: {
       flex: 1,
-      height: 52,
-      borderRadius: 18,
+      height: 50,
+      borderRadius: RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    modalSaveText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
+    modalSaveText: { fontFamily: FontFamily.display, fontSize: 13, color: Paper.ink, letterSpacing: 0.5 },
     successWrap: { alignItems: 'center', paddingVertical: 20 },
-    successIcon: { fontSize: 56, marginBottom: 16 },
-    successTitle: { fontFamily: FontFamily.display, fontSize: 24, color: theme.gold, marginBottom: 8, letterSpacing: 0.5 },
+    successTitle: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold, marginBottom: 8, letterSpacing: 0.5 },
     successSub: {
       fontFamily: FontFamily.body,
       fontSize: 13,

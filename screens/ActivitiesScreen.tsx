@@ -7,8 +7,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { activityFiltersData } from '../api/mockData';
 import { supabase } from '../lib/supabase';
@@ -18,9 +19,10 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
+const RADIUS = CARD_RADIUS;
+
 type OpportunityView = {
   id: number | string;
-  icon: string;
   title: string;
   subtitle: string;
   badge: string;
@@ -68,7 +70,6 @@ export default function ActivitiesScreen() {
         setOpportunities(
           data.map((o: any) => ({
             id: o.id,
-            icon: '⚽',
             title: o.title,
             subtitle: o.subtitle,
             badge: o.badge,
@@ -118,7 +119,7 @@ export default function ActivitiesScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>Fırsatlar</Text>
+          <Text style={styles.title}>FIRSATLAR</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 16 }}>
           <SkeletonCard height={200} />
@@ -154,7 +155,7 @@ export default function ActivitiesScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Fırsatlar</Text>
+          <Text style={styles.title}>FIRSATLAR</Text>
         </View>
 
         <ScrollView
@@ -190,13 +191,13 @@ export default function ActivitiesScreen() {
         {filteredOpportunities.length === 0 ? (
           opportunities.length === 0 ? (
             <EmptyState
-              icon="⚡"
+              icon="flash-outline"
               title="Henüz fırsat yok"
               subtitle="Yeni fırsatlar yakında eklenecek"
             />
           ) : (
             <EmptyState
-              icon="🔍"
+              icon="search-outline"
               title="Bu filtrede fırsat yok"
               subtitle="Farklı bir filtre deneyin"
             />
@@ -206,8 +207,8 @@ export default function ActivitiesScreen() {
             {filteredOpportunities.map((op) => (
               <View key={op.id} style={styles.card}>
                 <View style={styles.cardTop}>
-                  <View style={[styles.iconWrap, { backgroundColor: op.badgeColor + '1A' }]}>
-                    <Text style={styles.icon}>{op.icon}</Text>
+                  <View style={[styles.iconWrap, { borderColor: op.badgeColor }]}>
+                    <Ionicons name="flag-outline" size={20} color={op.badgeColor} />
                   </View>
                   <View style={styles.cardTopText}>
                     <Text style={styles.cardTitle}>{op.title}</Text>
@@ -215,14 +216,23 @@ export default function ActivitiesScreen() {
                   </View>
                 </View>
 
-                <View style={[styles.badge, { backgroundColor: op.badgeColor + '20' }]}>
+                <View style={[styles.badge, { borderColor: op.badgeColor }]}>
                   <Text style={[styles.badgeText, { color: op.badgeColor }]}>{op.badge}</Text>
                 </View>
 
                 <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>📍 {op.location}</Text>
-                  <Text style={styles.metaText}>🎯 {op.age}</Text>
-                  <Text style={styles.metaText}>⏳ {op.deadline}</Text>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="location-outline" size={12} color={theme.textSecondary} />
+                    <Text style={styles.metaText}>{op.location}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="calendar-outline" size={12} color={theme.textSecondary} />
+                    <Text style={styles.metaText}>{op.age}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="time-outline" size={12} color={theme.textSecondary} />
+                    <Text style={styles.metaText}>{op.deadline}</Text>
+                  </View>
                 </View>
 
                 <HapticTouchable
@@ -231,7 +241,7 @@ export default function ActivitiesScreen() {
                   disabled={!!applied[op.id]}
                 >
                   <Text style={[styles.applyBtnText, applied[op.id] && styles.applyBtnTextDone]}>
-                    {applied[op.id] ? '✓ Başvuruldu' : 'Başvur'}
+                    {applied[op.id] ? 'Başvuruldu' : 'Başvur'}
                   </Text>
                 </HapticTouchable>
               </View>
@@ -268,9 +278,9 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 16,
+      paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
@@ -279,42 +289,43 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.gold,
       borderColor: theme.gold,
     },
-    pillText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
-    pillTextActive: { color: '#000' },
+    pillText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.textMuted },
+    pillTextActive: { color: Paper.ink },
     pillBadge: {
       minWidth: 18,
       height: 18,
-      borderRadius: 9,
-      backgroundColor: hexToRgba(theme.gold, 0.2),
+      borderRadius: RADIUS - 3,
+      backgroundColor: theme.bg,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 5,
     },
     pillBadgeActive: { backgroundColor: 'rgba(0,0,0,0.2)' },
     pillBadgeText: { fontSize: 10, fontFamily: FontFamily.monoMedium, color: theme.gold },
-    pillBadgeTextActive: { color: '#000' },
+    pillBadgeTextActive: { color: Paper.ink },
     list: { paddingHorizontal: 24, gap: 16 },
     card: {
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
     },
     cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
     iconWrap: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
+      width: 44,
+      height: 44,
+      borderRadius: RADIUS,
+      borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    icon: { fontSize: 22 },
     cardTopText: { flex: 1 },
     cardTitle: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.text, marginBottom: 4 },
     cardSubtitle: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, lineHeight: 17 },
     badge: {
-      borderRadius: 8,
+      borderRadius: RADIUS,
+      borderWidth: 1,
       paddingHorizontal: 10,
       paddingVertical: 4,
       alignSelf: 'flex-start',
@@ -322,18 +333,19 @@ const createStyles = (theme: Theme) =>
     },
     badgeText: { fontSize: 11, fontFamily: FontFamily.monoMedium },
     metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 16 },
-    metaText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    metaText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
     applyBtn: {
       backgroundColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingVertical: 13,
       alignItems: 'center',
     },
     applyBtnDone: {
-      backgroundColor: hexToRgba(theme.success, 0.12),
+      backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.success,
     },
-    applyBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: '#000' },
+    applyBtnText: { fontSize: 13, fontFamily: FontFamily.display, letterSpacing: 1, color: Paper.ink },
     applyBtnTextDone: { color: theme.success },
   });

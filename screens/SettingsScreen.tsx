@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Switch, Alert, TextInput, Modal, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba } from '../constants/theme';
+import { CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 interface Props {
   navigate: (s: string) => void;
@@ -47,7 +51,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     if (error) {
       Alert.alert('Hata', 'Şifre değiştirilemedi. Tekrar deneyin.');
     } else {
-      Alert.alert('✅ Başarılı', 'Şifreniz değiştirildi.');
+      Alert.alert('Başarılı', 'Şifreniz değiştirildi.');
       setShowPasswordModal(false);
       setNewPassword('');
       setConfirmPassword('');
@@ -74,7 +78,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      '⚠️ Hesabı Sil',
+      'Hesabı Sil',
       'Bu işlem geri alınamaz. Tüm verileriniz silinecek.',
       [
         { text: 'İptal', style: 'cancel' },
@@ -90,7 +94,9 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     );
   };
 
-  const SettingRow = ({ icon, title, subtitle, onPress, right, danger = false }: any) => (
+  const SettingRow = ({ icon, title, subtitle, onPress, right, danger = false }: {
+    icon: IoniconName; title: string; subtitle?: string; onPress: () => void; right?: React.ReactNode; danger?: boolean;
+  }) => (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
@@ -100,27 +106,27 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         gap: 14,
         padding: 16,
         backgroundColor: theme.card,
-        borderRadius: 16,
+        borderRadius: RADIUS,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: danger ? hexToRgba(theme.error, 0.2) : theme.border,
+        borderColor: danger ? theme.error : theme.border,
       }}>
       <View
         style={{
-          width: 40,
-          height: 40,
-          backgroundColor: danger ? hexToRgba(theme.error, 0.1) : hexToRgba(theme.gold, 0.1),
-          borderRadius: 12,
+          width: 38,
+          height: 38,
+          backgroundColor: theme.card2,
+          borderRadius: RADIUS,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        <Text style={{ fontSize: 20 }}>{icon}</Text>
+        <Ionicons name={icon} size={17} color={danger ? theme.error : theme.gold} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ color: danger ? theme.error : theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>{title}</Text>
         {subtitle && <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2, fontFamily: FontFamily.body }}>{subtitle}</Text>}
       </View>
-      {right || <Text style={{ color: theme.textSecondary }}>›</Text>}
+      {right || <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />}
     </TouchableOpacity>
   );
 
@@ -131,18 +137,18 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         <TouchableOpacity
           onPress={() => navigate(fromScreen || 'profile')}
           style={{
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             backgroundColor: theme.card,
-            borderRadius: 12,
+            borderRadius: RADIUS,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1,
             borderColor: theme.border,
           }}>
-          <Text style={{ color: theme.text, fontSize: 18 }}>←</Text>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </TouchableOpacity>
-        <Text style={{ color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>Ayarlar</Text>
+        <Text style={{ color: theme.text, fontSize: 19, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>AYARLAR</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
@@ -150,7 +156,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         <View
           style={{
             backgroundColor: theme.card,
-            borderRadius: 20,
+            borderRadius: RADIUS,
             padding: 16,
             marginBottom: 20,
             borderWidth: 1,
@@ -161,21 +167,21 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           }}>
           <View
             style={{
-              width: 50,
-              height: 50,
-              backgroundColor: 'rgba(255,179,71,0.1)',
-              borderRadius: 25,
+              width: 46,
+              height: 46,
+              backgroundColor: theme.card2,
+              borderRadius: RADIUS,
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-            <Text style={{ fontSize: 24 }}>👤</Text>
+            <Ionicons name="person-outline" size={21} color={theme.gold} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.text, fontSize: 15, fontFamily: FontFamily.bodySemiBold }}>Hesap</Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.body }}>{email}</Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.mono }}>{email}</Text>
           </View>
-          <View style={{ backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: theme.gold, fontSize: 11, fontFamily: FontFamily.mono }}>Ücretsiz</Text>
+          <View style={{ borderWidth: 1, borderColor: theme.gold, borderRadius: RADIUS, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ color: theme.gold, fontSize: 11, fontFamily: FontFamily.mono }}>ÜCRETSİZ</Text>
           </View>
         </View>
 
@@ -184,16 +190,16 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           HESAP
         </Text>
 
-        <SettingRow icon="🔒" title="Şifre Değiştir" subtitle="Hesap güvenliğini artır" onPress={() => setShowPasswordModal(true)} />
+        <SettingRow icon="lock-closed-outline" title="Şifre Değiştir" subtitle="Hesap güvenliğini artır" onPress={() => setShowPasswordModal(true)} />
 
         <SettingRow
-          icon="📧"
+          icon="mail-outline"
           title="E-posta"
           subtitle={email}
           onPress={() => Alert.alert('E-posta', 'E-posta değiştirme özelliği yakında!')}
         />
 
-        <SettingRow icon="⭐" title="Premium'a Geç" subtitle="Tüm özelliklerin kilidini aç" onPress={() => navigate('premium')} />
+        <SettingRow icon="star-outline" title="Premium'a Geç" subtitle="Tüm özelliklerin kilidini aç" onPress={() => navigate('premium')} />
 
         {/* GÖRÜNÜM */}
         <Text
@@ -201,10 +207,10 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           GÖRÜNÜM
         </Text>
 
-        <View style={{ backgroundColor: theme.card, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: RADIUS, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
-            <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 20 }}>{isDark ? '🌙' : '☀️'}</Text>
+            <View style={{ width: 38, height: 38, backgroundColor: theme.card2, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={isDark ? 'moon-outline' : 'sunny-outline'} size={17} color={theme.gold} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>Tema</Text>
@@ -219,10 +225,10 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           </View>
         </View>
 
-        <View style={{ backgroundColor: theme.card, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: RADIUS, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
-            <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 20 }}>🌐</Text>
+            <View style={{ width: 38, height: 38, backgroundColor: theme.card2, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="language-outline" size={17} color={theme.gold} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>Dil / Language</Text>
@@ -234,24 +240,24 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 8,
-                  borderRadius: 10,
+                  borderRadius: RADIUS,
                   backgroundColor: lang === 'tr' ? theme.gold : theme.bg,
                   borderWidth: 1,
                   borderColor: lang === 'tr' ? theme.gold : theme.border,
                 }}>
-                <Text style={{ fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: lang === 'tr' ? '#000' : theme.textSecondary }}>TR 🇹🇷</Text>
+                <Text style={{ fontSize: 13, fontFamily: FontFamily.monoMedium, color: lang === 'tr' ? Paper.ink : theme.textSecondary }}>TR</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setLang('en')}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 8,
-                  borderRadius: 10,
+                  borderRadius: RADIUS,
                   backgroundColor: lang === 'en' ? theme.gold : theme.bg,
                   borderWidth: 1,
                   borderColor: lang === 'en' ? theme.gold : theme.border,
                 }}>
-                <Text style={{ fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: lang === 'en' ? '#000' : theme.textSecondary }}>EN 🇬🇧</Text>
+                <Text style={{ fontSize: 13, fontFamily: FontFamily.monoMedium, color: lang === 'en' ? Paper.ink : theme.textSecondary }}>EN</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -263,16 +269,16 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           BİLDİRİMLER
         </Text>
 
-        {[
-          { key: 'all', label: 'Tüm Bildirimler', icon: '🔔', value: notifications, setter: setNotifications },
-          { key: 'match', label: 'Maç Bildirimleri', icon: '⚽', value: matchNotifs, setter: setMatchNotifs },
-          { key: 'message', label: 'Mesaj Bildirimleri', icon: '💬', value: messageNotifs, setter: setMessageNotifs },
-          { key: 'scout', label: 'Scout Bildirimleri', icon: '🔍', value: scoutNotifs, setter: setScoutNotifs },
-        ].map((item) => (
-          <View key={item.key} style={{ backgroundColor: theme.card, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+        {([
+          { key: 'all', label: 'Tüm Bildirimler', icon: 'notifications-outline' as IoniconName, value: notifications, setter: setNotifications },
+          { key: 'match', label: 'Maç Bildirimleri', icon: 'football-outline' as IoniconName, value: matchNotifs, setter: setMatchNotifs },
+          { key: 'message', label: 'Mesaj Bildirimleri', icon: 'chatbubble-outline' as IoniconName, value: messageNotifs, setter: setMessageNotifs },
+          { key: 'scout', label: 'Scout Bildirimleri', icon: 'search-outline' as IoniconName, value: scoutNotifs, setter: setScoutNotifs },
+        ]).map((item) => (
+          <View key={item.key} style={{ backgroundColor: theme.card, borderRadius: RADIUS, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
-              <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,179,71,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+              <View style={{ width: 38, height: 38, backgroundColor: theme.card2, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={item.icon} size={17} color={theme.gold} />
               </View>
               <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, flex: 1 }}>{item.label}</Text>
               <Switch
@@ -292,18 +298,18 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         </Text>
 
         <SettingRow
-          icon="📄"
+          icon="document-text-outline"
           title="Gizlilik Politikası"
           subtitle="Verileriniz nasıl korunuyor"
           onPress={() => Linking.openURL('https://getfootbally.com/privacy')}
         />
 
-        <SettingRow icon="📋" title="Kullanım Koşulları" onPress={() => Linking.openURL('https://getfootbally.com/terms')} />
+        <SettingRow icon="clipboard-outline" title="Kullanım Koşulları" onPress={() => Linking.openURL('https://getfootbally.com/terms')} />
 
-        <SettingRow icon="💬" title="Bize Ulaş" subtitle="info@getfootbally.com" onPress={() => Linking.openURL('mailto:info@getfootbally.com')} />
+        <SettingRow icon="chatbubble-outline" title="Bize Ulaş" subtitle="info@getfootbally.com" onPress={() => Linking.openURL('mailto:info@getfootbally.com')} />
 
         <SettingRow
-          icon="⭐"
+          icon="star-outline"
           title="Uygulamayı Puanla"
           subtitle="Bizi destekle"
           onPress={() => Alert.alert('Yakında', 'App Store puanlama özelliği yakında!')}
@@ -315,10 +321,10 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           UYGULAMA
         </Text>
 
-        <View style={{ backgroundColor: theme.card, borderRadius: 16, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: RADIUS, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
           <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, marginBottom: 4 }}>Footbally</Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>Sürüm 1.0.0 Beta</Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>© 2025 Footbally. Tüm hakları saklıdır.</Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono }}>Sürüm 1.0.0 Beta</Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono }}>© 2026 Footbally. Tüm hakları saklıdır.</Text>
         </View>
 
         {/* TEHLİKELİ ALAN */}
@@ -326,9 +332,9 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           HESAP İŞLEMLERİ
         </Text>
 
-        <SettingRow icon="🚪" title="Çıkış Yap" subtitle="Hesabınızdan güvenli çıkış yapın" onPress={handleLogout} danger={true} />
+        <SettingRow icon="log-out-outline" title="Çıkış Yap" subtitle="Hesabınızdan güvenli çıkış yapın" onPress={handleLogout} danger={true} />
 
-        <SettingRow icon="🗑️" title="Hesabı Sil" subtitle="Tüm verileriniz kalıcı olarak silinir" onPress={handleDeleteAccount} danger={true} />
+        <SettingRow icon="trash-outline" title="Hesabı Sil" subtitle="Tüm verileriniz kalıcı olarak silinir" onPress={handleDeleteAccount} danger={true} />
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -336,8 +342,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
       {/* PASSWORD CHANGE MODAL */}
       <Modal visible={showPasswordModal} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 }}>
-            <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, marginBottom: 20 }}>Şifre Değiştir</Text>
+          <View style={{ backgroundColor: theme.card, borderTopLeftRadius: RADIUS, borderTopRightRadius: RADIUS, padding: 24 }}>
+            <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, marginBottom: 20 }}>ŞİFRE DEĞİŞTİR</Text>
 
             <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, marginBottom: 6 }}>YENİ ŞİFRE</Text>
             <TextInput
@@ -346,7 +352,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
               placeholder="En az 6 karakter"
               placeholderTextColor={theme.textSecondary}
               secureTextEntry
-              style={{ backgroundColor: theme.bg, borderRadius: 14, padding: 14, color: theme.text, fontFamily: FontFamily.body, marginBottom: 12, borderWidth: 1, borderColor: theme.border }}
+              style={{ backgroundColor: theme.bg, borderRadius: RADIUS, padding: 14, color: theme.text, fontFamily: FontFamily.mono, marginBottom: 12, borderWidth: 1, borderColor: theme.border }}
             />
 
             <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, marginBottom: 6 }}>YENİ ŞİFRE (TEKRAR)</Text>
@@ -356,17 +362,17 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
               placeholder="Şifreyi tekrar girin"
               placeholderTextColor={theme.textSecondary}
               secureTextEntry
-              style={{ backgroundColor: theme.bg, borderRadius: 14, padding: 14, color: theme.text, fontFamily: FontFamily.body, marginBottom: 20, borderWidth: 1, borderColor: theme.border }}
+              style={{ backgroundColor: theme.bg, borderRadius: RADIUS, padding: 14, color: theme.text, fontFamily: FontFamily.mono, marginBottom: 20, borderWidth: 1, borderColor: theme.border }}
             />
 
             <TouchableOpacity
               onPress={handleChangePassword}
-              style={{ backgroundColor: theme.gold, borderRadius: 14, padding: 16, alignItems: 'center', marginBottom: 10 }}>
-              <Text style={{ color: '#000', fontFamily: FontFamily.bodySemiBold, fontSize: 15 }}>{loading ? 'Değiştiriliyor...' : 'Şifreyi Değiştir'}</Text>
+              style={{ backgroundColor: theme.gold, borderRadius: RADIUS, padding: 16, alignItems: 'center', marginBottom: 10 }}>
+              <Text style={{ color: Paper.ink, fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 1 }}>{loading ? 'DEĞİŞTİRİLİYOR...' : 'ŞİFREYİ DEĞİŞTİR'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowPasswordModal(false)} style={{ padding: 14, alignItems: 'center' }}>
-              <Text style={{ color: theme.textSecondary, fontFamily: FontFamily.body }}>İptal</Text>
+              <Text style={{ color: theme.textSecondary, fontFamily: FontFamily.mono, fontSize: 12 }}>İptal</Text>
             </TouchableOpacity>
           </View>
         </View>

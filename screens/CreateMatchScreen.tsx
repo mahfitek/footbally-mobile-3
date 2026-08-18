@@ -14,9 +14,12 @@ import {
 import HapticTouchable from '../components/HapticTouchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import Toast from '../components/Toast';
@@ -119,7 +122,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
         return;
       }
 
-      sendLocalNotification('Maç Oluşturuldu ⚽', `${title.trim()} maçı oluşturuldu.`);
+      sendLocalNotification('Maç Oluşturuldu', `${title.trim()} maçı oluşturuldu.`);
       setToast({ message: 'Maç oluşturuldu', type: 'success' });
       setTimeout(() => navigate('match'), 800);
     } catch (err) {
@@ -137,9 +140,9 @@ export default function CreateMatchScreen({ navigate }: Props) {
       >
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('match')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Maç Oluştur</Text>
+          <Text style={styles.title}>MAÇ OLUŞTUR</Text>
         </View>
 
         <ScrollView
@@ -279,7 +282,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color={Paper.ink} />
             ) : (
               <Text style={styles.submitBtnText}>Maç Oluştur</Text>
             )}
@@ -382,17 +385,16 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 24,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
+    title: { fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     row: { flexDirection: 'row', gap: 12 },
     half: { flex: 1 },
     inputGroup: { marginBottom: 16 },
@@ -404,43 +406,43 @@ const createStyles = (theme: Theme) =>
       marginBottom: 8,
     },
     input: {
-      height: 52,
+      height: 50,
       backgroundColor: theme.card2,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
-      fontSize: 15,
-      fontFamily: FontFamily.body,
+      fontSize: 14,
+      fontFamily: FontFamily.mono,
       borderWidth: 1,
       borderColor: theme.border,
     },
     inputDisabled: { opacity: 0.5 },
-    inputValueText: { color: theme.text, fontSize: 15, fontFamily: FontFamily.body },
-    inputPlaceholderText: { color: theme.textSecondary, fontSize: 15, fontFamily: FontFamily.body },
+    inputValueText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
+    inputPlaceholderText: { color: theme.textSecondary, fontSize: 14, fontFamily: FontFamily.mono },
     typeRow: { flexDirection: 'row', gap: 10 },
     typePill: {
       flex: 1,
       paddingVertical: 12,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     typePillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    typePillText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
-    typePillTextActive: { color: '#000' },
+    typePillText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.textMuted },
+    typePillTextActive: { color: Paper.ink },
     submitBtn: {
-      height: 56,
+      height: 52,
       backgroundColor: theme.gold,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 8,
     },
     submitBtnDisabled: { opacity: 0.6 },
-    submitBtnText: { fontSize: 16, fontFamily: FontFamily.bodySemiBold, color: '#000', letterSpacing: 1 },
+    submitBtnText: { fontSize: 15, fontFamily: FontFamily.display, color: Paper.ink, letterSpacing: 1 },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -448,8 +450,8 @@ const createStyles = (theme: Theme) =>
     },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       height: '75%',
       borderWidth: 1,
@@ -459,11 +461,11 @@ const createStyles = (theme: Theme) =>
     searchInput: {
       height: 48,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       color: theme.text,
       fontSize: 14,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       borderWidth: 1,
       borderColor: theme.border,
       marginBottom: 12,
@@ -484,15 +486,15 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.monoMedium,
       color: theme.gold,
     },
-    listRowText: { fontSize: 15, fontFamily: FontFamily.body, color: theme.text },
+    listRowText: { fontSize: 14, fontFamily: FontFamily.mono, color: theme.text },
     modalCancelBtn: {
-      height: 52,
-      borderRadius: 18,
+      height: 50,
+      borderRadius: RADIUS,
       borderWidth: 1,
       borderColor: theme.border,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 12,
     },
-    modalCancelText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
+    modalCancelText: { fontSize: 13, fontFamily: FontFamily.mono, color: theme.textMuted },
   });

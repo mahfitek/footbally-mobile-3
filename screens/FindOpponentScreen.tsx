@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import { sendMatchChallenge } from '../lib/challenges';
@@ -205,7 +208,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>Rakip Bul ⚔️</Text>
+          <Text style={styles.title}>RAKİP BUL</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
           <SkeletonCard height={100} />
@@ -226,7 +229,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Rakip Bul ⚔️</Text>
+          <Text style={styles.title}>RAKİP BUL</Text>
         </View>
 
         <View style={styles.content}>
@@ -238,14 +241,14 @@ export default function FindOpponentScreen({ navigate }: Props) {
                 style={{
                   flex: 1,
                   padding: 10,
-                  borderRadius: 12,
+                  borderRadius: RADIUS,
                   alignItems: 'center',
                   backgroundColor: selectedFormat === n ? theme.gold : theme.card,
                   borderWidth: 1,
                   borderColor: selectedFormat === n ? theme.gold : theme.border,
                 }}
               >
-                <Text style={{ color: selectedFormat === n ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>{n}v{n}</Text>
+                <Text style={{ color: selectedFormat === n ? Paper.ink : theme.text, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{n}v{n}</Text>
               </HapticTouchable>
             ))}
           </View>
@@ -255,9 +258,9 @@ export default function FindOpponentScreen({ navigate }: Props) {
             onPress={() => setOpenFilter(openFilter === 'city' ? null : 'city')}
           >
             <Text style={[styles.filterBtnText, { color: selectedCity ? theme.gold : theme.textSecondary }]}>
-              📍 {selectedCity || 'Şehir Seç'}
+              {selectedCity || 'Şehir Seç'}
             </Text>
-            <Text style={styles.chevron}>{openFilter === 'city' ? '▲' : '▼'}</Text>
+            <Ionicons name={openFilter === 'city' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
           </HapticTouchable>
 
           {openFilter === 'city' && (
@@ -298,9 +301,9 @@ export default function FindOpponentScreen({ navigate }: Props) {
                 onPress={() => setOpenFilter(openFilter === 'district' ? null : 'district')}
               >
                 <Text style={[styles.filterBtnText, { color: selectedDistrict ? theme.gold : theme.textSecondary }]}>
-                  🗺️ {selectedDistrict || 'İlçe Seç (Opsiyonel)'}
+                  {selectedDistrict || 'İlçe Seç (Opsiyonel)'}
                 </Text>
-                <Text style={styles.chevron}>{openFilter === 'district' ? '▲' : '▼'}</Text>
+                <Ionicons name={openFilter === 'district' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
               </HapticTouchable>
 
               {openFilter === 'district' && (
@@ -336,13 +339,13 @@ export default function FindOpponentScreen({ navigate }: Props) {
 
           {(selectedCity || selectedFormat !== null) && (
             <HapticTouchable style={styles.clearAllBtn} onPress={clearFilters}>
-              <Text style={styles.clearText}>✕ Filtreleri Temizle</Text>
+              <Text style={styles.clearText}>Filtreleri Temizle</Text>
             </HapticTouchable>
           )}
         </View>
 
         {filteredTeams.length === 0 ? (
-          <EmptyState icon="⚔️" title="Rakip bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="shield-outline" title="Rakip bulunamadı" subtitle="Farklı filtreler deneyin" />
         ) : (
           <View style={styles.list}>
             {filteredTeams.map((t) => {
@@ -351,7 +354,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                 <View key={t.id} style={styles.teamCard}>
                   <View style={styles.teamTop}>
                     <View style={styles.avatar}>
-                      <Text style={styles.avatarEmoji}>🏟️</Text>
+                      <Ionicons name="business-outline" size={22} color={theme.gold} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.teamName}>{t.name}</Text>
@@ -386,7 +389,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                     <View style={styles.tagsRow}>
                       {t.formation && (
                         <View style={styles.formationTag}>
-                          <Text style={styles.formationTagText}>⚙️ {t.formation}</Text>
+                          <Text style={styles.formationTagText}>{t.formation}</Text>
                         </View>
                       )}
                       {t.playing_style?.map((s) => (
@@ -398,7 +401,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                   )}
 
                   {t.match_days && t.match_days.length > 0 && (
-                    <Text style={styles.matchDaysText}>📅 {t.match_days.join(' · ')}</Text>
+                    <Text style={styles.matchDaysText}>{t.match_days.join(' · ')}</Text>
                   )}
 
                   <HapticTouchable style={styles.challengeBtn} onPress={() => openChallenge(t)}>
@@ -477,7 +480,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
             </View>
 
             <HapticTouchable style={[styles.sendBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
-              {sending ? <ActivityIndicator color="#000" /> : <Text style={styles.sendBtnText}>Davet Gönder</Text>}
+              {sending ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.sendBtnText}>Davet Gönder</Text>}
             </HapticTouchable>
 
             <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
@@ -504,16 +507,15 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       padding: 14,
       marginBottom: 8,
       borderWidth: 1,
     },
-    filterBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold },
-    chevron: { color: theme.textSecondary },
+    filterBtnText: { fontSize: 14, fontFamily: FontFamily.mono },
     dropdown: {
       backgroundColor: theme.card2,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       marginBottom: 8,
       borderWidth: 1,
       borderColor: theme.border,
@@ -527,76 +529,78 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
     },
-    dropdownAllText: { color: theme.gold, fontSize: 14, fontFamily: FontFamily.bodySemiBold },
-    dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.body },
+    dropdownAllText: { color: theme.gold, fontSize: 14, fontFamily: FontFamily.mono },
+    dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
     checkmark: { color: theme.gold, fontWeight: '700' },
     clearAllBtn: { padding: 8, alignItems: 'center', marginBottom: 8 },
-    clearText: { color: theme.error, fontSize: 13, fontFamily: FontFamily.bodySemiBold },
+    clearText: { color: theme.error, fontSize: 13, fontFamily: FontFamily.mono },
     list: { paddingHorizontal: 24, gap: 14 },
     teamCard: {
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
     },
     teamTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
     avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    avatarEmoji: { fontSize: 24 },
     teamName: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: theme.text, marginBottom: 2 },
-    teamMeta: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
+    teamMeta: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
     teamRecord: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.gold },
     formRow: { flexDirection: 'row', gap: 6, marginBottom: 14 },
-    formEmpty: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
+    formEmpty: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
     formPill: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      width: 24,
+      height: 24,
+      borderRadius: RADIUS - 3,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
     },
-    formWin: { backgroundColor: hexToRgba(theme.success, 0.2) },
-    formLoss: { backgroundColor: hexToRgba(theme.error, 0.2) },
-    formDraw: { backgroundColor: hexToRgba(theme.textSecondary, 0.2) },
+    formWin: { backgroundColor: theme.card2, borderColor: theme.success },
+    formLoss: { backgroundColor: theme.card2, borderColor: theme.error },
+    formDraw: { backgroundColor: theme.card2, borderColor: theme.border },
     formPillText: { fontSize: 11, fontFamily: FontFamily.monoMedium, color: theme.text },
     tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
     formationTag: {
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 8,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.gold,
       paddingHorizontal: 8,
       paddingVertical: 4,
     },
     formationTagText: { fontSize: 11, fontFamily: FontFamily.monoMedium, color: theme.gold },
     styleTag: {
       backgroundColor: theme.card2,
-      borderRadius: 8,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.border,
       paddingHorizontal: 8,
       paddingVertical: 4,
     },
     styleTagText: { fontSize: 11, color: theme.textSecondary, fontFamily: FontFamily.mono },
-    matchDaysText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, marginBottom: 12 },
+    matchDaysText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary, marginBottom: 12 },
     challengeBtn: {
       height: 44,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    challengeBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: '#000' },
+    challengeBtnText: { fontSize: 13, fontFamily: FontFamily.display, letterSpacing: 0.5, color: Paper.ink },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       paddingBottom: 36,
       borderWidth: 1,
@@ -608,25 +612,25 @@ const createStyles = (theme: Theme) =>
     input: {
       height: 52,
       backgroundColor: theme.card2,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
-      fontSize: 15,
-      fontFamily: FontFamily.body,
+      fontSize: 14,
+      fontFamily: FontFamily.mono,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    inputValueText: { color: theme.text, fontSize: 15, fontFamily: FontFamily.body },
+    inputValueText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
     sendBtn: {
-      height: 56,
+      height: 52,
       backgroundColor: theme.gold,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 8,
     },
-    sendBtnText: { fontSize: 16, fontFamily: FontFamily.bodySemiBold, color: '#000', letterSpacing: 1 },
+    sendBtnText: { fontSize: 14, fontFamily: FontFamily.display, color: Paper.ink, letterSpacing: 1 },
     cancelBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-    cancelBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: theme.textMuted },
+    cancelBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textMuted },
   });

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
@@ -408,7 +411,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     const inviteLink = `https://getfootbally.com/join-team/${teamId}`;
     try {
       await Share.share({
-        message: `${teamName} takımına katıl! 🏆\n${inviteLink}`,
+        message: `${teamName} takımına katıl!\n${inviteLink}`,
         title: 'Takıma Davet',
       });
     } catch {
@@ -424,7 +427,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <EmptyState
-          icon="🏟️"
+          icon="business-outline"
           title="Henüz takımın yok"
           subtitle="Takım profilini oluşturarak başla"
           actionLabel="Takım Oluştur"
@@ -438,10 +441,10 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>Kadro Yönetimi</Text>
-        <View style={{ width: 44 }} />
+        <Text style={styles.title}>KADRO YÖNETİMİ</Text>
+        <View style={{ width: 42 }} />
       </View>
 
       {playerCount === null ? (
@@ -458,27 +461,27 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
               style={{
                 width: '100%',
                 backgroundColor: theme.card,
-                borderRadius: 20,
+                borderRadius: RADIUS,
                 padding: 20,
                 marginBottom: 12,
-                borderWidth: 1.5,
+                borderWidth: 1,
                 borderColor: theme.border,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 16,
               }}
             >
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: hexToRgba(theme.gold, 0.1), alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.gold, fontSize: 22, fontFamily: FontFamily.monoMedium }}>{count}</Text>
+              <View style={{ width: 52, height: 52, borderRadius: RADIUS, backgroundColor: theme.card2, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.gold, fontSize: 20, fontFamily: FontFamily.display }}>{count}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.bodySemiBold }}>{count}v{count}</Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.body }}>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.mono }}>
                   {count === 5 ? 'Halı saha (küçük)' : count === 7 ? 'Halı saha (büyük)' : count === 8 ? '8v8 Format' : '11v11 Tam saha'}
                 </Text>
                 <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} formasyon</Text>
               </View>
-              <Text style={{ color: theme.textSecondary, fontSize: 20 }}>›</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>
@@ -488,7 +491,8 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
             onPress={() => setPlayerCount(null)}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, paddingHorizontal: 16 }}
           >
-            <Text style={{ color: theme.gold, fontSize: 13 }}>← {playerCount}v{playerCount} Formatı Değiştir</Text>
+            <Ionicons name="chevron-back" size={13} color={theme.gold} />
+            <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.mono }}>{playerCount}v{playerCount} Formatı Değiştir</Text>
           </TouchableOpacity>
 
           <View style={{ marginBottom: 12 }}>
@@ -503,16 +507,16 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                   style={{
                     paddingHorizontal: 14,
                     paddingVertical: 10,
-                    borderRadius: 12,
+                    borderRadius: RADIUS,
                     minWidth: 100,
                     alignItems: 'center',
                     backgroundColor: selectedFormation === f ? theme.gold : theme.card,
-                    borderWidth: 1.5,
+                    borderWidth: 1,
                     borderColor: selectedFormation === f ? theme.gold : theme.border,
                   }}
                 >
-                  <Text style={{ color: selectedFormation === f ? '#000' : theme.text, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{f.split(' ')[0]}</Text>
-                  <Text style={{ color: selectedFormation === f ? '#000' : theme.textSecondary, fontSize: 10, fontFamily: FontFamily.body, marginTop: 2 }}>
+                  <Text style={{ color: selectedFormation === f ? Paper.ink : theme.text, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{f.split(' ')[0]}</Text>
+                  <Text style={{ color: selectedFormation === f ? Paper.ink : theme.textSecondary, fontSize: 10, fontFamily: FontFamily.mono, marginTop: 2 }}>
                     {f.includes('(') ? f.match(/\(([^)]+)\)/)?.[1] : ''}
                   </Text>
                 </TouchableOpacity>
@@ -558,18 +562,18 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Kadro</Text>
+            <Text style={styles.sectionTitle}>KADRO</Text>
             <Text style={styles.sectionCount}>{squadMembers.length} oyuncu</Text>
           </View>
 
           {squadMembers.length === 0 ? (
-            <EmptyState icon="👥" title="Kadroda oyuncu yok" subtitle="Oyuncu davet ederek kadrona ekle" />
+            <EmptyState icon="people-outline" title="Kadroda oyuncu yok" subtitle="Oyuncu davet ederek kadrona ekle" />
           ) : (
             <View style={styles.squadList}>
               {squadMembers.map((m) => (
                 <View key={m.id} style={styles.squadRow}>
                   <View style={styles.squadAvatar}>
-                    <Text style={styles.squadAvatarIcon}>👤</Text>
+                    <Ionicons name="person-outline" size={17} color={theme.gold} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.squadName}>{m.full_name}</Text>
@@ -584,7 +588,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                     {removingId === m.id ? (
                       <ActivityIndicator size="small" color={theme.error} />
                     ) : (
-                      <Text style={styles.removeBtnText}>✕</Text>
+                      <Ionicons name="close" size={15} color={theme.error} />
                     )}
                   </HapticTouchable>
                 </View>
@@ -592,8 +596,9 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
             </View>
           )}
 
-          <HapticTouchable style={styles.inviteBtn} onPress={handleInvite}>
-            <Text style={styles.inviteBtnText}>+ Oyuncu Davet Et</Text>
+          <HapticTouchable style={[styles.inviteBtn, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={handleInvite}>
+            <Ionicons name="person-add-outline" size={15} color={Paper.ink} />
+            <Text style={styles.inviteBtnText}>Oyuncu Davet Et</Text>
           </HapticTouchable>
         </ScrollView>
       )}
@@ -602,21 +607,21 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Oyuncu Seç</Text>
+              <Text style={styles.modalTitle}>OYUNCU SEÇ</Text>
               <HapticTouchable onPress={() => setPickerSlotIndex(null)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Ionicons name="close" size={19} color={theme.textSecondary} />
               </HapticTouchable>
             </View>
             {unassignedMembers.length === 0 ? (
               <View style={{ paddingVertical: 32 }}>
-                <EmptyState icon="👤" title="Atanmamış oyuncu yok" subtitle="Tüm oyuncular sahada yerleştirildi" />
+                <EmptyState icon="person-outline" title="Atanmamış oyuncu yok" subtitle="Tüm oyuncular sahada yerleştirildi" />
               </View>
             ) : (
               <ScrollView style={{ maxHeight: 360 }}>
                 {unassignedMembers.map((m) => (
                   <TouchableOpacity key={m.id} style={styles.pickerRow} onPress={() => assignToSlot(m)}>
                     <View style={styles.squadAvatar}>
-                      <Text style={styles.squadAvatarIcon}>👤</Text>
+                      <Ionicons name="person-outline" size={17} color={theme.gold} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.squadName}>{m.full_name}</Text>
@@ -648,21 +653,20 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     backBtn: {
-      width: 44, height: 44,
+      width: 42, height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     pitch: {
       width: PITCH_WIDTH,
       height: PITCH_HEIGHT,
       backgroundColor: '#2d5a1b',
-      borderRadius: 12,
+      borderRadius: RADIUS,
       borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.3)',
       alignSelf: 'center',
@@ -710,14 +714,10 @@ const createStyles = (theme: Theme) =>
       width: 36, height: 36, borderRadius: 18,
       borderWidth: 2,
       alignItems: 'center', justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.5,
-      shadowRadius: 3,
     },
     playerDotFilled: { backgroundColor: theme.gold, borderColor: '#fff' },
     playerDotEmpty: { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.4)' },
-    playerDotNumber: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: '#000' },
+    playerDotNumber: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: Paper.ink },
     playerDotPlus: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
     playerNameTag: {
       backgroundColor: 'rgba(0,0,0,0.7)',
@@ -734,64 +734,59 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    sectionCount: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textSecondary },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
+    sectionCount: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     squadList: { paddingHorizontal: 24, gap: 10, marginBottom: 24 },
     squadRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     squadAvatar: {
-      width: 40, height: 40,
-      borderRadius: 20,
+      width: 38, height: 38,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    squadAvatarIcon: { fontSize: 18 },
     squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    squadMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    squadScore: { fontFamily: FontFamily.monoMedium, fontSize: 16, color: theme.gold },
+    squadMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    squadScore: { fontFamily: FontFamily.display, fontSize: 15, color: theme.gold },
     removeBtn: {
-      width: 32, height: 32,
-      borderRadius: 16,
+      width: 30, height: 30,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: hexToRgba(theme.error, 0.1),
+      backgroundColor: theme.card2,
       borderWidth: 1,
-      borderColor: hexToRgba(theme.error, 0.3),
+      borderColor: theme.error,
     },
-    removeBtnText: { color: theme.error, fontWeight: '800', fontSize: 13 },
     inviteBtn: {
       height: 52,
       marginHorizontal: 24,
       backgroundColor: theme.gold,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    inviteBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
+    inviteBtnText: { fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 0.5, color: Paper.ink },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalSheet: {
       backgroundColor: theme.bg,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       paddingHorizontal: 20,
       paddingTop: 20,
       paddingBottom: 32,
       maxHeight: '75%',
     },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    modalClose: { fontSize: 18, color: theme.textSecondary },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     pickerRow: {
       flexDirection: 'row',
       alignItems: 'center',

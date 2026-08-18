@@ -11,9 +11,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -163,7 +166,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       }
 
       setToast({ message: 'Takım profili kaydedildi', type: 'success' });
-      sendLocalNotification('Takım Güncellendi 🏟️', 'Takım profiliniz başarıyla kaydedildi.');
+      sendLocalNotification('Takım Güncellendi', 'Takım profiliniz başarıyla kaydedildi.');
       setTimeout(() => navigate('teamProfile'), 800);
     } catch (err) {
       if (__DEV__) console.log('Takım kaydedilirken beklenmeyen hata:', err);
@@ -181,9 +184,9 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamProfile')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Takım Profili</Text>
+          <Text style={styles.title}>TAKIM PROFİLİ</Text>
           <HapticTouchable onPress={handleSave} disabled={saving} style={styles.saveBtn}>
             {saving ? <ActivityIndicator color={theme.gold} /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
           </HapticTouchable>
@@ -204,22 +207,24 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.half]}>
               <Text style={styles.inputLabel}>ŞEHİR</Text>
-              <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'city' ? null : 'city')}>
+              <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'city' ? null : 'city')}>
                 <Text style={city ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {city || 'Şehir seçin'} {openPicker === 'city' ? '▲' : '▼'}
+                  {city || 'Şehir seçin'}
                 </Text>
+                <Ionicons name={openPicker === 'city' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={[styles.inputGroup, styles.half]}>
               <Text style={styles.inputLabel}>İLÇE</Text>
               <TouchableOpacity
-                style={[styles.input, !city && styles.inputDisabled]}
+                style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, !city && styles.inputDisabled]}
                 onPress={() => city && setOpenPicker(openPicker === 'district' ? null : 'district')}
                 disabled={!city}
               >
                 <Text style={district ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {district || 'İlçe seçin'} {openPicker === 'district' ? '▲' : '▼'}
+                  {district || 'İlçe seçin'}
                 </Text>
+                <Ionicons name={openPicker === 'district' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -256,8 +261,9 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>LİG / KATEGORİ</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'league' ? null : 'league')}>
-              <Text style={styles.inputValueText}>{league} {openPicker === 'league' ? '▲' : '▼'}</Text>
+            <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'league' ? null : 'league')}>
+              <Text style={styles.inputValueText}>{league}</Text>
+              <Ionicons name={openPicker === 'league' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           {openPicker === 'league' && (
@@ -273,8 +279,9 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>KURULUŞ YILI</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'year' ? null : 'year')}>
-              <Text style={styles.inputValueText}>{foundedYear} {openPicker === 'year' ? '▲' : '▼'}</Text>
+            <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'year' ? null : 'year')}>
+              <Text style={styles.inputValueText}>{foundedYear}</Text>
+              <Ionicons name={openPicker === 'year' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           {openPicker === 'year' && (
@@ -335,8 +342,9 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>DİZİLİŞ</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'formation' ? null : 'formation')}>
-              <Text style={styles.inputValueText}>{formation} {openPicker === 'formation' ? '▲' : '▼'}</Text>
+            <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'formation' ? null : 'formation')}>
+              <Text style={styles.inputValueText}>{formation}</Text>
+              <Ionicons name={openPicker === 'formation' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           {openPicker === 'formation' && (
@@ -424,19 +432,18 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     saveBtn: { padding: 8, minWidth: 44, alignItems: 'flex-end' },
-    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.gold },
+    saveBtnText: { fontFamily: FontFamily.mono, fontSize: 13, color: theme.gold },
     content: { paddingHorizontal: 16, paddingBottom: 60 },
     row: { flexDirection: 'row', gap: 12 },
     half: { flex: 1 },
@@ -445,34 +452,34 @@ const createStyles = (theme: Theme) =>
     input: {
       height: 48,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     inputDisabled: { opacity: 0.5 },
-    inputValueText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 14 },
-    inputPlaceholderText: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 14 },
+    inputValueText: { fontFamily: FontFamily.mono, color: theme.text, fontSize: 14 },
+    inputPlaceholderText: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 14 },
     textArea: { height: 100, paddingTop: 12, textAlignVertical: 'top' },
     pillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stylePill: {
       paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     stylePillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    stylePillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted },
-    stylePillTextActive: { color: '#000' },
+    stylePillText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    stylePillTextActive: { color: Paper.ink },
     inlinePicker: {
       backgroundColor: theme.card2,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       marginTop: -8,
       marginBottom: 16,
       borderWidth: 1,
@@ -488,6 +495,6 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.border,
       justifyContent: 'space-between',
     },
-    listRowText: { fontFamily: FontFamily.body, fontSize: 15, color: theme.text },
+    listRowText: { fontFamily: FontFamily.mono, fontSize: 14, color: theme.text },
     checkmark: { fontSize: 15, color: theme.gold, fontWeight: '700' },
   });

@@ -7,13 +7,17 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
+
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
@@ -101,10 +105,10 @@ export default function PerformanceScreen({ navigate }: Props) {
     loadStats();
   };
 
-  const miniStats = [
-    { icon: '⚽', val: String(goals), label: 'Gol' },
-    { icon: '🏆', val: String(wins), label: 'Galibiyet' },
-    { icon: '🏟️', val: String(matchesPlayed), label: 'Maç' },
+  const miniStats: { icon: IoniconName; val: string; label: string }[] = [
+    { icon: 'football-outline', val: String(goals), label: 'Gol' },
+    { icon: 'trophy-outline', val: String(wins), label: 'Galibiyet' },
+    { icon: 'business-outline', val: String(matchesPlayed), label: 'Maç' },
   ];
 
   const hasPlayed = matchesPlayed > 0;
@@ -139,13 +143,13 @@ export default function PerformanceScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Performans</Text>
+          <Text style={styles.title}>PERFORMANS</Text>
         </View>
 
         {/* AI Insight */}
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
-            <Text style={styles.aiIcon}>🤖</Text>
+            <Ionicons name="hardware-chip-outline" size={15} color={theme.gold} />
             <Text style={styles.aiLabel}>AI ANALİZİ</Text>
           </View>
           <Text style={styles.aiText}>{aiInsight}</Text>
@@ -153,7 +157,7 @@ export default function PerformanceScreen({ navigate }: Props) {
 
         {!hasPlayed ? (
           <EmptyState
-            icon="🏆"
+            icon="trophy-outline"
             title="Henüz maç verisi yok"
             subtitle="Maçlara katıl ve performansını takip et!"
             actionLabel="Maç Bul"
@@ -165,7 +169,7 @@ export default function PerformanceScreen({ navigate }: Props) {
             <View style={styles.miniRow}>
               {miniStats.map((m, i) => (
                 <View key={i} style={styles.miniCard}>
-                  <Text style={styles.miniIcon}>{m.icon}</Text>
+                  <Ionicons name={m.icon} size={17} color={theme.gold} style={{ marginBottom: 6 }} />
                   <Text style={styles.miniVal}>{m.val}</Text>
                   <Text style={styles.miniLabel}>{m.label}</Text>
                 </View>
@@ -222,7 +226,7 @@ export default function PerformanceScreen({ navigate }: Props) {
               </View>
               <Text style={styles.compareHint}>
                 {score >= PLATFORM_AVERAGE_SCORE
-                  ? `Platform ortalamasının ${score - PLATFORM_AVERAGE_SCORE} puan üzerindesin 🎉`
+                  ? `Platform ortalamasının ${score - PLATFORM_AVERAGE_SCORE} puan üzerindesin`
                   : `Platform ortalamasının ${PLATFORM_AVERAGE_SCORE - score} puan altındasın`}
               </Text>
             </View>
@@ -247,13 +251,13 @@ export default function PerformanceScreen({ navigate }: Props) {
 
         {/* Premium CTA */}
         <HapticTouchable style={styles.premiumCard} onPress={() => navigate('premium')}>
-          <Text style={styles.premiumIcon}>✦</Text>
+          <Ionicons name="star" size={22} color={theme.gold} style={{ marginBottom: 10 }} />
           <Text style={styles.premiumTitle}>Premium'a Geç</Text>
           <Text style={styles.premiumSub}>
             Detaylı analiz, sınırsız video ve scout görünürlüğü
           </Text>
           <View style={styles.premiumBtn}>
-            <Text style={styles.premiumBtnText}>Şimdi Yükselt →</Text>
+            <Text style={styles.premiumBtnText}>Şimdi Yükselt</Text>
           </View>
         </HapticTouchable>
       </ScrollView>
@@ -270,18 +274,17 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
       paddingBottom: 20,
     },
-    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
     aiCard: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.gold,
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    aiIcon: { fontSize: 16 },
     aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
     aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     miniRow: {
@@ -289,7 +292,7 @@ const createStyles = (theme: Theme) =>
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.border,
@@ -301,19 +304,18 @@ const createStyles = (theme: Theme) =>
       borderRightWidth: 1,
       borderRightColor: theme.border,
     },
-    miniIcon: { fontSize: 20, marginBottom: 6 },
-    miniVal: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.gold },
+    miniVal: { fontFamily: FontFamily.display, fontSize: 20, color: theme.gold },
     miniLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 16, color: theme.text, letterSpacing: 0.5 },
     chartHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -329,45 +331,41 @@ const createStyles = (theme: Theme) =>
     barCol: { alignItems: 'center', gap: 10 },
     barTrack: {
       height: 120,
-      width: 18,
+      width: 16,
       backgroundColor: theme.border,
-      borderRadius: 6,
       justifyContent: 'flex-end',
       overflow: 'hidden',
     },
     barFill: {
       width: '100%',
-      backgroundColor: hexToRgba(theme.gold, 0.45),
-      borderRadius: 6,
+      backgroundColor: theme.card2,
     },
     barFillToday: { backgroundColor: theme.gold },
     barLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary },
     compareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-    compareLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textSecondary, width: 70 },
-    compareTrack: { flex: 1, height: 10, backgroundColor: theme.border, borderRadius: 5, overflow: 'hidden' },
-    compareFill: { height: 10, borderRadius: 5 },
+    compareLabel: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, width: 70 },
+    compareTrack: { flex: 1, height: 6, backgroundColor: theme.border, overflow: 'hidden' },
+    compareFill: { height: 6 },
     compareValue: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text, width: 30, textAlign: 'right' },
-    compareHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 14 },
+    compareHint: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 14 },
     skillItem: { marginTop: 16 },
     skillTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
     skillName: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
     skillVal: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
-    skillTrack: { height: 4, backgroundColor: theme.border, borderRadius: 2 },
+    skillTrack: { height: 4, backgroundColor: theme.border },
     skillFill: {
       height: 4,
       backgroundColor: theme.gold,
-      borderRadius: 2,
     },
     premiumCard: {
       marginHorizontal: 24,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 24,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.2),
+      borderColor: theme.gold,
     },
-    premiumIcon: { fontSize: 26, color: theme.gold, marginBottom: 10 },
     premiumTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 17, color: theme.text, marginBottom: 6 },
     premiumSub: {
       fontFamily: FontFamily.body,
@@ -379,9 +377,9 @@ const createStyles = (theme: Theme) =>
     },
     premiumBtn: {
       backgroundColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 24,
       paddingVertical: 13,
     },
-    premiumBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
+    premiumBtnText: { fontFamily: FontFamily.display, fontSize: 13, letterSpacing: 0.5, color: Paper.ink },
   });

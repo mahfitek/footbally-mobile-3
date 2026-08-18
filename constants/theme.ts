@@ -39,6 +39,16 @@ export const LightTheme = {
 
 export type Theme = typeof DarkTheme;
 
+// "Lisans Kartı" tasarım sistemi — 2026-08 yeniden tasarımı: resmi belge/scouting
+// raporu estetiği, tek radius, tüm ekranlarda ortak kağıt paneli.
+export const CARD_RADIUS = 6;
+export const Paper = {
+  bg: '#ECE6D8',
+  ink: '#171410',
+  muted: '#8B8578',
+  line: '#D9D2C0',
+};
+
 export function hexToRgba(hex: string, alpha: number) {
   const clean = hex.replace('#', '');
   const bigint = parseInt(clean, 16);

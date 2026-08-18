@@ -20,9 +20,12 @@ import * as ImagePicker from 'expo-image-picker';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -497,8 +500,9 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       <View style={styles.editSafe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.editHeader, { paddingTop: 60 }]}>
-            <TouchableOpacity onPress={() => { setEditMode(false); setOpenPicker(null); }} style={styles.editHeaderBtn} disabled={saving}>
-              <Text style={styles.editHeaderCancel}>← İptal</Text>
+            <TouchableOpacity onPress={() => { setEditMode(false); setOpenPicker(null); }} style={[styles.editHeaderBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} disabled={saving}>
+              <Ionicons name="chevron-back" size={15} color={theme.gold} />
+              <Text style={styles.editHeaderCancel}>İptal</Text>
             </TouchableOpacity>
             <Text style={styles.editHeaderTitle}>Profili Düzenle</Text>
             <TouchableOpacity onPress={handleSave} style={styles.editHeaderBtn} disabled={saving}>
@@ -700,16 +704,16 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           <TouchableOpacity
             onPress={() => navigate('settings')}
             style={{
-              width: 44,
-              height: 44,
+              width: 42,
+              height: 42,
               backgroundColor: theme.card,
-              borderRadius: 12,
+              borderRadius: RADIUS,
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
               borderColor: theme.border,
             }}>
-            <Text style={{ fontSize: 20 }}>⚙️</Text>
+            <Ionicons name="settings-outline" size={19} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -726,24 +730,24 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               ) : avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.avatarEmoji}>⚽</Text>
+                <Ionicons name="person-outline" size={40} color={theme.textSecondary} />
               )}
             </View>
             {isPremiumActive && (
               <View style={styles.crownBadge}>
-                <Text style={styles.crownBadgeIcon}>👑</Text>
+                <Ionicons name="star" size={14} color={theme.gold} />
               </View>
             )}
             <TouchableOpacity onPress={handleAvatarPress} style={styles.cameraBadge} disabled={uploadingAvatar}>
-              <Text style={styles.cameraBadgeIcon}>📷</Text>
+              <Ionicons name="camera-outline" size={14} color={Paper.ink} />
             </TouchableOpacity>
           </HapticTouchable>
           <Text style={styles.name}>{fullName || 'İsim giriniz'}</Text>
           <Text style={styles.position}>{position || 'Pozisyon giriniz'}</Text>
-          <Text style={styles.club}>🏟️ {club || 'Kulüp giriniz'}</Text>
+          <Text style={styles.club}>{club || 'Kulüp giriniz'}</Text>
           {isPremiumActive && (
             <View style={styles.premiumMemberBadge}>
-              <Text style={styles.premiumMemberText}>✦ Premium Üye</Text>
+              <Text style={styles.premiumMemberText}>PREMIUM ÜYE</Text>
             </View>
           )}
         </FadeInView>
@@ -777,11 +781,11 @@ export default function ProfileScreen({ navigate, userId }: Props) {
                   onPress={() => setEditMode(true)}
                   style={styles.scoreSuggestionRow}
                 >
-                  <Text style={styles.scoreSuggestionStar}>✦</Text>
+                  <Ionicons name="star-outline" size={13} color={theme.gold} />
                   <Text style={styles.scoreSuggestionText}>
                     {s.label} (+{s.points} puan)
                   </Text>
-                  <Text style={styles.scoreSuggestionArrow}>→</Text>
+                  <Ionicons name="chevron-forward" size={13} color={theme.gold} />
                 </TouchableOpacity>
               ))}
             </>
@@ -789,7 +793,6 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
           {score >= 100 && (
             <View style={styles.scoreCompleteBanner}>
-              <Text style={{ fontSize: 20 }}>🏆</Text>
               <Text style={styles.scoreCompleteText}>Profil tamamlandı! Scoutlar seni görebilir.</Text>
             </View>
           )}
@@ -806,11 +809,13 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.actionRow}>
-          <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex]} onPress={() => setEditMode(true)}>
-            <Text style={styles.editBtnText}>✎ Düzenle</Text>
+          <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setEditMode(true)}>
+            <Ionicons name="create-outline" size={14} color={theme.gold} />
+            <Text style={styles.editBtnText}>Düzenle</Text>
           </HapticTouchable>
-          <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex]} onPress={() => setShowShareCard(true)}>
-            <Text style={styles.editBtnText}>↗ Profil Paylaş</Text>
+          <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setShowShareCard(true)}>
+            <Ionicons name="share-outline" size={14} color={theme.gold} />
+            <Text style={styles.editBtnText}>Profil Paylaş</Text>
           </HapticTouchable>
         </View>
 
@@ -834,19 +839,19 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Video Galeri</Text>
           <HapticTouchable>
-            <Text style={styles.sectionLink}>Tümü →</Text>
+            <Text style={styles.sectionLink}>Tümü</Text>
           </HapticTouchable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gallery}>
           {[1, 2, 3].map((_, i) => (
             <HapticTouchable key={i} style={styles.galleryItem}>
               <View style={styles.playBtn}>
-                <Text style={styles.playIcon}>▶</Text>
+                <Ionicons name="play" size={13} color={Paper.ink} />
               </View>
             </HapticTouchable>
           ))}
           <HapticTouchable style={[styles.galleryItem, styles.galleryAdd]}>
-            <Text style={styles.galleryAddIcon}>+</Text>
+            <Ionicons name="add" size={20} color={theme.gold} />
             <Text style={styles.galleryAddText}>Ekle</Text>
           </HapticTouchable>
         </ScrollView>
@@ -883,52 +888,53 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               onPress={() => captureAndShare('instagram')}
               style={[styles.shareOptionRow, { backgroundColor: '#833AB4' }]}
             >
-              <Text style={styles.shareOptionIcon}>📸</Text>
+              <Ionicons name="logo-instagram" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
                 <Text style={styles.shareOptionTitle}>Instagram Hikaye</Text>
                 <Text style={styles.shareOptionSubtitle}>Hikayene ekle</Text>
               </View>
-              <Text style={styles.shareOptionArrow}>→</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => captureAndShare('twitter')}
               style={[styles.shareOptionRow, { backgroundColor: '#000000', borderWidth: 1, borderColor: '#333' }]}
             >
-              <Text style={styles.shareOptionIcon}>𝕏</Text>
+              <Ionicons name="logo-twitter" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
                 <Text style={styles.shareOptionTitle}>X (Twitter)</Text>
                 <Text style={styles.shareOptionSubtitle}>Tweet olarak paylaş</Text>
               </View>
-              <Text style={styles.shareOptionArrow}>→</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => captureAndShare('whatsapp')}
               style={[styles.shareOptionRow, { backgroundColor: '#25D366' }]}
             >
-              <Text style={styles.shareOptionIcon}>💬</Text>
+              <Ionicons name="logo-whatsapp" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
                 <Text style={styles.shareOptionTitle}>WhatsApp</Text>
                 <Text style={styles.shareOptionSubtitle}>Arkadaşlarınla paylaş</Text>
               </View>
-              <Text style={styles.shareOptionArrow}>→</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => captureAndShare('gallery')}
               style={[styles.shareOptionRow, { backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#333' }]}
             >
-              <Text style={styles.shareOptionIcon}>💾</Text>
+              <Ionicons name="download-outline" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
                 <Text style={styles.shareOptionTitle}>Galeriye Kaydet</Text>
                 <Text style={styles.shareOptionSubtitle}>Fotoğraf olarak indir</Text>
               </View>
-              <Text style={styles.shareOptionArrow}>→</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => captureAndShare('general')} style={styles.shareOptionMore}>
-              <Text style={styles.shareOptionMoreText}>Diğer uygulamalar →</Text>
+              <Text style={styles.shareOptionMoreText}>Diğer uygulamalar</Text>
+              <Ionicons name="chevron-forward" size={13} color="#666" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -956,79 +962,70 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginTop: 16,
     },
-    headerSpacer: { width: 44 },
+    headerSpacer: { width: 42 },
     heroSection: { alignItems: 'center', paddingVertical: 24 },
     avatarWrap: { position: 'relative', marginBottom: 16 },
-    avatarWrapPremium: {
-      shadowColor: theme.gold,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.6,
-      shadowRadius: 14,
-      elevation: 10,
-    },
+    avatarWrapPremium: {},
     avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: 96,
+      height: 96,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
-      borderWidth: 2,
+      borderWidth: 1,
       borderColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
     avatarPremium: {
-      borderWidth: 3,
+      borderWidth: 2,
       borderColor: theme.goldLight,
     },
     crownBadge: {
       position: 'absolute',
-      top: -10,
-      right: -6,
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      top: -8,
+      right: -8,
+      width: 28,
+      height: 28,
+      borderRadius: RADIUS,
       backgroundColor: theme.card,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.gold,
     },
-    crownBadgeIcon: { fontSize: 16 },
     cameraBadge: {
       position: 'absolute',
       bottom: 0,
       right: 0,
       backgroundColor: theme.gold,
-      borderRadius: 12,
-      width: 28,
-      height: 28,
+      borderRadius: RADIUS,
+      width: 26,
+      height: 26,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
       borderColor: theme.bg,
     },
-    cameraBadgeIcon: { fontSize: 14 },
     premiumMemberBadge: {
       marginTop: 8,
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 4,
     },
     premiumMemberText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
-    avatarEmoji: { fontSize: 44 },
-    avatarImage: { width: 100, height: 100, borderRadius: 50 },
-    name: { fontFamily: FontFamily.display, fontSize: 30, color: theme.text, marginBottom: 2 },
+    avatarImage: { width: 96, height: 96, borderRadius: RADIUS },
+    name: { fontFamily: FontFamily.display, fontSize: 28, color: theme.text, marginBottom: 2 },
     position: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1 },
-    club: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 4 },
+    club: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 4 },
     statsRow: {
       flexDirection: 'row',
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.border,
@@ -1040,27 +1037,22 @@ const createStyles = (theme: Theme) =>
       borderRightWidth: 1,
       borderRightColor: theme.border,
     },
-    statVal: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
+    statVal: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold },
     statLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
-      shadowColor: theme.gold,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.1,
-      shadowRadius: 18,
-      elevation: 2,
     },
-    cardTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 14, letterSpacing: 0.5 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 14, letterSpacing: 0.5 },
     scoreCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     scoreCardValue: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.gold },
-    completionTrack: { height: 8, backgroundColor: theme.border, borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
-    completionFill: { height: 8, backgroundColor: theme.gold, borderRadius: 4 },
+    completionTrack: { height: 4, backgroundColor: theme.border, marginBottom: 4 },
+    completionFill: { height: 4, backgroundColor: theme.gold },
     scoreHint: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 10 },
     scoreSuggestionRow: {
       flexDirection: 'row',
@@ -1068,20 +1060,20 @@ const createStyles = (theme: Theme) =>
       gap: 8,
       padding: 10,
       backgroundColor: theme.card2,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       marginBottom: 6,
     },
-    scoreSuggestionStar: { color: theme.gold },
     scoreSuggestionText: { fontFamily: FontFamily.body, color: theme.text, flex: 1, fontSize: 13 },
-    scoreSuggestionArrow: { color: theme.gold, fontSize: 12 },
     scoreCompleteBanner: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
       padding: 12,
       marginTop: 12,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 12,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.gold,
     },
     scoreCompleteText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, flex: 1 },
     bioRow: {
@@ -1105,7 +1097,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 20,
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingVertical: 12,
       alignItems: 'center',
     },
@@ -1127,14 +1119,14 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    sectionLink: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
+    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     gallery: { paddingLeft: 24, marginBottom: 20 },
     galleryItem: {
       width: 120,
       height: 80,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       marginRight: 12,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1142,17 +1134,15 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     playBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 30,
+      height: 30,
+      borderRadius: RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    playIcon: { fontSize: 12, color: '#000' },
-    galleryAdd: { borderStyle: 'dashed', borderColor: theme.goldDark },
-    galleryAddIcon: { fontSize: 20, color: theme.gold },
-    galleryAddText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: theme.gold },
+    galleryAdd: { borderColor: theme.goldDark },
+    galleryAddText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold, marginTop: 4 },
 
     // Full-screen edit view (rendered in place of the profile view, no Modal)
     editSafe: { flex: 1, backgroundColor: theme.bg },
@@ -1179,23 +1169,23 @@ const createStyles = (theme: Theme) =>
     input: {
       height: 48,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     inputDisabled: { opacity: 0.5 },
-    inputValueText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 14 },
-    inputPlaceholderText: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 14 },
+    inputValueText: { fontFamily: FontFamily.mono, color: theme.text, fontSize: 14 },
+    inputPlaceholderText: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 14 },
     footRow: { flexDirection: 'row', gap: 8 },
     footPill: {
       flex: 1,
       padding: 12,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       alignItems: 'center',
       backgroundColor: theme.card2,
       borderWidth: 1,
@@ -1203,12 +1193,12 @@ const createStyles = (theme: Theme) =>
     },
     footPillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
     footPillText: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 11 },
-    footPillTextActive: { color: '#000' },
+    footPillTextActive: { color: Paper.ink },
 
     // Inline expandable picker (renders directly below the tapped field)
     inlinePicker: {
       backgroundColor: theme.card2,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       marginTop: -8,
       marginBottom: 16,
       borderWidth: 1,
@@ -1239,16 +1229,14 @@ const createStyles = (theme: Theme) =>
     shareModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
     shareModalTitle: { fontFamily: FontFamily.display, color: theme.gold, fontSize: 20, marginBottom: 24, letterSpacing: 0.5 },
     shareModalHint: { fontFamily: FontFamily.body, color: '#666', fontSize: 12, marginTop: 16, marginBottom: 24 },
-    shareModalCloseBtn: { backgroundColor: '#1a1a1a', borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: '#333' },
+    shareModalCloseBtn: { backgroundColor: '#1a1a1a', borderRadius: RADIUS, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: '#333' },
     shareModalCloseBtnCentered: { alignSelf: 'center', marginTop: 4 },
     shareModalCloseBtnText: { fontFamily: FontFamily.body, color: '#888' },
     shareOptionsList: { width: '100%', paddingHorizontal: 24, gap: 10 },
-    shareOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 16 },
-    shareOptionIcon: { fontSize: 22 },
+    shareOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: RADIUS, padding: 16 },
     shareOptionTextWrap: { flex: 1 },
     shareOptionTitle: { fontFamily: FontFamily.bodySemiBold, color: '#fff', fontSize: 15 },
     shareOptionSubtitle: { fontFamily: FontFamily.body, color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-    shareOptionArrow: { color: 'rgba(255,255,255,0.5)' },
-    shareOptionMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14 },
+    shareOptionMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 14 },
     shareOptionMoreText: { fontFamily: FontFamily.body, color: '#666', fontSize: 14 },
   });

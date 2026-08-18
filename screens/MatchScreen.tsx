@@ -12,9 +12,12 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import { notifyUser } from '../lib/notify';
@@ -239,12 +242,12 @@ export default function MatchScreen({ navigate }: Props) {
             : prev
         );
         setToast({ message: 'Maça başvurunuz alındı', type: 'success' });
-        sendLocalNotification('Maça Katıldın! ⚽', `${match.title} maçına başvurun alındı.`);
-        notifyUser(userId, '✅', `${match.title} maçına katılımın onaylandı.`, 'match');
+        sendLocalNotification('Maça Katıldın!', `${match.title} maçına başvurun alındı.`);
+        notifyUser(userId, 'checkmark-circle-outline', `${match.title} maçına katılımın onaylandı.`, 'match', 'Katılım Onaylandı');
         if (match.creator_id && match.creator_id !== userId) {
           notifyUser(
             match.creator_id,
-            '👤',
+            'person-outline',
             `${myName || 'Bir oyuncu'} "${match.title}" maçına katıldı.`,
             'match',
             'Yeni Katılımcı'
@@ -291,7 +294,7 @@ export default function MatchScreen({ navigate }: Props) {
   const handleShare = async (match: MatchView) => {
     try {
       await Share.share({
-        message: `${match.title} maçına göz at! ⚽\n📅 ${match.date} · ${match.time}\n📍 ${match.location}, ${match.city}\n\nFootbally'de katıl.`,
+        message: `${match.title} maçına göz at!\n${match.date} · ${match.time}\n${match.location}, ${match.city}\n\nFootbally'de katıl.`,
         title: match.title,
       });
     } catch {
@@ -336,7 +339,7 @@ export default function MatchScreen({ navigate }: Props) {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.backBtn} />
-            <Text style={styles.title}>Maçlar</Text>
+            <Text style={styles.title}>MAÇLAR</Text>
           </View>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
@@ -364,12 +367,13 @@ export default function MatchScreen({ navigate }: Props) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Maçlar</Text>
+          <Text style={styles.title}>MAÇLAR</Text>
         </View>
-        <HapticTouchable style={styles.createBtn} onPress={() => navigate('createMatch')}>
-          <Text style={styles.createBtnText}>+ Maç Oluştur</Text>
+        <HapticTouchable style={[styles.createBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} onPress={() => navigate('createMatch')}>
+          <Ionicons name="add" size={14} color={Paper.ink} />
+          <Text style={styles.createBtnText}>Maç Oluştur</Text>
         </HapticTouchable>
       </View>
 
@@ -395,7 +399,7 @@ export default function MatchScreen({ navigate }: Props) {
           onPress={() => setNearbyOnly((prev) => !prev)}
         >
           <Text style={[styles.nearbyChipText, nearbyOnly && styles.nearbyChipTextActive]}>
-            📍 Yakınımda ({myCity})
+            Yakınımda ({myCity})
           </Text>
         </HapticTouchable>
       ) : null}
@@ -421,7 +425,7 @@ export default function MatchScreen({ navigate }: Props) {
         ) : filtered.length === 0 ? (
           activeTab === 'upcoming' ? (
             <EmptyState
-              icon="⚽"
+              icon="football-outline"
               title="Henüz maç yok"
               subtitle="İlk maçı sen oluştur!"
               actionLabel="Maç Oluştur"
@@ -429,13 +433,13 @@ export default function MatchScreen({ navigate }: Props) {
             />
           ) : activeTab === 'past' ? (
             <EmptyState
-              icon="⚽"
+              icon="football-outline"
               title="Geçmiş maç yok"
               subtitle="Oynadığın maçlar burada listelenecek"
             />
           ) : activeTab === 'mine' ? (
             <EmptyState
-              icon="⚽"
+              icon="football-outline"
               title="Henüz maçın yok"
               subtitle="Bir maç oluştur ya da birine katıl"
               actionLabel="Maç Oluştur"
@@ -443,7 +447,7 @@ export default function MatchScreen({ navigate }: Props) {
             />
           ) : (
             <EmptyState
-              icon="⚽"
+              icon="football-outline"
               title="Henüz bir maça başvurmadın"
               subtitle="Yaklaşan maçlara göz atarak başvurabilirsin"
             />
@@ -460,7 +464,7 @@ export default function MatchScreen({ navigate }: Props) {
                   <View style={styles.cardTop}>
                     <View style={styles.cardLeft}>
                       <View style={styles.badgeIcon}>
-                        <Text style={styles.badgeIconText}>⚽</Text>
+                        <Ionicons name="football-outline" size={19} color={theme.gold} />
                       </View>
                       <View style={styles.cardTopText}>
                         <Text style={styles.cardTitle}>{m.title}</Text>
@@ -470,7 +474,7 @@ export default function MatchScreen({ navigate }: Props) {
                       </View>
                     </View>
                     <View
-                      style={[styles.statusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}
+                      style={[styles.statusBadge, { borderColor: statusColor }]}
                     >
                       <Text style={[styles.statusBadgeText, { color: statusColor }]}>
                         {statusLabel}
@@ -481,12 +485,12 @@ export default function MatchScreen({ navigate }: Props) {
                     <Text style={styles.typeTag}>{m.type}</Text>
                     <Text style={styles.typeTag}>{m.category}</Text>
                     <Text style={styles.participants}>
-                      👥 {m.participantsCount}/{m.required_players}
+                      {m.participantsCount}/{m.required_players}
                     </Text>
                   </View>
                   {needsResult && (
                     <HapticTouchable style={styles.resultPromptBtn} onPress={() => openResultEntry(m)}>
-                      <Text style={styles.resultPromptText}>📝 Maç Sonucunu Gir</Text>
+                      <Text style={styles.resultPromptText}>Maç Sonucunu Gir</Text>
                     </HapticTouchable>
                   )}
                 </HapticTouchable>
@@ -534,8 +538,9 @@ export default function MatchScreen({ navigate }: Props) {
                   </Text>
                 </View>
 
-                <HapticTouchable style={styles.mapBtn} onPress={() => openInMaps(selected)}>
-                  <Text style={styles.mapBtnText}>🗺️ Haritada Aç</Text>
+                <HapticTouchable style={[styles.mapBtn, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => openInMaps(selected)}>
+                  <Ionicons name="map-outline" size={14} color={theme.text} />
+                  <Text style={styles.mapBtnText}>Haritada Aç</Text>
                 </HapticTouchable>
 
                 <Text style={styles.participantsHeader}>Katılımcılar</Text>
@@ -551,7 +556,7 @@ export default function MatchScreen({ navigate }: Props) {
                           {p.avatar_url ? (
                             <Image source={{ uri: p.avatar_url }} style={styles.participantAvatarImg} />
                           ) : (
-                            <Text style={{ fontSize: 16 }}>👤</Text>
+                            <Ionicons name="person-outline" size={15} color={theme.gold} />
                           )}
                         </View>
                         <Text style={styles.participantName}>{p.full_name || 'Oyuncu'}</Text>
@@ -584,7 +589,7 @@ export default function MatchScreen({ navigate }: Props) {
                     disabled={joining || selected.participantsCount >= selected.required_players}
                   >
                     {joining ? (
-                      <ActivityIndicator color="#000" />
+                      <ActivityIndicator color={Paper.ink} />
                     ) : (
                       <Text style={styles.joinBtnText}>
                         {selected.participantsCount >= selected.required_players ? 'Maç Doldu' : 'Katıl'}
@@ -593,8 +598,9 @@ export default function MatchScreen({ navigate }: Props) {
                   </HapticTouchable>
                 )}
 
-                <HapticTouchable style={styles.shareBtn} onPress={() => handleShare(selected)}>
-                  <Text style={styles.shareBtnText}>↗ Maçı Paylaş</Text>
+                <HapticTouchable style={[styles.shareBtn, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => handleShare(selected)}>
+                  <Ionicons name="share-outline" size={13} color={theme.gold} />
+                  <Text style={styles.shareBtnText}>Maçı Paylaş</Text>
                 </HapticTouchable>
 
                 <HapticTouchable style={styles.closeBtn} onPress={() => setSelected(null)}>
@@ -630,7 +636,7 @@ export default function MatchScreen({ navigate }: Props) {
                   <Text
                     style={[
                       styles.resultOptionText,
-                      resultChoice === opt.key && { color: opt.key === 'draw' ? theme.text : '#000' },
+                      resultChoice === opt.key && { color: opt.key === 'draw' ? theme.text : Paper.ink },
                     ]}
                   >
                     {opt.label}
@@ -651,7 +657,7 @@ export default function MatchScreen({ navigate }: Props) {
             </View>
 
             <HapticTouchable style={[styles.joinBtn, { marginTop: 20 }]} onPress={saveResult} disabled={savingResult}>
-              {savingResult ? <ActivityIndicator color="#000" /> : <Text style={styles.joinBtnText}>Kaydet</Text>}
+              {savingResult ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.joinBtnText}>Kaydet</Text>}
             </HapticTouchable>
             <HapticTouchable style={styles.closeBtn} onPress={() => setResultTarget(null)}>
               <Text style={styles.closeBtnText}>Vazgeç</Text>
@@ -687,26 +693,25 @@ const createStyles = (theme: Theme) =>
       width: 40,
       height: 40,
       backgroundColor: theme.card,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 20, color: theme.text },
-    title: { fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
+    title: { fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     createBtn: {
       backgroundColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 14,
       paddingVertical: 10,
     },
-    createBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: '#000' },
+    createBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: Paper.ink },
     tabsScroll: { paddingHorizontal: 24, marginBottom: 12 },
     tabs: {
       flexDirection: 'row',
       backgroundColor: theme.card2,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 4,
       borderWidth: 1,
       borderColor: theme.border,
@@ -715,30 +720,30 @@ const createStyles = (theme: Theme) =>
     tabBtn: {
       paddingVertical: 10,
       paddingHorizontal: 14,
-      borderRadius: 12,
+      borderRadius: RADIUS - 2,
       alignItems: 'center',
     },
     tabBtnActive: { backgroundColor: theme.gold },
-    tabText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textSecondary },
-    tabTextActive: { color: '#000' },
+    tabText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.textSecondary },
+    tabTextActive: { color: Paper.ink },
     nearbyChip: {
       alignSelf: 'flex-start',
       marginHorizontal: 24,
       marginBottom: 14,
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     nearbyChipActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    nearbyChipText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.textSecondary },
-    nearbyChipTextActive: { color: '#000' },
+    nearbyChipText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.textSecondary },
+    nearbyChipTextActive: { color: Paper.ink },
     list: { paddingHorizontal: 24, gap: 14 },
     card: {
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 18,
       borderWidth: 1,
       borderColor: theme.border,
@@ -751,18 +756,17 @@ const createStyles = (theme: Theme) =>
     },
     cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
     badgeIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 42,
+      height: 42,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    badgeIconText: { fontSize: 20 },
     cardTopText: { flex: 1 },
     cardTitle: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.text },
-    cardMeta: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, marginTop: 3 },
-    statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+    cardMeta: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary, marginTop: 3 },
+    statusBadge: { borderRadius: RADIUS, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
     statusBadgeText: { fontSize: 11, fontFamily: FontFamily.monoMedium },
     cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
     typeTag: {
@@ -770,21 +774,21 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.monoMedium,
       color: theme.text,
       backgroundColor: theme.card2,
-      borderRadius: 8,
+      borderRadius: RADIUS,
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
     participants: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
     resultPromptBtn: {
       marginTop: 12,
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       paddingVertical: 10,
       alignItems: 'center',
     },
-    resultPromptText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
+    resultPromptText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.gold },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -792,8 +796,8 @@ const createStyles = (theme: Theme) =>
     },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       maxHeight: '85%',
       borderWidth: 1,
@@ -812,21 +816,21 @@ const createStyles = (theme: Theme) =>
     mapBtn: {
       marginTop: 14,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingVertical: 12,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    mapBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    mapBtnText: { fontSize: 13, fontFamily: FontFamily.mono, color: theme.text },
     participantsHeader: { fontSize: 13, fontFamily: FontFamily.display, letterSpacing: 0.3, color: theme.text, marginTop: 18, marginBottom: 10 },
-    noParticipantsText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
+    noParticipantsText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
     participantsList: { gap: 8 },
     participantRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     participantAvatar: {
       width: 32,
       height: 32,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
@@ -834,48 +838,50 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    participantAvatarImg: { width: 32, height: 32, borderRadius: 16 },
+    participantAvatarImg: { width: 32, height: 32, borderRadius: RADIUS },
     participantName: { fontSize: 13, color: theme.text, fontFamily: FontFamily.bodySemiBold },
     ownerNotice: {
       marginTop: 18,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 16,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.gold,
       paddingVertical: 14,
       alignItems: 'center',
     },
-    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
+    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.gold },
     joinBtn: {
       marginTop: 18,
-      height: 54,
-      borderRadius: 18,
+      height: 52,
+      borderRadius: RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
     joinBtnDisabled: { opacity: 0.5 },
-    joinBtnText: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: '#000' },
-    leaveBtn: { backgroundColor: hexToRgba(theme.error, 0.12), borderWidth: 1, borderColor: theme.error },
-    leaveBtnText: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.error },
+    joinBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: Paper.ink },
+    leaveBtn: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.error },
+    leaveBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.error },
     shareBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-    shareBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
+    shareBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.gold },
     closeBtn: { alignItems: 'center', paddingVertical: 10 },
-    closeBtnText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.bodySemiBold },
+    closeBtnText: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
     resultOptionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
     resultOptionBtn: {
       flex: 1,
       paddingVertical: 12,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    resultOptionText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    resultOptionText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.text },
     goalsStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginTop: 8 },
     goalsBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 38,
+      height: 38,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
@@ -883,5 +889,5 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     goalsBtnText: { fontSize: 20, fontWeight: '700', color: theme.gold },
-    goalsValue: { fontSize: 22, fontFamily: FontFamily.monoMedium, color: theme.text, width: 40, textAlign: 'center' },
+    goalsValue: { fontSize: 22, fontFamily: FontFamily.display, color: theme.text, width: 40, textAlign: 'center' },
   });

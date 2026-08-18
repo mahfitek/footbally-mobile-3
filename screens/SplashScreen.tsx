@@ -70,9 +70,9 @@ const createStyles = (theme: Theme) =>
       gap: 10,
     },
     dot: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
+      width: 18,
+      height: 3,
+      borderRadius: 1.5,
       backgroundColor: theme.gold,
     },
     tagline: {

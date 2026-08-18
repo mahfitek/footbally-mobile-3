@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Text, StyleSheet } from 'react-native';
 import FadeInView from './FadeInView';
 import { useTheme } from '../context/ThemeContext';
-import { Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
 interface Props {
@@ -41,7 +41,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.card,
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 16,
+      borderRadius: CARD_RADIUS,
       paddingVertical: 14,
       paddingHorizontal: 18,
       zIndex: 999,
@@ -51,7 +51,7 @@ const createStyles = (theme: Theme) =>
     error: { borderColor: theme.error },
     info: { borderColor: theme.gold },
     text: {
-      fontFamily: FontFamily.bodySemiBold,
+      fontFamily: FontFamily.monoMedium,
       color: theme.text,
       fontSize: 13,
       textAlign: 'center',

@@ -8,8 +8,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
@@ -18,11 +19,13 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
 const filters = ['Tümü', 'Forvet', 'Orta Saha', 'Defans', 'Kaleci'];
 
 type PlayerView = {
   id: string;
-  emoji: string;
   name: string;
   position: string;
   age: number | string;
@@ -34,14 +37,14 @@ type ScoutViewer = {
   id: string;
   name: string;
   role: string;
-  avatar: string;
+  icon: IoniconName;
   online: boolean;
 };
 
 const SCOUT_VIEWERS: ScoutViewer[] = [
-  { id: 'v1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', avatar: '🏟️', online: true },
-  { id: 'v2', name: 'Hans Mueller', role: 'Bundesliga Scout', avatar: '🌍', online: false },
-  { id: 'v3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', avatar: '⚡', online: true },
+  { id: 'v1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', icon: 'business-outline', online: true },
+  { id: 'v2', name: 'Hans Mueller', role: 'Bundesliga Scout', icon: 'globe-outline', online: false },
+  { id: 'v3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', icon: 'flash-outline', online: true },
 ];
 
 const MIN_AGE = 14;
@@ -83,7 +86,7 @@ export default function ScoutScreen({ navigate }: Props) {
   const recordProfileView = (player: PlayerView) => {
     if (player.id === viewerId) return;
     supabase.from('profile_views').insert({ viewer_id: viewerId, viewed_user_id: player.id, viewer_name: viewerName || 'Bir scout' });
-    notifyUser(player.id, '👁️', `${viewerName || 'Bir scout'} profilini inceledi`, 'profile', 'Profilin İncelendi');
+    notifyUser(player.id, 'eye-outline', `${viewerName || 'Bir scout'} profilini inceledi`, 'profile', 'Profilin İncelendi');
   };
 
   const onRefresh = () => {
@@ -105,7 +108,6 @@ export default function ScoutScreen({ navigate }: Props) {
         setPlayers(
           (data ?? []).map((p: any) => ({
             id: p.user_id,
-            emoji: '👤',
             name: p.full_name ?? 'İsimsiz Oyuncu',
             position: p.position ?? '-',
             age: p.age ?? '-',
@@ -127,7 +129,7 @@ export default function ScoutScreen({ navigate }: Props) {
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <View style={styles.backBtn} />
-          <Text style={styles.title}>Scout Paneli</Text>
+          <Text style={styles.title}>SCOUT PANELİ</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
           <SkeletonCard height={84} />
@@ -187,15 +189,15 @@ export default function ScoutScreen({ navigate }: Props) {
       >
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Scout Paneli</Text>
+          <Text style={styles.title}>SCOUT PANELİ</Text>
         </View>
 
         {/* Beni İnceleyen Scoutlar */}
         <View style={styles.viewersHeader}>
           <Text style={styles.viewersHeaderText}>
-            👁️ {SCOUT_VIEWERS.length} scout bu hafta profilini inceledi
+            {SCOUT_VIEWERS.length} scout bu hafta profilini inceledi
           </Text>
           <HapticTouchable onPress={() => setOnlineScoutsOnly((prev) => !prev)}>
             <View style={[styles.onlineToggle, onlineScoutsOnly && styles.onlineToggleActive]}>
@@ -214,7 +216,7 @@ export default function ScoutScreen({ navigate }: Props) {
             <View key={s.id} style={styles.viewerCard}>
               <View style={styles.viewerAvatarWrap}>
                 <View style={styles.viewerAvatar}>
-                  <Text style={{ fontSize: 20 }}>{s.avatar}</Text>
+                  <Ionicons name={s.icon} size={19} color={theme.gold} />
                 </View>
                 {s.online && <View style={styles.viewerOnlineDot} />}
               </View>
@@ -231,7 +233,7 @@ export default function ScoutScreen({ navigate }: Props) {
         </ScrollView>
 
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Oyuncu ara: İsim, pozisyon, şehir..."
@@ -251,7 +253,7 @@ export default function ScoutScreen({ navigate }: Props) {
             onPress={handleNearbyMatchesPress}
           >
             <Text style={[styles.pillText, nearbyOnly && styles.pillTextActive]}>
-              📍 Yakınımdaki Maçlar
+              Yakınımdaki Maçlar
             </Text>
           </HapticTouchable>
           {filters.map((f) => (
@@ -294,20 +296,20 @@ export default function ScoutScreen({ navigate }: Props) {
 
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
-            <Text style={styles.aiIcon}>🤖</Text>
+            <Ionicons name="hardware-chip-outline" size={15} color={theme.gold} />
             <Text style={styles.aiLabel}>AI ÖNERİSİ</Text>
           </View>
           <Text style={styles.aiText}>Henüz yeterli veri yok</Text>
         </View>
 
         {filteredPlayers.length === 0 ? (
-          <EmptyState icon="🔍" title="Oyuncu bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="search-outline" title="Oyuncu bulunamadı" subtitle="Farklı filtreler deneyin" />
         ) : (
           <View style={styles.list}>
             {filteredPlayers.map((p) => (
               <HapticTouchable key={p.id} style={styles.playerCard} onPress={() => recordProfileView(p)}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarEmoji}>{p.emoji}</Text>
+                  <Ionicons name="person-outline" size={22} color={theme.gold} />
                 </View>
                 <View style={styles.playerInfo}>
                   <Text style={styles.playerName}>{p.name}</Text>
@@ -350,17 +352,16 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 20,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, letterSpacing: 0.5 },
     viewersHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -368,23 +369,23 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 12,
     },
-    viewersHeaderText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, flex: 1 },
+    viewersHeaderText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.text, flex: 1 },
     onlineToggle: {
       paddingHorizontal: 12,
       paddingVertical: 6,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     onlineToggleActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    onlineToggleText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.textSecondary },
-    onlineToggleTextActive: { color: '#000' },
+    onlineToggleText: { fontFamily: FontFamily.monoMedium, fontSize: 10, color: theme.textSecondary },
+    onlineToggleTextActive: { color: Paper.ink },
     viewersRow: { paddingHorizontal: 24, gap: 12, marginBottom: 24 },
     viewerCard: {
       width: 140,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 14,
       alignItems: 'center',
       borderWidth: 1,
@@ -392,14 +393,12 @@ const createStyles = (theme: Theme) =>
     },
     viewerAvatarWrap: { position: 'relative', marginBottom: 8 },
     viewerAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 42,
+      height: 42,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
     viewerOnlineDot: {
       position: 'absolute',
@@ -413,21 +412,21 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.card,
     },
     viewerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.text, textAlign: 'center' },
-    viewerRole: { fontFamily: FontFamily.body, fontSize: 10, color: theme.textSecondary, textAlign: 'center', marginTop: 2, marginBottom: 10 },
+    viewerRole: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, textAlign: 'center', marginTop: 2, marginBottom: 10 },
     viewerMsgBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
-    viewerMsgBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: theme.gold },
+    viewerMsgBtnText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold },
     ageRangeCard: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
@@ -437,9 +436,9 @@ const createStyles = (theme: Theme) =>
     ageRangeDash: { color: theme.textSecondary, fontSize: 14 },
     ageStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     ageStepBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 30,
+      height: 30,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
@@ -453,38 +452,36 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       marginHorizontal: 24,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       height: 48,
       borderWidth: 1,
       borderColor: theme.border,
       marginBottom: 18,
     },
-    searchIcon: { fontSize: 15, marginRight: 10 },
-    searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: theme.text },
+    searchInput: { flex: 1, fontFamily: FontFamily.mono, fontSize: 14, color: theme.text },
     filters: { paddingHorizontal: 24, gap: 10, marginBottom: 20 },
     pill: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     pillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    pillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
-    pillTextActive: { color: '#000' },
+    pillText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    pillTextActive: { color: Paper.ink },
     aiCard: {
       marginHorizontal: 24,
       marginBottom: 24,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.gold,
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    aiIcon: { fontSize: 16 },
     aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
     aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     list: { paddingHorizontal: 24, gap: 14 },
@@ -493,34 +490,31 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 14,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
     },
     avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    avatarEmoji: { fontSize: 24 },
     playerInfo: { flex: 1 },
     playerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, marginBottom: 2 },
-    playerMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
+    playerMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
     contactBtn: {
       alignSelf: 'flex-start',
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
-    playerScore: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
+    contactBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    playerScore: { fontFamily: FontFamily.display, fontSize: 20, color: theme.gold },
   });
