@@ -16,13 +16,13 @@ import { useTheme } from '../context/ThemeContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { notifyUser } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
 const RADIUS = CARD_RADIUS;
-type IoniconName = keyof typeof Ionicons.glyphMap;
 
 type ChatView = {
   id: string | number;
@@ -33,19 +33,19 @@ type ChatView = {
   online: boolean;
 };
 
-type ConnectionView = {
-  id: string;
+type PendingRequestView = {
+  connectionId: string;
+  userId: string;
   name: string;
-  role: string;
-  online: boolean;
-  icon: IoniconName;
+  position: string | null;
 };
 
-const CONNECTIONS: ConnectionView[] = [
-  { id: 'c1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', online: true, icon: 'business-outline' },
-  { id: 'c2', name: 'Hans Mueller', role: 'Bundesliga Scout', online: false, icon: 'globe-outline' },
-  { id: 'c3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', online: true, icon: 'flash-outline' },
-];
+type AcceptedConnectionView = {
+  connectionId: string;
+  userId: string;
+  name: string;
+  position: string | null;
+};
 
 const formatRelativeTime = (iso: string) => {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -66,13 +66,17 @@ interface Props {
 export default function MessagesScreen({ navigate }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const [tab, setTab] = useState<'messages' | 'connections'>('messages');
+  const [tab, setTab] = useState<'messages' | 'connections' | 'tribun'>('messages');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [chats, setChats] = useState<ChatView[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
+  const [pendingRequests, setPendingRequests] = useState<PendingRequestView[]>([]);
+  const [acceptedConnections, setAcceptedConnections] = useState<AcceptedConnectionView[]>([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(true);
 
   const [newMessageModal, setNewMessageModal] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -83,6 +87,7 @@ export default function MessagesScreen({ navigate }: Props) {
 
   useEffect(() => {
     loadMessages();
+    loadConnections();
   }, []);
 
   useEffect(() => {
@@ -130,6 +135,7 @@ export default function MessagesScreen({ navigate }: Props) {
   const onRefresh = () => {
     setRefreshing(true);
     loadMessages();
+    loadConnections();
   };
 
   const loadMessages = async () => {
@@ -200,6 +206,102 @@ export default function MessagesScreen({ navigate }: Props) {
     setRefreshing(false);
   };
 
+  const loadConnections = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) {
+      setConnectionsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('connections')
+      .select('id, requester_id, target_id, status')
+      .or(`requester_id.eq.${user.id},target_id.eq.${user.id}`);
+
+    if (error || !data) {
+      if (error && __DEV__) console.log('Bağlantılar yüklenemedi:', error);
+      setPendingRequests([]);
+      setAcceptedConnections([]);
+      setConnectionsLoading(false);
+      return;
+    }
+
+    const pending = data.filter((c: any) => c.status === 'pending' && c.target_id === user.id);
+    const accepted = data.filter((c: any) => c.status === 'accepted');
+
+    const otherIds = Array.from(
+      new Set([
+        ...pending.map((c: any) => c.requester_id),
+        ...accepted.map((c: any) => (c.requester_id === user.id ? c.target_id : c.requester_id)),
+      ])
+    );
+
+    if (otherIds.length === 0) {
+      setPendingRequests([]);
+      setAcceptedConnections([]);
+      setConnectionsLoading(false);
+      return;
+    }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, full_name, position')
+      .in('user_id', otherIds);
+    const profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
+
+    setPendingRequests(
+      pending.map((c: any) => ({
+        connectionId: c.id,
+        userId: c.requester_id,
+        name: profileMap.get(c.requester_id)?.full_name ?? 'Kullanıcı',
+        position: profileMap.get(c.requester_id)?.position ?? null,
+      }))
+    );
+    setAcceptedConnections(
+      accepted.map((c: any) => {
+        const otherId = c.requester_id === user.id ? c.target_id : c.requester_id;
+        return {
+          connectionId: c.id,
+          userId: otherId,
+          name: profileMap.get(otherId)?.full_name ?? 'Kullanıcı',
+          position: profileMap.get(otherId)?.position ?? null,
+        };
+      })
+    );
+    setConnectionsLoading(false);
+  };
+
+  const handleAcceptRequest = async (req: PendingRequestView) => {
+    const { error } = await supabase
+      .from('connections')
+      .update({ status: 'accepted' })
+      .eq('id', req.connectionId);
+    if (error) {
+      setToast({ message: 'Bağlantı kabul edilemedi', type: 'error' });
+      return;
+    }
+    notifyUser(
+      req.userId,
+      'people-outline',
+      'Bağlantı isteğiniz kabul edildi',
+      'messages',
+      'Bağlantı Kabul Edildi',
+      'scout'
+    );
+    setToast({ message: 'Bağlantı kabul edildi', type: 'success' });
+    loadConnections();
+  };
+
+  const handleRejectRequest = async (req: PendingRequestView) => {
+    const { error } = await supabase.from('connections').delete().eq('id', req.connectionId);
+    if (error) {
+      setToast({ message: 'İstek reddedilemedi', type: 'error' });
+      return;
+    }
+    setPendingRequests((prev) => prev.filter((p) => p.connectionId !== req.connectionId));
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -257,7 +359,30 @@ export default function MessagesScreen({ navigate }: Props) {
           >
             <Text style={[styles.tabText, tab === 'connections' && styles.tabTextActive]}>Bağlantılar</Text>
           </HapticTouchable>
+          <HapticTouchable
+            style={[styles.tabBtn, tab === 'tribun' && styles.tabBtnActive]}
+            onPress={() => setTab('tribun')}
+          >
+            <Text style={[styles.tabText, tab === 'tribun' && styles.tabTextActive]}>Tribün</Text>
+          </HapticTouchable>
         </View>
+
+        {tab === 'tribun' && (
+          <View style={styles.tribunCard}>
+            <View style={styles.tribunIconWrap}>
+              <Ionicons name="megaphone-outline" size={22} color={theme.gold} />
+            </View>
+            <Text style={styles.tribunTitle}>TRİBÜN</Text>
+            <Text style={styles.tribunSub}>
+              Türkiye genelindeki tüm oyuncular ve takımlarla tek bir odada sohbet et, fotoğraf ve
+              video paylaş. Her mesajın yanında gönderenin [OYUNCU] veya [TAKIM] etiketi görünür.
+            </Text>
+            <HapticTouchable style={styles.tribunBtn} onPress={() => navigate('tribun')}>
+              <Ionicons name="chatbubbles-outline" size={14} color={Paper.ink} />
+              <Text style={styles.tribunBtnText}>Sohbete Katıl</Text>
+            </HapticTouchable>
+          </View>
+        )}
 
         {tab === 'messages' && (
           <>
@@ -321,28 +446,83 @@ export default function MessagesScreen({ navigate }: Props) {
         )}
 
         {tab === 'connections' && (
-          <View style={styles.chatList}>
-            {CONNECTIONS.map((c) => (
-              <View key={c.id} style={styles.connectionItem}>
-                <View style={styles.chatAvatarWrap}>
-                  <View style={styles.chatAvatar}>
-                    <Ionicons name={c.icon} size={20} color={theme.gold} />
-                  </View>
-                  {c.online && <View style={styles.chatOnlineDot} />}
-                </View>
-                <View style={styles.chatText}>
-                  <Text style={styles.chatName}>{c.name}</Text>
-                  <Text style={styles.connectionRole}>{c.role}</Text>
-                </View>
-                <HapticTouchable
-                  style={styles.messageBtn}
-                  onPress={() => navigate('chat', { id: c.id, name: c.name })}
-                >
-                  <Text style={styles.messageBtnText}>Mesaj</Text>
-                </HapticTouchable>
+          <>
+            {connectionsLoading ? (
+              <View style={{ paddingHorizontal: 24, gap: 12 }}>
+                <SkeletonCard height={64} />
+                <SkeletonCard height={64} />
               </View>
-            ))}
-          </View>
+            ) : (
+              <>
+                {pendingRequests.length > 0 && (
+                  <View style={styles.pendingSection}>
+                    <Text style={styles.sectionLabel}>BEKLEYEN İSTEKLER</Text>
+                    <View style={styles.chatList}>
+                      {pendingRequests.map((r) => (
+                        <View key={r.connectionId} style={styles.connectionItem}>
+                          <View style={styles.chatAvatarWrap}>
+                            <View style={styles.chatAvatar}>
+                              <Ionicons name="person-outline" size={20} color={theme.gold} />
+                            </View>
+                          </View>
+                          <View style={styles.chatText}>
+                            <Text style={styles.chatName}>{r.name}</Text>
+                            <Text style={styles.connectionRole}>{r.position ?? '-'}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <HapticTouchable
+                              style={styles.messageBtn}
+                              onPress={() => handleAcceptRequest(r)}
+                            >
+                              <Text style={styles.messageBtnText}>Kabul Et</Text>
+                            </HapticTouchable>
+                            <HapticTouchable
+                              style={styles.rejectBtn}
+                              onPress={() => handleRejectRequest(r)}
+                            >
+                              <Text style={styles.rejectBtnText}>Reddet</Text>
+                            </HapticTouchable>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {acceptedConnections.length === 0 ? (
+                  <EmptyState
+                    icon="people-outline"
+                    title="Henüz bağlantın yok"
+                    subtitle="Scout panelinden oyuncularla bağlantı kur"
+                    actionLabel="Scout Ara"
+                    onAction={() => navigate('scout')}
+                  />
+                ) : (
+                  <View style={styles.chatList}>
+                    {acceptedConnections.map((c) => (
+                      <View key={c.connectionId} style={styles.connectionItem}>
+                        <View style={styles.chatAvatarWrap}>
+                          <View style={styles.chatAvatar}>
+                            <Ionicons name="person-outline" size={20} color={theme.gold} />
+                          </View>
+                        </View>
+                        <View style={styles.chatText}>
+                          <Text style={styles.chatName}>{c.name}</Text>
+                          <Text style={styles.connectionRole}>{c.position ?? '-'}</Text>
+                        </View>
+                        <HapticTouchable
+                          style={styles.messageBtn}
+                          onPress={() => navigate('chat', { id: c.userId, name: c.name })}
+                        >
+                          <Text style={styles.messageBtnText}>Mesaj</Text>
+                        </HapticTouchable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -503,6 +683,70 @@ const createStyles = (theme: Theme) =>
     tabBtnActive: { backgroundColor: theme.gold },
     tabText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textSecondary },
     tabTextActive: { color: Paper.ink },
+    tribunCard: {
+      marginHorizontal: 24,
+      marginBottom: 24,
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 24,
+      alignItems: 'center',
+    },
+    tribunIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    tribunTitle: {
+      fontFamily: FontFamily.display,
+      fontSize: 16,
+      color: theme.text,
+      letterSpacing: 0.5,
+      marginBottom: 8,
+    },
+    tribunSub: {
+      fontFamily: FontFamily.body,
+      fontSize: 12,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: 18,
+    },
+    tribunBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: theme.gold,
+      borderRadius: RADIUS,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+    },
+    tribunBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: Paper.ink },
+    pendingSection: { marginBottom: 20 },
+    sectionLabel: {
+      fontFamily: FontFamily.mono,
+      fontSize: 11,
+      color: theme.textSecondary,
+      letterSpacing: 1,
+      marginHorizontal: 24,
+      marginBottom: 8,
+    },
+    rejectBtn: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: RADIUS,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    rejectBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     connectionItem: {
       flexDirection: 'row',
       alignItems: 'center',

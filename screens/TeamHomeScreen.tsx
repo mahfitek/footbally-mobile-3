@@ -80,6 +80,13 @@ const ACTIONS: { icon: IoniconName; title: string; sub: string; screen: string; 
     screen: 'teamStats',
     accent: 'gold',
   },
+  {
+    icon: 'megaphone-outline',
+    title: 'Tribün',
+    sub: 'Tüm oyuncular ve takımlarla sohbet et',
+    screen: 'tribun',
+    accent: 'gold',
+  },
 ];
 
 function StatCard({ value, label }: { value: string; label: string }) {
@@ -239,7 +246,8 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
             ? `${team.name} maç davetini kabul etti`
             : `${team.name} maç davetini reddetti`,
           'teamHome',
-          'Maç Daveti Yanıtlandı'
+          'Maç Daveti Yanıtlandı',
+          'match'
         );
       }
 

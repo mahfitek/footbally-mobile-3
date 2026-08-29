@@ -30,6 +30,7 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import MatchScreen from './screens/MatchScreen';
 import CreateMatchScreen from './screens/CreateMatchScreen';
 import ChatScreen from './screens/ChatScreen';
+import TribunScreen from './screens/TribunScreen';
 import TeamHomeScreen from './screens/TeamHomeScreen';
 import TeamProfileScreen from './screens/TeamProfileScreen';
 import TeamSquadScreen from './screens/TeamSquadScreen';
@@ -59,6 +60,7 @@ type Screen =
   | 'match'
   | 'createMatch'
   | 'chat'
+  | 'tribun'
   | 'teamHome'
   | 'teamProfile'
   | 'teamEdit'
@@ -250,6 +252,8 @@ function AppContent() {
             otherUserName={chatTarget?.name ?? ''}
           />
         );
+      case 'tribun':
+        return <TribunScreen navigate={navigate} userType={userType} />;
       case 'teamHome':
         return <TeamHomeScreen navigate={navigate} userId={currentUserId} />;
       case 'teamProfile':
