@@ -60,7 +60,9 @@
           "savePhotosPermission": "Footbally, oyuncu kartını galerine kaydetmek için erişim istiyor."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-sharing",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {
