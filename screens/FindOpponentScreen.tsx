@@ -6,14 +6,14 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
@@ -24,6 +24,7 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
+import BottomSheet from '../components/BottomSheet';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
 
 type TeamRow = {
@@ -79,10 +80,12 @@ type FilterKey = 'city' | 'district' | null;
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
+  onBack?: () => void;
 }
 
-export default function FindOpponentScreen({ navigate }: Props) {
+export default function FindOpponentScreen({ navigate, onBack }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,7 +154,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
 
   const openChallenge = (team: TeamRow) => {
     if (!myTeamId) {
-      setToast({ message: 'Önce kendi takım profilini oluşturmalısın', type: 'error' });
+      setToast({ message: t('findOpponent_needOwnTeam'), type: 'error' });
       return;
     }
     setChallengeTarget(team);
@@ -163,7 +166,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
   const sendChallenge = async () => {
     if (!myTeamId || !challengeTarget) return;
     if (!challengeLocation.trim()) {
-      setToast({ message: 'Lütfen bir konum girin', type: 'error' });
+      setToast({ message: t('findOpponent_enterLocation'), type: 'error' });
       return;
     }
 
@@ -182,25 +185,25 @@ export default function FindOpponentScreen({ navigate }: Props) {
         );
 
         if (error) {
-          setToast({ message: 'Davet gönderilemedi', type: 'error' });
+          setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
           setSending(false);
           return;
         }
       }
 
-      sendLocalNotification('Maç Daveti Gönderildi ⚔️', `${challengeTarget.name} takımına maç daveti gönderildi.`);
-      setToast({ message: 'Davet gönderildi', type: 'success' });
+      sendLocalNotification(t('findOpponent_inviteSentTitle'), `${challengeTarget.name} ${t('findOpponent_inviteSentBody')}`);
+      setToast({ message: t('findOpponent_inviteSentToast'), type: 'success' });
       setChallengeTarget(null);
     } catch (err) {
       if (__DEV__) console.log('Davet gönderilirken beklenmeyen hata:', err);
-      setToast({ message: 'Beklenmeyen bir hata oluştu', type: 'error' });
+      setToast({ message: t('findOpponent_unexpectedError'), type: 'error' });
     }
     setSending(false);
   };
 
-  const filteredTeams = teams.filter((t) => {
-    if (selectedCity && t.city !== selectedCity) return false;
-    if (selectedDistrict && t.district !== selectedDistrict) return false;
+  const filteredTeams = teams.filter((team) => {
+    if (selectedCity && team.city !== selectedCity) return false;
+    if (selectedDistrict && team.district !== selectedDistrict) return false;
     return true;
   });
 
@@ -208,7 +211,10 @@ export default function FindOpponentScreen({ navigate }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>RAKİP BUL</Text>
+          <HapticTouchable style={styles.backBtn} onPress={() => (onBack ? onBack() : navigate('home'))}>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
+          </HapticTouchable>
+          <Text style={styles.title}>{t('findOpponent_title')}</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
           <SkeletonCard height={100} />
@@ -229,10 +235,38 @@ export default function FindOpponentScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>RAKİP BUL</Text>
+          <HapticTouchable style={styles.backBtn} onPress={() => (onBack ? onBack() : navigate('home'))}>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
+          </HapticTouchable>
+          <Text style={styles.title}>{t('findOpponent_title')}</Text>
         </View>
 
         <View style={styles.content}>
+          {(selectedCity || selectedDistrict || selectedFormat !== null) && (
+            <View style={styles.activeChipsRow}>
+              {selectedCity && (
+                <HapticTouchable style={styles.activeChip} onPress={() => { setSelectedCity(''); setSelectedDistrict(''); }}>
+                  <Ionicons name="location" size={12} color={theme.gold} />
+                  <Text style={styles.activeChipText}>{selectedCity}</Text>
+                  <Ionicons name="close" size={13} color={theme.textSecondary} />
+                </HapticTouchable>
+              )}
+              {selectedDistrict && (
+                <HapticTouchable style={styles.activeChip} onPress={() => setSelectedDistrict('')}>
+                  <Ionicons name="location" size={12} color={theme.gold} />
+                  <Text style={styles.activeChipText}>{selectedDistrict}</Text>
+                  <Ionicons name="close" size={13} color={theme.textSecondary} />
+                </HapticTouchable>
+              )}
+              {selectedFormat !== null && (
+                <HapticTouchable style={styles.activeChip} onPress={() => setSelectedFormat(null)}>
+                  <Text style={styles.activeChipText}>{selectedFormat}v{selectedFormat}</Text>
+                  <Ionicons name="close" size={13} color={theme.textSecondary} />
+                </HapticTouchable>
+              )}
+            </View>
+          )}
+
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
             {[5, 7, 8, 11].map((n) => (
               <HapticTouchable
@@ -258,7 +292,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
             onPress={() => setOpenFilter(openFilter === 'city' ? null : 'city')}
           >
             <Text style={[styles.filterBtnText, { color: selectedCity ? theme.gold : theme.textSecondary }]}>
-              {selectedCity || 'Şehir Seç'}
+              {selectedCity || t('findOpponent_selectCity')}
             </Text>
             <Ionicons name={openFilter === 'city' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
           </HapticTouchable>
@@ -274,7 +308,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                     setOpenFilter(null);
                   }}
                 >
-                  <Text style={styles.dropdownAllText}>Tümü (Şehir Seçme)</Text>
+                  <Text style={styles.dropdownAllText}>{t('findOpponent_allCities')}</Text>
                 </HapticTouchable>
                 {TURKEY_CITIES.map((c) => (
                   <HapticTouchable
@@ -301,7 +335,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                 onPress={() => setOpenFilter(openFilter === 'district' ? null : 'district')}
               >
                 <Text style={[styles.filterBtnText, { color: selectedDistrict ? theme.gold : theme.textSecondary }]}>
-                  {selectedDistrict || 'İlçe Seç (Opsiyonel)'}
+                  {selectedDistrict || t('findOpponent_selectDistrict')}
                 </Text>
                 <Ionicons name={openFilter === 'district' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
               </HapticTouchable>
@@ -316,7 +350,7 @@ export default function FindOpponentScreen({ navigate }: Props) {
                         setOpenFilter(null);
                       }}
                     >
-                      <Text style={styles.dropdownAllText}>Tümü (İlçe Seçme)</Text>
+                      <Text style={styles.dropdownAllText}>{t('findOpponent_allDistricts')}</Text>
                     </HapticTouchable>
                     {(TURKEY_CITIES.find((c) => c.name === selectedCity)?.districts ?? []).map((d) => (
                       <HapticTouchable
@@ -339,35 +373,35 @@ export default function FindOpponentScreen({ navigate }: Props) {
 
           {(selectedCity || selectedFormat !== null) && (
             <HapticTouchable style={styles.clearAllBtn} onPress={clearFilters}>
-              <Text style={styles.clearText}>Filtreleri Temizle</Text>
+              <Text style={styles.clearText}>{t('findOpponent_clearFilters')}</Text>
             </HapticTouchable>
           )}
         </View>
 
         {filteredTeams.length === 0 ? (
-          <EmptyState icon="shield-outline" title="Rakip bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="shield-outline" title={t('findOpponent_notFound')} subtitle={t('findOpponent_tryDifferentFilters')} />
         ) : (
           <View style={styles.list}>
-            {filteredTeams.map((t) => {
-              const form = getForm(t.wins, t.losses, t.draws);
+            {filteredTeams.map((team) => {
+              const form = getForm(team.wins, team.losses, team.draws);
               return (
-                <View key={t.id} style={styles.teamCard}>
+                <View key={team.id} style={styles.teamCard}>
                   <View style={styles.teamTop}>
                     <View style={styles.avatar}>
                       <Ionicons name="business-outline" size={22} color={theme.gold} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.teamName}>{t.name}</Text>
+                      <Text style={styles.teamName}>{team.name}</Text>
                       <Text style={styles.teamMeta}>
-                        {t.city}{t.district ? ` · ${t.district}` : ''} · {t.league}
+                        {team.city}{team.district ? ` · ${team.district}` : ''} · {team.league}
                       </Text>
                     </View>
-                    <Text style={styles.teamRecord}>{t.wins}G {t.draws}B {t.losses}M</Text>
+                    <Text style={styles.teamRecord}>{team.wins}G {team.draws}B {team.losses}M</Text>
                   </View>
 
                   <View style={styles.formRow}>
                     {form.length === 0 ? (
-                      <Text style={styles.formEmpty}>Henüz maç verisi yok</Text>
+                      <Text style={styles.formEmpty}>{t('findOpponent_noFormData')}</Text>
                     ) : (
                       form.map((r, i) => (
                         <View
@@ -385,14 +419,14 @@ export default function FindOpponentScreen({ navigate }: Props) {
                     )}
                   </View>
 
-                  {((t.playing_style && t.playing_style.length > 0) || t.formation) && (
+                  {((team.playing_style && team.playing_style.length > 0) || team.formation) && (
                     <View style={styles.tagsRow}>
-                      {t.formation && (
+                      {team.formation && (
                         <View style={styles.formationTag}>
-                          <Text style={styles.formationTagText}>{t.formation}</Text>
+                          <Text style={styles.formationTagText}>{team.formation}</Text>
                         </View>
                       )}
-                      {t.playing_style?.map((s) => (
+                      {team.playing_style?.map((s) => (
                         <View key={s} style={styles.styleTag}>
                           <Text style={styles.styleTagText}>{s}</Text>
                         </View>
@@ -400,12 +434,12 @@ export default function FindOpponentScreen({ navigate }: Props) {
                     </View>
                   )}
 
-                  {t.match_days && t.match_days.length > 0 && (
-                    <Text style={styles.matchDaysText}>{t.match_days.join(' · ')}</Text>
+                  {team.match_days && team.match_days.length > 0 && (
+                    <Text style={styles.matchDaysText}>{team.match_days.join(' · ')}</Text>
                   )}
 
-                  <HapticTouchable style={styles.challengeBtn} onPress={() => openChallenge(t)}>
-                    <Text style={styles.challengeBtnText}>Maça Davet Et</Text>
+                  <HapticTouchable style={styles.challengeBtn} onPress={() => openChallenge(team)}>
+                    <Text style={styles.challengeBtnText}>{t('findOpponent_challenge')}</Text>
                   </HapticTouchable>
                 </View>
               );
@@ -414,81 +448,72 @@ export default function FindOpponentScreen({ navigate }: Props) {
         )}
       </ScrollView>
 
-      <Modal
-        visible={!!challengeTarget}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setChallengeTarget(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{challengeTarget?.name} Takımına Davet</Text>
+      <BottomSheet visible={!!challengeTarget} onClose={() => setChallengeTarget(null)} theme={theme}>
+        <Text style={styles.modalTitle}>{challengeTarget?.name} {t('findOpponent_challengeModalTitle')}</Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>TARİH</Text>
-              <HapticTouchable style={styles.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.inputValueText}>
-                  {challengeDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </Text>
-              </HapticTouchable>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>SAAT</Text>
-              <HapticTouchable style={styles.input} onPress={() => setShowTimePicker(true)}>
-                <Text style={styles.inputValueText}>
-                  {challengeTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                </Text>
-              </HapticTouchable>
-            </View>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={challengeDate}
-                mode="date"
-                display="spinner"
-                locale="tr-TR"
-                minimumDate={new Date()}
-                onChange={(_event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) setChallengeDate(selectedDate);
-                }}
-              />
-            )}
-            {showTimePicker && (
-              <DateTimePicker
-                value={challengeTime}
-                mode="time"
-                display="spinner"
-                is24Hour
-                onChange={(_event, selectedTime) => {
-                  setShowTimePicker(false);
-                  if (selectedTime) setChallengeTime(selectedTime);
-                }}
-              />
-            )}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>KONUM</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Halı saha adı"
-                placeholderTextColor={theme.textSecondary}
-                value={challengeLocation}
-                onChangeText={setChallengeLocation}
-              />
-            </View>
-
-            <HapticTouchable style={[styles.sendBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
-              {sending ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.sendBtnText}>Davet Gönder</Text>}
-            </HapticTouchable>
-
-            <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
-              <Text style={styles.cancelBtnText}>Vazgeç</Text>
-            </HapticTouchable>
-          </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>{t('findOpponent_dateLabel')}</Text>
+          <HapticTouchable style={styles.input} onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.inputValueText}>
+              {challengeDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </Text>
+          </HapticTouchable>
         </View>
-      </Modal>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>{t('findOpponent_timeLabel')}</Text>
+          <HapticTouchable style={styles.input} onPress={() => setShowTimePicker(true)}>
+            <Text style={styles.inputValueText}>
+              {challengeTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            </Text>
+          </HapticTouchable>
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={challengeDate}
+            mode="date"
+            display="spinner"
+            locale="tr-TR"
+            minimumDate={new Date()}
+            onChange={(_event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) setChallengeDate(selectedDate);
+            }}
+          />
+        )}
+        {showTimePicker && (
+          <DateTimePicker
+            value={challengeTime}
+            mode="time"
+            display="spinner"
+            is24Hour
+            onChange={(_event, selectedTime) => {
+              setShowTimePicker(false);
+              if (selectedTime) setChallengeTime(selectedTime);
+            }}
+          />
+        )}
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>{t('findOpponent_locationLabel')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('findOpponent_locationPlaceholder')}
+            placeholderTextColor={theme.textSecondary}
+            value={challengeLocation}
+            onChangeText={setChallengeLocation}
+          />
+        </View>
+
+        <HapticTouchable style={[styles.sendBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
+          {sending ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.sendBtnText}>{t('findOpponent_sendInvite')}</Text>}
+        </HapticTouchable>
+
+        <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
+          <Text style={styles.cancelBtnText}>{t('findOpponent_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
@@ -499,9 +524,32 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.bg },
     container: { flex: 1 },
-    header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12 },
+    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12 },
+    backBtn: {
+      width: 42,
+      height: 42,
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
     title: { fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     content: { paddingHorizontal: 24, marginBottom: 8 },
+    activeChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    activeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: hexToRgba(theme.gold, 0.12),
+      borderWidth: 1,
+      borderColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    activeChipText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.text },
     filterBtn: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -546,7 +594,7 @@ const createStyles = (theme: Theme) =>
     avatar: {
       width: 48,
       height: 48,
-      borderRadius: RADIUS,
+      borderRadius: 24,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',

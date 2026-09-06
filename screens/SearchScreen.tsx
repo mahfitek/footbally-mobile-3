@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
@@ -11,6 +12,7 @@ import { sendLocalNotification } from '../lib/notifications';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
+import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -22,11 +24,11 @@ type OpportunityResult = { id: string | number; title: string; subtitle: string;
 
 type TabKey = 'players' | 'teams' | 'matches' | 'opportunities';
 
-const TABS: { key: TabKey; label: string; icon: IoniconName }[] = [
-  { key: 'players', label: 'Oyuncular', icon: 'person-outline' },
-  { key: 'teams', label: 'Takımlar', icon: 'business-outline' },
-  { key: 'matches', label: 'Maçlar', icon: 'football-outline' },
-  { key: 'opportunities', label: 'Fırsatlar', icon: 'flash-outline' },
+const getTabs = (t: (key: any) => string): { key: TabKey; label: string; icon: IoniconName }[] => [
+  { key: 'players', label: t('search_tabPlayers'), icon: 'person-outline' },
+  { key: 'teams', label: t('search_tabTeams'), icon: 'business-outline' },
+  { key: 'matches', label: t('search_tabMatches'), icon: 'football-outline' },
+  { key: 'opportunities', label: t('search_tabOpportunities'), icon: 'flash-outline' },
 ];
 
 interface Props {
@@ -36,6 +38,8 @@ interface Props {
 
 export default function SearchScreen({ navigate, userType }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const TABS = getTabs(t);
   const styles = createStyles(theme);
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('players');
@@ -106,12 +110,12 @@ export default function SearchScreen({ navigate, userType }: Props) {
     if (!userId || match.creator_id === userId) return;
     const { error } = await supabase.from('match_applications').insert({ match_id: match.id, user_id: userId, status: 'applied' });
     if (error) {
-      setToast({ message: 'Katılım kaydedilemedi', type: 'error' });
+      setToast({ message: t('match_joinFailed'), type: 'error' });
       return;
     }
     setJoinedMatchIds((prev) => ({ ...prev, [match.id]: true }));
-    setToast({ message: 'Maça başvurunuz alındı', type: 'success' });
-    sendLocalNotification('Maça Katıldın! ⚽', `${match.title} maçına başvurun alındı.`);
+    setToast({ message: t('match_joinSuccess'), type: 'success' });
+    sendLocalNotification(t('search_joinedNotifTitle'), `${match.title} ${t('match_joinedNotifBody')}`);
   };
 
   const handleApplyOpportunity = async (op: OpportunityResult) => {
@@ -119,8 +123,8 @@ export default function SearchScreen({ navigate, userType }: Props) {
       await supabase.from('match_applications').insert({ user_id: userId, opportunity_id: op.id, status: 'applied' });
     }
     setAppliedIds((prev) => ({ ...prev, [String(op.id)]: true }));
-    setToast({ message: 'Başvurunuz alındı', type: 'success' });
-    sendLocalNotification('Başvuru Alındı! 🎯', 'Başvurunuz iletildi.');
+    setToast({ message: t('activities_applySuccess'), type: 'success' });
+    sendLocalNotification(t('activities_applyNotifTitle'), t('search_applyNotifBodyShort'));
   };
 
   const sendChallenge = async () => {
@@ -139,10 +143,10 @@ export default function SearchScreen({ navigate, userType }: Props) {
     );
     setSending(false);
     if (error) {
-      setToast({ message: 'Davet gönderilemedi', type: 'error' });
+      setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
       return;
     }
-    setToast({ message: 'Davet gönderildi', type: 'success' });
+    setToast({ message: t('findOpponent_inviteSentToast'), type: 'success' });
     setChallengeTarget(null);
   };
 
@@ -154,7 +158,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
         </HapticTouchable>
         <TextInput
           style={styles.searchInput}
-          placeholder="Ara..."
+          placeholder={t('search_placeholder')}
           placeholderTextColor={theme.textSecondary}
           value={query}
           onChangeText={setQuery}
@@ -162,15 +166,15 @@ export default function SearchScreen({ navigate, userType }: Props) {
         />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-        {TABS.map((t) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={styles.tabsScroll}>
+        {TABS.map((tab) => (
           <HapticTouchable
-            key={t.key}
-            style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
-            onPress={() => setActiveTab(t.key)}
+            key={tab.key}
+            style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
+            onPress={() => setActiveTab(tab.key)}
           >
-            <Ionicons name={t.icon} size={13} color={activeTab === t.key ? Paper.ink : theme.textMuted} />
-            <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>{t.label}</Text>
+            <Ionicons name={tab.icon} size={13} color={activeTab === tab.key ? Paper.ink : theme.textMuted} />
+            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
           </HapticTouchable>
         ))}
       </ScrollView>
@@ -181,19 +185,19 @@ export default function SearchScreen({ navigate, userType }: Props) {
         <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {activeTab === 'players' && (
             players.length === 0 ? (
-              <EmptyState icon="person-outline" title="Oyuncu bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="person-outline" title={t('search_emptyPlayers')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {players.map((p) => (
                   <View key={p.user_id} style={styles.row}>
                     <View style={styles.avatar}><Ionicons name="person-outline" size={19} color={theme.gold} /></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{p.full_name || 'Oyuncu'}</Text>
+                      <Text style={styles.rowTitle}>{p.full_name || t('match_defaultPlayerName')}</Text>
                       <Text style={styles.rowMeta}>{[p.position, p.city].filter(Boolean).join(' · ') || '-'}</Text>
                     </View>
                     <Text style={styles.scoreText}>{p.score}</Text>
                     <HapticTouchable style={styles.actionBtn} onPress={() => navigate('chat', { id: p.user_id, name: p.full_name })}>
-                      <Text style={styles.actionBtnText}>Mesaj Gönder</Text>
+                      <Text style={styles.actionBtnText}>{t('scout_sendMessage')}</Text>
                     </HapticTouchable>
                   </View>
                 ))}
@@ -203,7 +207,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'teams' && (
             teams.length === 0 ? (
-              <EmptyState icon="business-outline" title="Takım bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="business-outline" title={t('search_emptyTeams')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {teams.map((tm) => (
@@ -216,7 +220,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                     <Text style={styles.scoreText}>{tm.rating}</Text>
                     {userType === 'team' && myTeam && myTeam.id !== tm.id && (
                       <HapticTouchable style={styles.actionBtn} onPress={() => setChallengeTarget(tm)}>
-                        <Text style={styles.actionBtnText}>Maça Davet Et</Text>
+                        <Text style={styles.actionBtnText}>{t('findOpponent_challenge')}</Text>
                       </HapticTouchable>
                     )}
                   </View>
@@ -227,7 +231,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'matches' && (
             matches.length === 0 ? (
-              <EmptyState icon="football-outline" title="Maç bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="football-outline" title={t('search_emptyMatches')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {matches.map((m) => {
@@ -246,7 +250,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                           onPress={() => handleJoinMatch(m)}
                           disabled={joined}
                         >
-                          <Text style={styles.actionBtnText}>{joined ? 'Katıldın' : 'Katıl'}</Text>
+                          <Text style={styles.actionBtnText}>{joined ? t('search_joined') : t('match_join')}</Text>
                         </HapticTouchable>
                       )}
                     </View>
@@ -258,7 +262,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'opportunities' && (
             opportunities.length === 0 ? (
-              <EmptyState icon="flash-outline" title="Fırsat bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="flash-outline" title={t('search_emptyOpportunities')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {opportunities.map((op) => {
@@ -275,7 +279,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                         onPress={() => handleApplyOpportunity(op)}
                         disabled={applied}
                       >
-                        <Text style={styles.actionBtnText}>{applied ? 'Başvuruldu' : 'Başvur'}</Text>
+                        <Text style={styles.actionBtnText}>{applied ? t('activities_applied') : t('activities_apply')}</Text>
                       </HapticTouchable>
                     </View>
                   );
@@ -286,20 +290,16 @@ export default function SearchScreen({ navigate, userType }: Props) {
         </ScrollView>
       )}
 
-      <Modal visible={!!challengeTarget} animationType="slide" transparent onRequestClose={() => setChallengeTarget(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{challengeTarget?.name} takımına davet gönder</Text>
-            <Text style={styles.rowMeta}>Bugün · 20:00 · Konum daha sonra belirlenecek. Detayları Rakip Bul ekranından düzenleyebilirsin.</Text>
-            <HapticTouchable style={[styles.saveBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
-              {sending ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Davet Gönder</Text>}
-            </HapticTouchable>
-            <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
-              <Text style={styles.cancelBtnText}>Vazgeç</Text>
-            </HapticTouchable>
-          </View>
-        </View>
-      </Modal>
+      <BottomSheet visible={!!challengeTarget} onClose={() => setChallengeTarget(null)} theme={theme}>
+        <Text style={styles.modalTitle}>{t('search_challengeModalPrefix')}{challengeTarget?.name}{t('search_challengeModalSuffix')}</Text>
+        <Text style={styles.rowMeta}>{t('search_challengeModalBody')}</Text>
+        <HapticTouchable style={[styles.saveBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
+          {sending ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>{t('findOpponent_sendInvite')}</Text>}
+        </HapticTouchable>
+        <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
+          <Text style={styles.cancelBtnText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
@@ -358,7 +358,7 @@ const createStyles = (theme: Theme) =>
     },
     avatar: {
       width: 42, height: 42,
-      borderRadius: RADIUS,
+      borderRadius: 21,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',

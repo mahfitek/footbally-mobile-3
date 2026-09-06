@@ -6,46 +6,50 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+import { TranslationKey } from '../lib/i18n';
 import HapticTouchable from '../components/HapticTouchable';
 
 const RADIUS = CARD_RADIUS;
 
-const slides = [
+const getSlides = (t: (key: TranslationKey) => string) => [
   {
     id: 1,
     code: '01/03',
-    title: 'Kendini',
-    titleGold: 'Geliştir',
-    desc: 'AI destekli analizler ve kişisel antrenman programlarıyla her gün bir adım daha ilerle.',
+    title: t('onboarding_slide1Title'),
+    titleGold: t('onboarding_slide1TitleGold'),
+    desc: t('onboarding_slide1Desc'),
     kind: 'phone' as const,
   },
   {
     id: 2,
     code: '02/03',
-    title: 'Fırsatları',
-    titleGold: 'Yakala',
-    desc: 'Profesyonel kulüplerden, akademilerden ve scoutlardan gelen davetleri kaçırma.',
+    title: t('onboarding_slide2Title'),
+    titleGold: t('onboarding_slide2TitleGold'),
+    desc: t('onboarding_slide2Desc'),
     kind: 'clubs' as const,
   },
   {
     id: 3,
     code: '03/03',
-    title: 'Zafere',
-    titleGold: 'Ulaş',
-    desc: 'Kariyer hedeflerine ulaş, süperliğe tırman ve hayalini yaşa.',
+    title: t('onboarding_slide3Title'),
+    titleGold: t('onboarding_slide3TitleGold'),
+    desc: t('onboarding_slide3Desc'),
     kind: 'success' as const,
   },
 ];
 
-const PHONE_STATS = ['AI Analiz', 'Performans Takibi', 'Skor Sistemi'];
 const CLUBS = ['GS', 'FB', 'BJK', 'TS'];
 
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [current, setCurrent] = useState(0);
+  const slides = getSlides(t);
+  const PHONE_STATS = [t('onboarding_phoneStat1'), t('onboarding_phoneStat2'), t('onboarding_phoneStat3')];
 
   const next = () => {
     if (current < slides.length - 1) {
@@ -81,7 +85,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
                 />
                 <Text style={styles.cardBrand}>FOOTBALLY</Text>
               </View>
-              <Text style={styles.cardLabel}>OYUNCU DOSYASI · ÖZET</Text>
+              <Text style={styles.cardLabel}>{t('onboarding_playerFileLabel')}</Text>
               {PHONE_STATS.map((s) => (
                 <View key={s} style={styles.dataRow}>
                   <Text style={styles.dataRowText}>{s}</Text>
@@ -92,7 +96,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
           {slide.kind === 'clubs' && (
             <View style={styles.phoneMock}>
-              <Text style={styles.cardLabel}>KAYITLI KULÜPLER</Text>
+              <Text style={styles.cardLabel}>{t('onboarding_registeredClubs')}</Text>
               <View style={styles.clubsRow}>
                 {CLUBS.map((c) => (
                   <View key={c} style={styles.clubBadge}>
@@ -101,16 +105,16 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
                 ))}
               </View>
               <View style={styles.clubsCaptionRow}>
-                <Text style={styles.clubsCaption}>180+ Scout · 50+ Kulüp · Türkiye geneli</Text>
+                <Text style={styles.clubsCaption}>{t('onboarding_clubsCaption')}</Text>
               </View>
             </View>
           )}
 
           {slide.kind === 'success' && (
             <View style={styles.phoneMock}>
-              <Text style={styles.cardLabel}>SAHA İSTATİSTİĞİ</Text>
+              <Text style={styles.cardLabel}>{t('onboarding_fieldStat')}</Text>
               <Text style={styles.successStatValue}>847</Text>
-              <Text style={styles.successStatLabel}>oyuncu son 3 ayda kulüplerle görüştü</Text>
+              <Text style={styles.successStatLabel}>{t('onboarding_fieldStatLabel')}</Text>
             </View>
           )}
         </View>
@@ -133,13 +137,13 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
       <HapticTouchable style={styles.btn} onPress={next}>
         <Text style={styles.btnText}>
-          {isLast ? 'Başla' : 'Devam Et'}
+          {isLast ? t('onboarding_start') : t('onboarding_continue')}
         </Text>
       </HapticTouchable>
 
       {isLast && (
         <HapticTouchable style={styles.loginLink} onPress={onDone}>
-          <Text style={styles.loginLinkText}>Zaten hesabım var</Text>
+          <Text style={styles.loginLinkText}>{t('onboarding_alreadyHaveAccount')}</Text>
         </HapticTouchable>
       )}
     </View>
@@ -176,7 +180,7 @@ const createStyles = (theme: Theme) =>
     },
     card: {
       width: '100%',
-      backgroundColor: Paper.bg,
+      backgroundColor: theme.card2,
       borderRadius: RADIUS,
       padding: 22,
       marginBottom: 32,
@@ -195,58 +199,58 @@ const createStyles = (theme: Theme) =>
     crest: {
       width: 30,
       height: 30,
-      borderRadius: RADIUS,
+      borderRadius: 8,
       resizeMode: 'contain',
     },
     cardBrand: {
       fontFamily: FontFamily.display,
       fontSize: 18,
       letterSpacing: 2,
-      color: Paper.ink,
+      color: theme.text,
     },
     cardLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 11,
       letterSpacing: 1,
-      color: Paper.muted,
+      color: theme.gold,
       paddingBottom: 12,
       marginBottom: 14,
       borderBottomWidth: 1,
-      borderBottomColor: Paper.line,
+      borderBottomColor: theme.border,
     },
     dataRow: {
       paddingVertical: 10,
       borderBottomWidth: 1,
-      borderBottomColor: Paper.line,
+      borderBottomColor: theme.border,
     },
     dataRowText: {
       fontFamily: FontFamily.monoMedium,
       fontSize: 13,
-      color: Paper.ink,
+      color: theme.text,
     },
     clubsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
     clubBadge: {
       flex: 1,
       height: 44,
       borderRadius: RADIUS,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.card,
       borderWidth: 1,
-      borderColor: Paper.line,
+      borderColor: theme.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    clubBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: Paper.ink },
+    clubBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
     clubsCaptionRow: {
       paddingTop: 12,
       borderTopWidth: 1,
-      borderTopColor: Paper.line,
+      borderTopColor: theme.border,
     },
-    clubsCaption: { fontFamily: FontFamily.mono, fontSize: 11, color: Paper.muted, letterSpacing: 0.5 },
+    clubsCaption: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textMuted, letterSpacing: 0.5 },
     successStatValue: { fontFamily: FontFamily.display, fontSize: 44, color: theme.gold, letterSpacing: 1 },
     successStatLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 12,
-      color: Paper.muted,
+      color: theme.textMuted,
       marginTop: 4,
     },
     title: {
@@ -288,14 +292,14 @@ const createStyles = (theme: Theme) =>
       width: '100%',
       height: 52,
       backgroundColor: theme.gold,
-      borderRadius: RADIUS,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
     },
     btnText: {
       fontFamily: FontFamily.display,
       fontSize: 15,
-      color: Paper.ink,
+      color: theme.bg,
       letterSpacing: 1,
     },
     loginLink: { marginTop: 16, padding: 8, alignItems: 'center' },

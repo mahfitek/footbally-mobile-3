@@ -1,6 +1,6 @@
 import { Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { Theme, PILL_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 
@@ -32,7 +32,7 @@ const createStyles = (theme: Theme) =>
     btn: {
       width: '100%',
       height: 52,
-      borderRadius: CARD_RADIUS,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
     },

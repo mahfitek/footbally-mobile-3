@@ -37,7 +37,8 @@ export async function joinTeam(teamId: string, userId: string): Promise<{ error:
       '🏟️',
       `${joiner?.full_name || 'Yeni bir oyuncu'} ${team.name} takımına katıldı`,
       'teamSquad',
-      'Takıma Katılım'
+      'Takıma Katılım',
+      'match'
     );
   }
 

@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { TranslationKey } from '../lib/i18n';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
+import { joinTeam, extractTeamIdFromJoinUrl } from '../lib/teamJoin';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
+import TournamentTeaser from '../components/TournamentTeaser';
+import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -44,46 +49,53 @@ type ActivityItem = {
   sortKey: number;
 };
 
-const ACTIONS: { icon: IoniconName; title: string; sub: string; screen: string; accent: 'gold' | 'error' | 'success' }[] = [
+// Takımların asıl ihtiyacı: rakip ve maç bulmak — diğer kısayollardan daha
+// büyük/belirgin kartlarla üstte gösterilir.
+const getTeamDiscoverItems = (t: (key: TranslationKey) => string): { key: string; icon: IoniconName; title: string; sub: string; screen: string; colorKey: 'gold' | 'purple' }[] => [
+  { key: 'opponentSeekers', icon: 'shield-outline', title: t('discover_opponentSeekers'), sub: t('discover_opponentSeekersSub'), screen: 'findOpponent', colorKey: 'purple' },
+  { key: 'matchSeekers', icon: 'football-outline', title: t('discover_matchSeekers'), sub: t('discover_matchSeekersSubTeam'), screen: 'match', colorKey: 'gold' },
+];
+
+const getActions = (t: (key: TranslationKey) => string): { icon: IoniconName; title: string; sub: string; screen: string; accent: 'gold' | 'error' | 'success' }[] => [
   {
     icon: 'search-outline',
-    title: 'Oyuncu Bul',
-    sub: 'Takımına yeni yetenek ekle',
+    title: t('teamAction_findPlayer'),
+    sub: t('teamAction_findPlayerSub'),
     screen: 'findPlayer',
     accent: 'gold',
   },
   {
     icon: 'shield-outline',
-    title: 'Rakip Bul',
-    sub: 'Maç ayarla, rekabet et',
+    title: t('teamAction_findOpponent'),
+    sub: t('teamAction_findOpponentSub'),
     screen: 'findOpponent',
     accent: 'error',
   },
   {
     icon: 'people-outline',
-    title: 'Kadroyu Yönet',
-    sub: 'Diziliş ve oyuncular',
+    title: t('teamAction_squad'),
+    sub: t('teamAction_squadSub'),
     screen: 'teamSquad',
     accent: 'gold',
   },
   {
     icon: 'bar-chart-outline',
-    title: 'Maç Analizi',
-    sub: 'İstatistik ve performans',
+    title: t('teamAction_matchAnalysis'),
+    sub: t('teamAction_matchAnalysisSub'),
     screen: 'teamProfile',
     accent: 'success',
   },
   {
     icon: 'trending-up-outline',
-    title: 'İstatistikler',
-    sub: 'Form, gol krallığı, seri',
+    title: t('teamAction_stats'),
+    sub: t('teamAction_statsSub'),
     screen: 'teamStats',
     accent: 'gold',
   },
   {
     icon: 'megaphone-outline',
-    title: 'Tribün',
-    sub: 'Tüm oyuncular ve takımlarla sohbet et',
+    title: t('sahadan_gridTitle'),
+    sub: t('sahadan_gridSub'),
     screen: 'tribun',
     accent: 'gold',
   },
@@ -107,7 +119,7 @@ function StatCard({ value, label }: { value: string; label: string }) {
   );
 }
 
-function ActionCard({ item, theme, onPress }: { item: typeof ACTIONS[number]; theme: Theme; onPress: () => void }) {
+function ActionCard({ item, theme, onPress }: { item: ReturnType<typeof getActions>[number]; theme: Theme; onPress: () => void }) {
   const accentColor = theme[item.accent];
   return (
     <HapticTouchable style={styles.gridCardWrap} onPress={onPress}>
@@ -130,6 +142,8 @@ interface Props {
 
 export default function TeamHomeScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,10 +154,38 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
   const [pendingChallenges, setPendingChallenges] = useState<PendingChallenge[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     loadAll();
   }, [userId]);
+
+  const handleJoinByCode = async () => {
+    const raw = joinCode.trim();
+    if (!raw) return;
+    const uid = resolvedUserId ?? userId;
+    if (!uid) {
+      Alert.alert(t('login_errorTitle'), t('teamHome_mustSignIn'));
+      return;
+    }
+    const teamId = extractTeamIdFromJoinUrl(raw) ?? raw;
+    setJoining(true);
+    const { error, alreadyMember } = await joinTeam(teamId, uid);
+    setJoining(false);
+    if (error) {
+      Alert.alert(t('teamHome_joinFailed'), t('teamHome_invalidCode'));
+      return;
+    }
+    setShowJoinModal(false);
+    setJoinCode('');
+    Alert.alert(
+      alreadyMember ? t('teamHome_alreadyOnSquad') : t('teamHome_joinedTeam'),
+      alreadyMember ? t('teamHome_alreadyOnSquadBody') : t('teamHome_joinedTeamBody')
+    );
+    loadAll();
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -194,7 +236,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
       data.map((c: any) => ({
         id: c.id,
         challenger_team_id: c.challenger_team_id,
-        challengerName: c.challenger?.name ?? 'Rakip Takım',
+        challengerName: c.challenger?.name ?? t('teamHome_defaultOpponentName'),
         date: c.date,
         time: c.time,
         location: c.location,
@@ -228,7 +270,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           city: team.city || challenge.location,
           required_players: players * 2,
           type: challenge.format,
-          category: 'Takım Maçı',
+          category: t('teamHome_teamMatchCategory'),
           creator_id: resolvedUserId,
         });
       }
@@ -243,10 +285,10 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           challengerTeam.owner_id,
           accept ? 'checkmark-circle-outline' : 'close-circle-outline',
           accept
-            ? `${team.name} maç davetini kabul etti`
-            : `${team.name} maç davetini reddetti`,
+            ? `${team.name}${t('teamHome_challengeAcceptedSuffix')}`
+            : `${team.name}${t('teamHome_challengeDeclinedSuffix')}`,
           'teamHome',
-          'Maç Daveti Yanıtlandı',
+          t('teamHome_challengeRespondedNotifTitle'),
           'match'
         );
       }
@@ -294,8 +336,8 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
         items.push({
           id: `member-${m.id}`,
           icon: 'person-outline',
-          text: 'Bir oyuncu kadroya katıldı',
-          time: new Date(m.joined_at).toLocaleDateString('tr-TR'),
+          text: t('teamHome_memberJoinedText'),
+          time: new Date(m.joined_at).toLocaleDateString(dateLocale),
           sortKey: new Date(m.joined_at).getTime(),
         });
       });
@@ -305,13 +347,13 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
     if (!challengesRes.error && challengesRes.data) {
       challengesRes.data.forEach((c: any) => {
-        const opponentName = c.challenger_team_id === teamId ? c.opponent?.name ?? 'Rakip Takım' : c.challenger?.name ?? 'Rakip Takım';
-        const statusText = c.status === 'accepted' ? `vs ${opponentName} maçı onaylandı` : c.status === 'completed' ? `vs ${opponentName} maçı tamamlandı` : `vs ${opponentName} için meydan okuma gönderildi`;
+        const opponentName = c.challenger_team_id === teamId ? c.opponent?.name ?? t('teamHome_defaultOpponentName') : c.challenger?.name ?? t('teamHome_defaultOpponentName');
+        const statusText = c.status === 'accepted' ? `vs ${opponentName}${t('teamHome_matchConfirmedSuffix')}` : c.status === 'completed' ? `vs ${opponentName}${t('teamHome_matchCompletedSuffix')}` : `vs ${opponentName}${t('teamHome_challengeSentSuffix')}`;
         items.push({
           id: `challenge-${c.id}`,
           icon: c.status === 'completed' ? 'flag-outline' : 'shield-outline',
           text: statusText,
-          time: new Date(c.created_at).toLocaleDateString('tr-TR'),
+          time: new Date(c.created_at).toLocaleDateString(dateLocale),
           sortKey: new Date(c.created_at).getTime(),
         });
       });
@@ -342,10 +384,10 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
   const statsRow = team
     ? [
-        { value: String(team.wins + team.losses + team.draws), label: 'Maç' },
-        { value: String(team.wins), label: 'Galibiyet' },
-        { value: String(team.draws), label: 'Beraberlik' },
-        { value: String(team.losses), label: 'Mağlubiyet' },
+        { value: String(team.wins + team.losses + team.draws), label: t('teamHome_statMatches') },
+        { value: String(team.wins), label: t('teamHome_statWins') },
+        { value: String(team.draws), label: t('teamHome_statDraws') },
+        { value: String(team.losses), label: t('teamHome_statLosses') },
       ]
     : [];
 
@@ -368,9 +410,9 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.teamName} numberOfLines={1}>{team?.name ?? 'Takımın'}</Text>
+              <Text style={styles.teamName} numberOfLines={1}>{team?.name ?? t('teamHome_yourTeamDefault')}</Text>
               <View style={styles.leagueBadge}>
-                <Text style={styles.leagueBadgeText}>{team?.league ?? 'Amatör'}</Text>
+                <Text style={styles.leagueBadgeText}>{team?.league ?? t('teamHome_amateurDefault')}</Text>
               </View>
             </View>
             <HapticTouchable style={styles.notifBtn} onPress={() => navigate('search')}>
@@ -387,13 +429,17 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           </View>
         </View>
 
+        <TournamentTeaser />
+
         {!team && (
           <EmptyState
             icon="business-outline"
-            title="Henüz takımın yok"
-            subtitle="Takım profilini oluşturarak oyuncu ve rakip bulmaya başla"
-            actionLabel="Takım Oluştur"
-            onAction={() => navigate('teamEdit')}
+            title={t('teamHome_noTeamTitle')}
+            subtitle={t('teamHome_noTeamSub')}
+            actions={[
+              { label: t('teamHome_createTeam'), onPress: () => navigate('teamEdit'), variant: 'primary' },
+              { label: t('teamHome_joinWithCode'), onPress: () => setShowJoinModal(true), variant: 'outline' },
+            ]}
           />
         )}
 
@@ -405,8 +451,20 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
               ))}
             </View>
 
+            <View style={styles.discoverGrid}>
+              {getTeamDiscoverItems(t).map((item) => (
+                <HapticTouchable key={item.key} style={styles.discoverCard} onPress={() => navigate(item.screen)}>
+                  <View style={[styles.discoverIconWrap, { backgroundColor: hexToRgba(theme[item.colorKey], 0.16) }]}>
+                    <Ionicons name={item.icon} size={20} color={theme[item.colorKey]} />
+                  </View>
+                  <Text style={styles.discoverTitle}>{item.title}</Text>
+                  <Text style={styles.discoverSub}>{item.sub}</Text>
+                </HapticTouchable>
+              ))}
+            </View>
+
             <View style={styles.grid}>
-              {ACTIONS.map((item) => (
+              {getActions(t).map((item) => (
                 <ActionCard key={item.screen} item={item} theme={theme} onPress={() => navigate(item.screen)} />
               ))}
             </View>
@@ -414,7 +472,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
             {pendingChallenges.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>BEKLEYEN MAÇ DAVETLERİ</Text>
+                  <Text style={styles.sectionTitle}>{t('teamHome_pendingChallengesHeader')}</Text>
                 </View>
                 <View style={styles.activityList}>
                   {pendingChallenges.map((c) => (
@@ -454,10 +512,10 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
             )}
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>SON AKTİVİTE</Text>
+              <Text style={styles.sectionTitle}>{t('teamHome_recentActivityHeader')}</Text>
             </View>
             {activity.length === 0 ? (
-              <EmptyState icon="flash-outline" title="Henüz aktivite yok" subtitle="Kadro ve maç aktiviteleri burada görünecek" />
+              <EmptyState icon="flash-outline" title={t('teamHome_noActivityTitle')} subtitle={t('teamHome_noActivitySub')} />
             ) : (
               <View style={styles.activityList}>
                 {activity.map((a) => (
@@ -476,6 +534,30 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <BottomSheet visible={showJoinModal} onClose={() => { setShowJoinModal(false); setJoinCode(''); }} theme={theme}>
+        <Text style={styles.joinModalTitle}>{t('teamHome_joinModalTitle')}</Text>
+        <Text style={styles.joinModalSubtitle}>{t('teamHome_joinModalSub')}</Text>
+        <TextInput
+          value={joinCode}
+          onChangeText={setJoinCode}
+          placeholder={t('teamHome_joinModalPlaceholder')}
+          placeholderTextColor={theme.textSecondary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.joinModalInput}
+        />
+        <HapticTouchable
+          style={[styles.joinModalBtn, (!joinCode.trim() || joining) && { opacity: 0.6 }]}
+          onPress={handleJoinByCode}
+          disabled={!joinCode.trim() || joining}
+        >
+          <Text style={styles.joinModalBtnText}>{joining ? t('teamHome_joining') : t('teamHome_joinBtn')}</Text>
+        </HapticTouchable>
+        <HapticTouchable onPress={() => { setShowJoinModal(false); setJoinCode(''); }} style={{ padding: 14, alignItems: 'center' }}>
+          <Text style={{ color: theme.textSecondary, fontFamily: FontFamily.mono, fontSize: 12 }}>{t('common_cancel')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -580,6 +662,51 @@ const createStyles = (theme: Theme) =>
     declineBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.error },
     acceptBtn: { backgroundColor: theme.gold },
     acceptBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: Paper.ink },
+    joinModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+    joinModalCard: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: CARD_RADIUS,
+      borderTopRightRadius: CARD_RADIUS,
+      padding: 24,
+    },
+    joinModalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5, marginBottom: 6 },
+    joinModalSubtitle: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginBottom: 18, lineHeight: 18 },
+    joinModalInput: {
+      backgroundColor: theme.bg,
+      borderRadius: CARD_RADIUS,
+      padding: 14,
+      color: theme.text,
+      fontFamily: FontFamily.mono,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    joinModalBtn: {
+      backgroundColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      padding: 16,
+      alignItems: 'center',
+    },
+    joinModalBtnText: { color: theme.bg, fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 1 },
+    discoverGrid: { flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 20 },
+    discoverCard: {
+      flex: 1,
+      backgroundColor: theme.card,
+      borderRadius: CARD_RADIUS,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    discoverIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: CARD_RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    discoverTitle: { fontFamily: FontFamily.display, fontSize: 15, color: theme.text, marginBottom: 4, letterSpacing: 0.3 },
+    discoverSub: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textSecondary, lineHeight: 15 },
   });
 
 const styles = StyleSheet.create({

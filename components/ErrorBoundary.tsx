@@ -3,11 +3,13 @@ import { View, Text, Image, StyleSheet, Linking } from 'react-native';
 import * as MailComposer from 'expo-mail-composer';
 import { DarkTheme, Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+import { t, Lang } from '../lib/i18n';
 import GoldButton from './GoldButton';
 
 interface Props {
   children: ReactNode;
   theme?: Theme;
+  lang?: Lang;
 }
 
 interface State {
@@ -31,17 +33,19 @@ export default class ErrorBoundary extends Component<Props, State> {
   };
 
   handleReport = async () => {
-    const body = `Hata detayı: ${this.state.errorMessage || 'Bilinmeyen hata'}`;
+    const lang = this.props.lang ?? 'tr';
+    const body = `${t('error_detailPrefix', lang)} ${this.state.errorMessage || t('error_unknownError', lang)}`;
+    const subject = t('error_reportSubject', lang);
     const available = await MailComposer.isAvailableAsync();
     if (available) {
       await MailComposer.composeAsync({
         recipients: ['info@getfootbally.com'],
-        subject: 'Footbally Hata Bildirimi',
+        subject,
         body,
       });
     } else {
       Linking.openURL(
-        `mailto:info@getfootbally.com?subject=${encodeURIComponent('Footbally Hata Bildirimi')}&body=${encodeURIComponent(body)}`
+        `mailto:info@getfootbally.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
       );
     }
   };
@@ -49,6 +53,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       const theme = this.props.theme ?? DarkTheme;
+      const lang = this.props.lang ?? 'tr';
       return (
         <View style={[styles.container, { backgroundColor: theme.bg }]}>
           <Image
@@ -56,10 +61,10 @@ export default class ErrorBoundary extends Component<Props, State> {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={[styles.title, { color: theme.gold }]}>Bir hata oluştu</Text>
-          <GoldButton title="Yeniden Başlat" onPress={this.handleRetry} style={styles.button} />
+          <Text style={[styles.title, { color: theme.gold }]}>{t('error_title', lang)}</Text>
+          <GoldButton title={t('error_restart', lang)} onPress={this.handleRetry} style={styles.button} />
           <GoldButton
-            title="Hatayı Bildir"
+            title={t('error_report', lang)}
             onPress={this.handleReport}
             outline
             style={styles.button}

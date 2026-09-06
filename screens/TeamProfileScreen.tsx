@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
@@ -79,6 +80,7 @@ interface Props {
 
 export default function TeamProfileScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +164,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         const profile = profilesById.get(m.user_id);
         return {
           id: m.id,
-          name: profile?.full_name ?? 'İsimsiz Oyuncu',
+          name: profile?.full_name ?? t('teamProfile_unnamedPlayer'),
           position: m.position ?? '-',
           score: profile?.score ?? 0,
         };
@@ -179,11 +181,11 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'İzin Gerekli',
-        'Bunun için ayarlardan galeri iznini açmanız gerekiyor.',
+        t('teamProfile_permissionTitle'),
+        t('teamProfile_permissionBody'),
         [
-          { text: 'İptal', style: 'cancel' },
-          { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return false;
@@ -221,10 +223,10 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setTeam({ ...team, logo_url: publicUrl });
-      setToast({ message: 'Takım logosu güncellendi', type: 'success' });
+      setToast({ message: t('teamProfile_logoUpdated'), type: 'success' });
     } catch (err) {
       if (__DEV__) console.log('Logo yüklenemedi:', err);
-      setToast({ message: 'Logo yüklenemedi', type: 'error' });
+      setToast({ message: t('teamProfile_logoUploadFailed'), type: 'error' });
     } finally {
       setUploadingLogo(false);
     }
@@ -258,10 +260,10 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setTeam({ ...team, photos });
-      setToast({ message: 'Fotoğraf eklendi', type: 'success' });
+      setToast({ message: t('teamProfile_photoAdded'), type: 'success' });
     } catch (err) {
       if (__DEV__) console.log('Fotoğraf yüklenemedi:', err);
-      setToast({ message: 'Fotoğraf yüklenemedi', type: 'error' });
+      setToast({ message: t('teamProfile_photoUploadFailed'), type: 'error' });
     } finally {
       setUploadingPhoto(false);
     }
@@ -295,10 +297,10 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setTeam({ ...team, videos });
-      setToast({ message: 'Video eklendi', type: 'success' });
+      setToast({ message: t('teamProfile_videoAdded'), type: 'success' });
     } catch (err) {
       if (__DEV__) console.log('Video yüklenemedi:', err);
-      setToast({ message: 'Video yüklenemedi', type: 'error' });
+      setToast({ message: t('teamProfile_videoUploadFailed'), type: 'error' });
     } finally {
       setUploadingVideo(false);
     }
@@ -311,7 +313,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   };
 
   const handleAcceptApplication = (app: Application) => {
-    Alert.alert('Kabul Edildi', `${app.full_name} takıma davet edildi!`);
+    Alert.alert(t('teamProfile_acceptedTitle'), `${t('teamProfile_acceptedPrefix')}${app.full_name}${t('teamProfile_acceptedSuffix')}`);
   };
 
   const handleRejectApplication = (app: Application) => {
@@ -319,7 +321,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   };
 
   if (loading) {
-    return <LoadingScreen message="Takım profili yükleniyor..." />;
+    return <LoadingScreen message={t('teamProfile_loading')} />;
   }
 
   if (!team) {
@@ -327,9 +329,9 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       <SafeAreaView style={styles.safe}>
         <EmptyState
           icon="business-outline"
-          title="Henüz takımın yok"
-          subtitle="Takım profilini oluşturarak başla"
-          actionLabel="Takım Oluştur"
+          title={t('teamHome_noTeamTitle')}
+          subtitle={t('teamSquad_noTeamSub')}
+          actionLabel={t('teamHome_createTeam')}
           onAction={() => navigate('teamEdit')}
         />
       </SafeAreaView>
@@ -337,12 +339,12 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   }
 
   const statsRow = [
-    { val: String(team.wins + team.losses + team.draws), label: 'Maç' },
-    { val: String(team.wins), label: 'Galibiyet' },
-    { val: String(team.draws), label: 'Beraberlik' },
-    { val: String(team.losses), label: 'Mağlubiyet' },
-    { val: String(team.goals_scored), label: 'Gol Atılan' },
-    { val: String(team.goals_conceded), label: 'Gol Yenilen' },
+    { val: String(team.wins + team.losses + team.draws), label: t('teamProfile_statMatches') },
+    { val: String(team.wins), label: t('teamProfile_statWins') },
+    { val: String(team.draws), label: t('teamProfile_statDraws') },
+    { val: String(team.losses), label: t('teamProfile_statLosses') },
+    { val: String(team.goals_scored), label: t('teamProfile_statGoalsScored') },
+    { val: String(team.goals_conceded), label: t('teamProfile_statGoalsConceded') },
   ];
 
   return (
@@ -355,7 +357,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>TAKIM PROFİLİM</Text>
+          <Text style={styles.headerTitle}>{t('teamProfile_headerTitle')}</Text>
           <TouchableOpacity onPress={() => navigate('settings')} style={styles.settingsBtn}>
             <Ionicons name="settings-outline" size={18} color={theme.text} />
           </TouchableOpacity>
@@ -374,15 +376,15 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
           </HapticTouchable>
           <Text style={styles.name}>{team.name}</Text>
           <View style={styles.leagueBadge}>
-            <Text style={styles.leagueBadgeText}>{team.league ?? 'Amatör'}</Text>
+            <Text style={styles.leagueBadgeText}>{team.league ?? t('teamProfile_leagueDefault')}</Text>
           </View>
           <Text style={styles.location}>
-            {team.city ?? 'Şehir belirtilmedi'}{team.district ? `, ${team.district}` : ''}
+            {team.city ?? t('teamProfile_cityUnspecified')}{team.district ? `, ${team.district}` : ''}
           </Text>
-          {team.founded_year && <Text style={styles.founded}>Kuruluş: {team.founded_year}</Text>}
+          {team.founded_year && <Text style={styles.founded}>{t('teamProfile_founded')} {team.founded_year}</Text>}
           <HapticTouchable style={[styles.editBtn, { flexDirection: 'row', gap: 6 }]} onPress={() => navigate('teamEdit')}>
             <Ionicons name="create-outline" size={13} color={theme.gold} />
-            <Text style={styles.editBtnText}>Profili Düzenle</Text>
+            <Text style={styles.editBtnText}>{t('teamProfile_editProfile')}</Text>
           </HapticTouchable>
         </View>
 
@@ -396,8 +398,8 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Hakkında</Text>
-          <Text style={styles.description}>{team.description || 'Henüz açıklama eklenmedi.'}</Text>
+          <Text style={styles.cardTitle}>{t('teamProfile_about')}</Text>
+          <Text style={styles.description}>{team.description || t('teamProfile_noDescription')}</Text>
 
           {team.playing_style && team.playing_style.length > 0 && (
             <View style={styles.pillsRow}>
@@ -410,35 +412,35 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.bioRow}>
-            <Text style={styles.bioLabel}>Diziliş</Text>
+            <Text style={styles.bioLabel}>{t('teamProfile_formation')}</Text>
             <Text style={styles.bioValue}>{team.formation ?? '-'}</Text>
           </View>
           <View style={styles.bioRow}>
-            <Text style={styles.bioLabel}>Maç Günleri</Text>
+            <Text style={styles.bioLabel}>{t('teamProfile_matchDays')}</Text>
             <Text style={styles.bioValue}>{team.match_days?.join(', ') || '-'}</Text>
           </View>
           <View style={[styles.bioRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.bioLabel}>Saha</Text>
+            <Text style={styles.bioLabel}>{t('teamProfile_ground')}</Text>
             <Text style={styles.bioValue}>{team.ground_name ?? '-'}</Text>
           </View>
         </View>
 
         <View style={styles.mediaSection}>
-          <Text style={styles.mediaSectionTitle}>TAKIM FOTOĞRAFLARI</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Text style={styles.mediaSectionTitle}>{t('teamProfile_teamPhotos')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
             {(team.photos ?? []).map((photo, i) => (
               <Image key={i} source={{ uri: photo }} style={styles.mediaThumb} />
             ))}
             <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamPhoto} disabled={uploadingPhoto}>
               <Ionicons name="add" size={22} color={theme.gold} />
-              <Text style={styles.mediaAddLabel}>{uploadingPhoto ? 'Yükleniyor...' : 'Fotoğraf'}</Text>
+              <Text style={styles.mediaAddLabel}>{uploadingPhoto ? t('teamProfile_uploading') : t('teamProfile_photo')}</Text>
             </HapticTouchable>
           </ScrollView>
         </View>
 
         <View style={styles.mediaSection}>
-          <Text style={styles.mediaSectionTitle}>TAKIM VİDEOLARI</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Text style={styles.mediaSectionTitle}>{t('teamProfile_teamVideos')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
             {(team.videos ?? []).map((_, i) => (
               <View key={i} style={styles.videoThumb}>
                 <Ionicons name="play" size={20} color={theme.gold} />
@@ -446,19 +448,19 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
             ))}
             <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamVideo} disabled={uploadingVideo}>
               <Ionicons name="add" size={22} color={theme.gold} />
-              <Text style={styles.mediaAddLabel}>{uploadingVideo ? 'Yükleniyor...' : 'Video'}</Text>
+              <Text style={styles.mediaAddLabel}>{uploadingVideo ? t('teamProfile_uploading') : t('teamProfile_video')}</Text>
             </HapticTouchable>
           </ScrollView>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>KADRO</Text>
+          <Text style={styles.sectionTitle}>{t('teamSquad_squadHeader')}</Text>
           <HapticTouchable onPress={() => navigate('teamSquad')}>
-            <Text style={styles.sectionLink}>Kadroyu Yönet</Text>
+            <Text style={styles.sectionLink}>{t('teamProfile_manageSquad')}</Text>
           </HapticTouchable>
         </View>
         {squad.length === 0 ? (
-          <EmptyState icon="people-outline" title="Kadroda oyuncu yok" subtitle="Oyuncu bularak kadrona ekle" />
+          <EmptyState icon="people-outline" title={t('teamSquad_emptySquadTitle')} subtitle={t('teamProfile_emptySquadSub')} />
         ) : (
           <View style={styles.squadList}>
             {squad.map((p) => (
@@ -477,20 +479,20 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>ARANILAN POZİSYONLAR</Text>
+          <Text style={styles.sectionTitle}>{t('teamProfile_wantedPositions')}</Text>
         </View>
         {(!team.needed_positions || team.needed_positions.length === 0) ? (
-          <EmptyState icon="search-outline" title="Aranan pozisyon yok" subtitle="Profili düzenleyerek pozisyon ekleyebilirsin" />
+          <EmptyState icon="search-outline" title={t('teamProfile_noPositionsTitle')} subtitle={t('teamProfile_noPositionsSub')} />
         ) : (
           <View style={styles.openPositions}>
             {team.needed_positions.map((pos, i) => (
               <View key={pos} style={[styles.positionRow, i === team.needed_positions!.length - 1 && { marginBottom: 0 }]}>
                 <View>
                   <Text style={styles.positionRowTitle}>{pos}</Text>
-                  <Text style={styles.positionRowSub}>Aktif arama</Text>
+                  <Text style={styles.positionRowSub}>{t('teamProfile_activeSearch')}</Text>
                 </View>
                 <HapticTouchable style={styles.viewApplicationsBtn} onPress={() => loadApplications(pos)}>
-                  <Text style={styles.viewApplicationsBtnText}>Başvuruları Görüntüle</Text>
+                  <Text style={styles.viewApplicationsBtnText}>{t('teamProfile_viewApplications')}</Text>
                 </HapticTouchable>
               </View>
             ))}
@@ -505,11 +507,11 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
           <View style={styles.appHeader}>
             <HapticTouchable style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => setShowApplications(false)}>
               <Ionicons name="chevron-back" size={16} color={theme.gold} />
-              <Text style={styles.appBackText}>Geri</Text>
+              <Text style={styles.appBackText}>{t('common_back')}</Text>
             </HapticTouchable>
             <View style={{ flex: 1 }}>
-              <Text style={styles.appTitle}>BAŞVURULAR</Text>
-              <Text style={styles.appSubtitle}>{selectedPosition} · {applications.length} başvuru</Text>
+              <Text style={styles.appTitle}>{t('teamProfile_applicationsTitle')}</Text>
+              <Text style={styles.appSubtitle}>{selectedPosition} · {applications.length} {t('teamProfile_applicationsCountSuffix')}</Text>
             </View>
           </View>
 
@@ -517,8 +519,8 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
             {applications.length === 0 ? (
               <View style={{ alignItems: 'center', padding: 40 }}>
                 <Ionicons name="mail-open-outline" size={32} color={theme.textSecondary} style={{ marginBottom: 12 }} />
-                <Text style={{ color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold }}>Henüz başvuru yok</Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4, fontFamily: FontFamily.body }}>Bu pozisyon için başvuru bekleniyor</Text>
+                <Text style={{ color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold }}>{t('teamProfile_noApplicationsTitle')}</Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4, fontFamily: FontFamily.body }}>{t('teamProfile_noApplicationsSub')}</Text>
               </View>
             ) : (
               applications.map((app) => (
@@ -530,20 +532,20 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.appName}>{app.full_name}</Text>
                       <Text style={styles.appPosition}>{app.position}</Text>
-                      <Text style={styles.appMeta}>{app.city} · {app.age} yaş · {app.applied_at}</Text>
+                      <Text style={styles.appMeta}>{app.city} · {app.age} {t('teamProfile_ageSuffix')} · {app.applied_at}</Text>
                     </View>
                     <Text style={styles.appScore}>{app.score}</Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptApplication(app)}>
-                      <Text style={styles.acceptBtnText}>Kabul Et</Text>
+                      <Text style={styles.acceptBtnText}>{t('teamProfile_accept')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectApplication(app)}>
-                      <Text style={styles.rejectBtnText}>Reddet</Text>
+                      <Text style={styles.rejectBtnText}>{t('teamProfile_reject')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.msgBtn} onPress={() => navigate('chat')}>
-                      <Text style={styles.msgBtnText}>Mesaj</Text>
+                      <Text style={styles.msgBtnText}>{t('teamProfile_message')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

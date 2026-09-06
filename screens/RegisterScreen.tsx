@@ -11,25 +11,28 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Modal,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import HapticTouchable from '../components/HapticTouchable';
+import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'User already registered': 'Bu email zaten kayıtlı',
-  'Password should be at least 6 characters': 'Şifre en az 6 karakter olmalı',
-  'Unable to validate email address: invalid format': 'Geçersiz email adresi',
+const ERROR_KEYS: Record<string, TranslationKey> = {
+  'User already registered': 'register_emailTaken',
+  'Password should be at least 6 characters': 'register_passwordTooShort',
+  'Unable to validate email address: invalid format': 'register_invalidEmail',
 };
 
-const translateError = (message: string) => ERROR_MESSAGES[message] ?? message;
+const translateError = (message: string, t: (key: TranslationKey) => string) =>
+  ERROR_KEYS[message] ? t(ERROR_KEYS[message]) : message;
 
 const POSITIONS = ['Kaleci', 'Defans', 'Orta Saha', 'Forvet'];
 
@@ -40,6 +43,7 @@ interface Props {
 
 export default function RegisterScreen({ onLogin, onBack }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [userType, setUserType] = useState<'player' | 'team'>('player');
   const [fullName, setFullName] = useState('');
@@ -53,19 +57,19 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password || !confirmPassword || !position) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t('login_errorTitle'), t('register_fillAllFields'));
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor');
+      Alert.alert(t('login_errorTitle'), t('register_passwordMismatch'));
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Hata', 'Şifre en az 6 karakter olmalı');
+      Alert.alert(t('login_errorTitle'), t('register_passwordTooShort'));
       return;
     }
     if (!privacyAccepted) {
-      Alert.alert('Hata', "Devam etmek için Gizlilik Politikası ve KVKK Aydınlatma Metni'ni kabul etmelisin");
+      Alert.alert(t('login_errorTitle'), t('register_acceptPrivacy'));
       return;
     }
 
@@ -84,15 +88,12 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Kayıt Hatası', translateError(error.message));
+      Alert.alert(t('register_error'), translateError(error.message, t));
       return;
     }
 
     if (!data.session) {
-      Alert.alert(
-        'E-postanı Onayla',
-        'Hesabını aktifleştirmek için e-posta adresine gönderilen bağlantıya tıkla, ardından giriş yap.'
-      );
+      Alert.alert(t('register_verifyEmailTitle'), t('register_verifyEmailBody'));
       onBack();
       return;
     }
@@ -127,31 +128,31 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                 <Image source={require('../assets/logo-icon-square.png')} style={styles.crest} />
                 <Text style={styles.cardBrand}>FOOTBALLY</Text>
               </View>
-              <Text style={styles.cardLabel}>YENİ OYUNCU KAYDI · BAŞVURU</Text>
+              <Text style={styles.cardLabel}>{t('register_newPlayerReg')}</Text>
 
               <View style={styles.roleRow}>
                 <HapticTouchable
                   onPress={() => setUserType('player')}
                   style={[styles.roleTab, userType === 'player' && styles.roleTabActive]}
                 >
-                  <Text style={[styles.roleTitle, userType === 'player' && styles.roleTitleActive]}>Oyuncuyum</Text>
-                  <Text style={[styles.roleSub, userType === 'player' && styles.roleSubActive]}>Kariyer yönetimi</Text>
+                  <Text style={[styles.roleTitle, userType === 'player' && styles.roleTitleActive]}>{t('login_iAmPlayer')}</Text>
+                  <Text style={[styles.roleSub, userType === 'player' && styles.roleSubActive]}>{t('login_careerManagement')}</Text>
                 </HapticTouchable>
                 <HapticTouchable
                   onPress={() => setUserType('team')}
                   style={[styles.roleTab, userType === 'team' && styles.roleTabActive]}
                 >
-                  <Text style={[styles.roleTitle, userType === 'team' && styles.roleTitleActive]}>Takımım Var</Text>
-                  <Text style={[styles.roleSub, userType === 'team' && styles.roleSubActive]}>Oyuncu &amp; rakip bul</Text>
+                  <Text style={[styles.roleTitle, userType === 'team' && styles.roleTitleActive]}>{t('login_iHaveTeam')}</Text>
+                  <Text style={[styles.roleSub, userType === 'team' && styles.roleSubActive]}>{t('login_findPlayersOpponents')}</Text>
                 </HapticTouchable>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>AD SOYAD</Text>
+                <Text style={styles.inputLabel}>{t('register_fullName')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Adınız Soyadınız"
-                  placeholderTextColor={Paper.muted}
+                  placeholder={t('register_fullNamePlaceholder')}
+                  placeholderTextColor={theme.textMuted}
                   autoCapitalize="words"
                   value={fullName}
                   onChangeText={setFullName}
@@ -159,11 +160,11 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>E-POSTA</Text>
+                <Text style={styles.inputLabel}>{t('login_emailLabel')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="scout@footbally.app"
-                  placeholderTextColor={Paper.muted}
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -172,11 +173,11 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>ŞİFRE</Text>
+                <Text style={styles.inputLabel}>{t('login_passwordLabel')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor={Paper.muted}
+                  placeholderTextColor={theme.textMuted}
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
@@ -184,11 +185,11 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>ŞİFRE TEKRAR</Text>
+                <Text style={styles.inputLabel}>{t('register_passwordAgain')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor={Paper.muted}
+                  placeholderTextColor={theme.textMuted}
                   secureTextEntry
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -196,10 +197,10 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>POZİSYON</Text>
+                <Text style={styles.inputLabel}>{t('register_position')}</Text>
                 <HapticTouchable style={styles.input} onPress={() => setPositionModalVisible(true)}>
                   <Text style={position ? styles.selectValue : styles.selectPlaceholder}>
-                    {position || 'Pozisyon seçin'}
+                    {position || t('register_selectPosition')}
                   </Text>
                 </HapticTouchable>
               </View>
@@ -216,16 +217,16 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                     style={styles.privacyLink}
                     onPress={() => Linking.openURL('https://getfootbally.com/privacy')}
                   >
-                    Gizlilik Politikası
+                    {t('register_privacyPolicy')}
                   </Text>
-                  {' '}ve{' '}
+                  {t('login_and')}
                   <Text
                     style={styles.privacyLink}
                     onPress={() => Linking.openURL('https://getfootbally.com/terms')}
                   >
-                    KVKK Aydınlatma Metni
+                    {t('register_kvkk')}
                   </Text>
-                  {"'ni okudum, kabul ediyorum"}
+                  {t('register_privacyAccept')}
                 </Text>
               </HapticTouchable>
 
@@ -235,55 +236,42 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color={Paper.ink} />
+                  <ActivityIndicator color={theme.bg} />
                 ) : (
-                  <Text style={styles.btnGoldText}>Kayıt Ol</Text>
+                  <Text style={styles.btnGoldText}>{t('register_submit')}</Text>
                 )}
               </HapticTouchable>
             </View>
           </View>
 
           <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Zaten hesabın var mı? </Text>
+            <Text style={styles.loginText}>{t('register_haveAccount')}</Text>
             <HapticTouchable onPress={onBack} disabled={loading}>
-              <Text style={styles.loginLink}>Giriş Yap</Text>
+              <Text style={styles.loginLink}>{t('login_signIn')}</Text>
             </HapticTouchable>
           </View>
 
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={positionModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setPositionModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setPositionModalVisible(false)}
-        >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Pozisyon Seç</Text>
-            {POSITIONS.map((p) => (
-              <HapticTouchable
-                key={p}
-                style={styles.optionRow}
-                onPress={() => {
-                  setPosition(p);
-                  setPositionModalVisible(false);
-                }}
-              >
-                <Text style={[styles.optionText, p === position && styles.optionTextActive]}>
-                  {p}
-                </Text>
-                {p === position && <Text style={styles.optionCheck}>✓</Text>}
-              </HapticTouchable>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <BottomSheet visible={positionModalVisible} onClose={() => setPositionModalVisible(false)} theme={theme}>
+        <Text style={styles.modalTitle}>{t('register_selectPositionModal')}</Text>
+        {POSITIONS.map((p) => (
+          <HapticTouchable
+            key={p}
+            style={styles.optionRow}
+            onPress={() => {
+              setPosition(p);
+              setPositionModalVisible(false);
+            }}
+          >
+            <Text style={[styles.optionText, p === position && styles.optionTextActive]}>
+              {p}
+            </Text>
+            {p === position && <Text style={styles.optionCheck}>✓</Text>}
+          </HapticTouchable>
+        ))}
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -332,7 +320,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
     },
     card: {
-      backgroundColor: Paper.bg,
+      backgroundColor: theme.card2,
       borderRadius: RADIUS,
       padding: 22,
       borderWidth: 1,
@@ -347,35 +335,37 @@ const createStyles = (theme: Theme) =>
     crest: {
       width: 32,
       height: 32,
-      borderRadius: RADIUS,
+      borderRadius: 8,
       resizeMode: 'contain',
     },
     cardBrand: {
       fontFamily: FontFamily.display,
       fontSize: 20,
       letterSpacing: 2,
-      color: Paper.ink,
+      color: theme.text,
     },
     cardLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 11,
       letterSpacing: 1,
-      color: Paper.muted,
+      color: theme.gold,
       paddingBottom: 14,
       marginBottom: 18,
       borderBottomWidth: 1,
-      borderBottomColor: Paper.line,
+      borderBottomColor: theme.border,
     },
     roleRow: {
       flexDirection: 'row',
       marginBottom: 20,
+      borderRadius: RADIUS,
+      overflow: 'hidden',
     },
     roleTab: {
       flex: 1,
       paddingVertical: 12,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: Paper.line,
+      borderColor: theme.border,
     },
     roleTabActive: {
       backgroundColor: theme.gold,
@@ -385,19 +375,19 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.display,
       fontSize: 14,
       letterSpacing: 1,
-      color: Paper.ink,
+      color: theme.text,
     },
     roleTitleActive: {
-      color: Paper.ink,
+      color: theme.bg,
     },
     roleSub: {
       fontFamily: FontFamily.mono,
       fontSize: 10,
-      color: Paper.muted,
+      color: theme.textMuted,
       marginTop: 2,
     },
     roleSubActive: {
-      color: Paper.ink,
+      color: theme.bg,
     },
     inputGroup: {
       marginBottom: 16,
@@ -405,31 +395,31 @@ const createStyles = (theme: Theme) =>
     inputLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 10,
-      color: Paper.muted,
+      color: theme.textMuted,
       letterSpacing: 1,
       marginBottom: 8,
     },
     input: {
       height: 48,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.bg,
       borderRadius: RADIUS,
       paddingHorizontal: 14,
-      color: Paper.ink,
+      color: theme.text,
       fontFamily: FontFamily.mono,
       fontSize: 14,
       borderWidth: 1,
-      borderColor: Paper.line,
+      borderColor: theme.border,
       justifyContent: 'center',
     },
     selectValue: {
       fontFamily: FontFamily.mono,
       fontSize: 14,
-      color: Paper.ink,
+      color: theme.text,
     },
     selectPlaceholder: {
       fontFamily: FontFamily.mono,
       fontSize: 14,
-      color: Paper.muted,
+      color: theme.textMuted,
     },
     privacyRow: {
       flexDirection: 'row',
@@ -442,8 +432,8 @@ const createStyles = (theme: Theme) =>
       height: 18,
       borderRadius: RADIUS - 3,
       borderWidth: 1,
-      borderColor: Paper.line,
-      backgroundColor: '#FFFFFF',
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 1,
@@ -454,14 +444,14 @@ const createStyles = (theme: Theme) =>
     },
     privacyCheck: {
       fontSize: 13,
-      color: Paper.ink,
+      color: theme.bg,
       lineHeight: 14,
     },
     privacyText: {
       flex: 1,
       fontFamily: FontFamily.mono,
       fontSize: 12,
-      color: Paper.muted,
+      color: theme.textMuted,
       lineHeight: 18,
     },
     privacyLink: {
@@ -470,7 +460,7 @@ const createStyles = (theme: Theme) =>
     btnGold: {
       height: 52,
       backgroundColor: theme.gold,
-      borderRadius: RADIUS,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 4,
@@ -481,7 +471,7 @@ const createStyles = (theme: Theme) =>
     btnGoldText: {
       fontFamily: FontFamily.display,
       fontSize: 15,
-      color: Paper.ink,
+      color: theme.bg,
       letterSpacing: 1,
     },
     loginRow: {

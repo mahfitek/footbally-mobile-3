@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
@@ -44,6 +45,7 @@ interface Props {
 
 export default function ChatScreen({ navigate, otherUserId, otherUserName }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -157,16 +159,16 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
 
     if (error) {
       if (__DEV__) console.log('Mesaj gönderilemedi:', error);
-      setToast({ message: 'Mesaj gönderilemedi', type: 'error' });
+      setToast({ message: t('chat_sendFailed'), type: 'error' });
       setText(content);
     } else if (data) {
       setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
-      notifyUser(otherUserId, 'chatbubble-outline', `${myName || 'Bir kullanıcı'} sana mesaj gönderdi`, 'chat', 'Yeni Mesaj');
+      notifyUser(otherUserId, 'chatbubble-outline', `${myName || t('chat_someone')} ${t('chat_notifBody')}`, 'chat', t('chat_notifTitle'), 'message');
     }
   };
 
   if (loading) {
-    return <LoadingScreen message="Sohbet yükleniyor..." />;
+    return <LoadingScreen message={t('chat_loading')} />;
   }
 
   return (
@@ -188,7 +190,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
           </View>
           <View style={styles.titleWrap}>
             <Text style={styles.title} numberOfLines={1}>
-              {otherProfile?.full_name || otherUserName || 'Kullanıcı'}
+              {otherProfile?.full_name || otherUserName || t('common_defaultUser')}
             </Text>
             {otherProfile?.position && (
               <Text style={styles.subtitle} numberOfLines={1}>{otherProfile.position}</Text>
@@ -208,7 +210,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
               <View style={styles.emptyIconWrap}>
                 <Ionicons name="chatbubble-outline" size={22} color={theme.gold} />
               </View>
-              <Text style={styles.emptyText}>Henüz mesaj yok, ilk mesajı sen gönder</Text>
+              <Text style={styles.emptyText}>{t('chat_emptyText')}</Text>
             </View>
           ) : (
             messages.map((m) => {
@@ -233,7 +235,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
-            placeholder="Mesaj yaz..."
+            placeholder={t('chat_placeholder')}
             placeholderTextColor={theme.textSecondary}
             value={text}
             onChangeText={setText}
@@ -286,7 +288,7 @@ const createStyles = (theme: Theme) =>
     avatar: {
       width: 38,
       height: 38,
-      borderRadius: RADIUS,
+      borderRadius: 19,
       backgroundColor: theme.card,
       alignItems: 'center',
       justifyContent: 'center',

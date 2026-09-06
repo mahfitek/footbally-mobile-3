@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
@@ -40,6 +41,7 @@ interface Props {
 
 export default function TeamEditScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,7 +114,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setToast({ message: 'Lütfen takım adını girin', type: 'error' });
+      setToast({ message: t('teamEdit_fillTeamName'), type: 'error' });
       return;
     }
 
@@ -121,7 +123,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       const uid = await resolveUserId();
       if (__DEV__) console.log('TeamEditScreen save - userId:', uid);
       if (!uid) {
-        setToast({ message: 'Kullanıcı oturumu bulunamadı. Çıkış yapıp tekrar giriş deneyin.', type: 'error' });
+        setToast({ message: t('teamEdit_noSession'), type: 'error' });
         setSaving(false);
         return;
       }
@@ -150,7 +152,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
 
       if (updateError) {
         if (__DEV__) console.log('Takım kaydedilemedi:', updateError);
-        setToast({ message: 'Takım kaydedilemedi', type: 'error' });
+        setToast({ message: t('teamEdit_saveFailed'), type: 'error' });
         setSaving(false);
         return;
       }
@@ -159,24 +161,24 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
         const { error: insertError } = await supabase.from('teams').insert({ owner_id: uid, ...payload });
         if (insertError) {
           if (__DEV__) console.log('Takım oluşturulamadı:', insertError);
-          setToast({ message: 'Takım oluşturulamadı', type: 'error' });
+          setToast({ message: t('teamEdit_createFailed'), type: 'error' });
           setSaving(false);
           return;
         }
       }
 
-      setToast({ message: 'Takım profili kaydedildi', type: 'success' });
-      sendLocalNotification('Takım Güncellendi', 'Takım profiliniz başarıyla kaydedildi.');
+      setToast({ message: t('teamEdit_saveSuccess'), type: 'success' });
+      sendLocalNotification(t('teamEdit_updatedNotifTitle'), t('teamEdit_updatedNotifBody'));
       setTimeout(() => navigate('teamProfile'), 800);
     } catch (err) {
       if (__DEV__) console.log('Takım kaydedilirken beklenmeyen hata:', err);
-      setToast({ message: 'Beklenmeyen bir hata oluştu', type: 'error' });
+      setToast({ message: t('findOpponent_unexpectedError'), type: 'error' });
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <LoadingScreen message="Takım profili yükleniyor..." />;
+    return <LoadingScreen message={t('teamProfile_loading')} />;
   }
 
   return (
@@ -186,43 +188,43 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamProfile')}>
             <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>TAKIM PROFİLİ</Text>
+          <Text style={styles.title}>{t('teamEdit_title')}</Text>
           <HapticTouchable onPress={handleSave} disabled={saving} style={styles.saveBtn}>
-            {saving ? <ActivityIndicator color={theme.gold} /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
+            {saving ? <ActivityIndicator color={theme.gold} /> : <Text style={styles.saveBtnText}>{t('match_save')}</Text>}
           </HapticTouchable>
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>TAKIM ADI</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_nameLabel')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Örn. Kadıköy FC"
+              placeholder={t('teamEdit_namePlaceholder')}
               placeholderTextColor={theme.textSecondary}
             />
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>ŞEHİR</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_cityLabel')}</Text>
               <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'city' ? null : 'city')}>
                 <Text style={city ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {city || 'Şehir seçin'}
+                  {city || t('createMatch_citySelect')}
                 </Text>
                 <Ionicons name={openPicker === 'city' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>İLÇE</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_districtLabel')}</Text>
               <TouchableOpacity
                 style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, !city && styles.inputDisabled]}
                 onPress={() => city && setOpenPicker(openPicker === 'district' ? null : 'district')}
                 disabled={!city}
               >
                 <Text style={district ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {district || 'İlçe seçin'}
+                  {district || t('createMatch_districtSelect')}
                 </Text>
                 <Ionicons name={openPicker === 'district' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -260,7 +262,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>LİG / KATEGORİ</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_leagueLabel')}</Text>
             <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'league' ? null : 'league')}>
               <Text style={styles.inputValueText}>{league}</Text>
               <Ionicons name={openPicker === 'league' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
@@ -278,7 +280,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>KURULUŞ YILI</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_foundedYearLabel')}</Text>
             <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'year' ? null : 'year')}>
               <Text style={styles.inputValueText}>{foundedYear}</Text>
               <Ionicons name={openPicker === 'year' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
@@ -302,23 +304,23 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>SAHA ADI / TESİSİ</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_groundLabel')}</Text>
             <TextInput
               style={styles.input}
               value={groundName}
               onChangeText={setGroundName}
-              placeholder="Örn. Kadıköy Halı Saha"
+              placeholder={t('teamEdit_groundPlaceholder')}
               placeholderTextColor={theme.textSecondary}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>TAKIM AÇIKLAMASI</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_descriptionLabel')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Takımınızı tanıtın"
+              placeholder={t('teamEdit_descriptionPlaceholder')}
               placeholderTextColor={theme.textSecondary}
               multiline
               numberOfLines={4}
@@ -326,7 +328,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>OYUN STİLİ</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_playingStyleLabel')}</Text>
             <View style={styles.pillsWrap}>
               {PLAYING_STYLES.map((s) => (
                 <HapticTouchable
@@ -341,7 +343,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>DİZİLİŞ</Text>
+            <Text style={styles.inputLabel}>{t('teamProfile_formation')}</Text>
             <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'formation' ? null : 'formation')}>
               <Text style={styles.inputValueText}>{formation}</Text>
               <Ionicons name={openPicker === 'formation' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
@@ -359,7 +361,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>MAÇ GÜNLERİ</Text>
+            <Text style={styles.inputLabel}>{t('teamProfile_matchDays')}</Text>
             <View style={styles.pillsWrap}>
               {DAYS.map((d) => (
                 <HapticTouchable
@@ -374,7 +376,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>ARANAN POZİSYONLAR</Text>
+            <Text style={styles.inputLabel}>{t('teamProfile_wantedPositions')}</Text>
             <View style={styles.pillsWrap}>
               {POSITIONS.map((p) => (
                 <HapticTouchable
@@ -389,7 +391,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>WHATSAPP GRUBU LİNKİ (OPSİYONEL)</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_whatsappLabel')}</Text>
             <TextInput
               style={styles.input}
               value={whatsappLink}
@@ -401,7 +403,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>İLETİŞİM NUMARASI (OPSİYONEL)</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_contactLabel')}</Text>
             <TextInput
               style={styles.input}
               value={contactNumber}

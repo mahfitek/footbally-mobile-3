@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Share, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import EmptyState from '../components/EmptyState';
+import BottomSheet from '../components/BottomSheet';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
@@ -197,11 +199,13 @@ const PLAYER_COUNTS = [5, 7, 8, 11] as const;
 const PITCH_WIDTH = 320;
 const PITCH_HEIGHT = 420;
 
-const POSITION_LABELS: Record<string, string> = { GK: 'KAL', DEF: 'DEF', MID: 'ORT', FWD: 'FOR', ATT: 'ATK', DM: 'DMF', SW: 'LIB' };
+const POSITION_LABELS_TR: Record<string, string> = { GK: 'KAL', DEF: 'DEF', MID: 'ORT', FWD: 'FOR', ATT: 'ATK', DM: 'DMF', SW: 'LIB' };
+const POSITION_LABELS_EN: Record<string, string> = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD', ATT: 'AM', DM: 'DM', SW: 'SW' };
 
 const getFirstName = (name: string) => (name ? name.split(' ')[0] : '');
 
-const getPositionLabel = (role: string) => POSITION_LABELS[role] || role;
+const getPositionLabel = (role: string, lang: 'tr' | 'en') =>
+  (lang === 'tr' ? POSITION_LABELS_TR : POSITION_LABELS_EN)[role] || role;
 
 const getAllPositions = (playerCount: number | null, formation: string): FormationSlot[] => {
   if (!playerCount) return [];
@@ -256,6 +260,7 @@ interface Props {
 
 export default function TeamSquadScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t, lang } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
@@ -340,7 +345,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
         return {
           id: m.id,
           user_id: m.user_id,
-          full_name: profile?.full_name ?? 'Oyuncu',
+          full_name: profile?.full_name ?? t('match_defaultPlayerName'),
           position: profile?.position ?? '',
           score: profile?.score ?? 50,
           jersey_number: m.jersey_number,
@@ -368,11 +373,11 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     if (member) {
       Alert.alert(
         member.full_name,
-        `${member.position || 'Pozisyon belirtilmedi'} · Skor: ${member.score}`,
+        `${member.position || t('teamSquad_positionUnspecified')} · ${t('teamSquad_scoreLabel')}: ${member.score}`,
         [
-          { text: 'Pozisyondan Kaldır', onPress: () => setOverrides((prev) => ({ ...prev, [index]: null })) },
-          { text: 'Kadrodan Çıkar', style: 'destructive', onPress: () => handleRemoveMember(member) },
-          { text: 'Kapat', style: 'cancel' },
+          { text: t('teamSquad_removeFromPosition'), onPress: () => setOverrides((prev) => ({ ...prev, [index]: null })) },
+          { text: t('teamSquad_removeFromSquad'), style: 'destructive', onPress: () => handleRemoveMember(member) },
+          { text: t('match_close'), style: 'cancel' },
         ]
       );
     } else {
@@ -387,10 +392,14 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
   };
 
   const handleRemoveMember = (member: SquadMember) => {
-    Alert.alert('Kadrodan Çıkar', `${member.full_name} takımdan çıkarılsın mı?`, [
-      { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Çıkar', style: 'destructive', onPress: () => removeMember(member.id) },
-    ]);
+    Alert.alert(
+      t('teamSquad_removeFromSquad'),
+      `${t('teamSquad_removeConfirmPrefix')}${member.full_name}${t('teamSquad_removeConfirmSuffix')}`,
+      [
+        { text: t('match_giveUp'), style: 'cancel' },
+        { text: t('teamSquad_remove'), style: 'destructive', onPress: () => removeMember(member.id) },
+      ]
+    );
   };
 
   const removeMember = async (memberId: string) => {
@@ -398,9 +407,9 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     const { error } = await supabase.from('team_members').delete().eq('id', memberId);
     if (error) {
       if (__DEV__) console.log('Oyuncu çıkarılamadı:', error);
-      setToast({ message: 'Oyuncu çıkarılamadı', type: 'error' });
+      setToast({ message: t('teamSquad_removeFailed'), type: 'error' });
     } else {
-      setToast({ message: 'Oyuncu kadrodan çıkarıldı', type: 'success' });
+      setToast({ message: t('teamSquad_removeSuccess'), type: 'success' });
       await loadSquad();
     }
     setRemovingId(null);
@@ -411,16 +420,16 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     const inviteLink = `https://getfootbally.com/join-team/${teamId}`;
     try {
       await Share.share({
-        message: `${teamName} takımına katıl!\n${inviteLink}`,
-        title: 'Takıma Davet',
+        message: `${t('teamSquad_inviteSharePrefix')}${teamName}${t('teamSquad_inviteShareSuffix')}\n${inviteLink}`,
+        title: t('teamSquad_inviteShareTitle'),
       });
     } catch {
-      setToast({ message: 'Davet linki paylaşılamadı', type: 'error' });
+      setToast({ message: t('teamSquad_inviteShareFailed'), type: 'error' });
     }
   };
 
   if (loading) {
-    return <LoadingScreen message="Kadro yükleniyor..." />;
+    return <LoadingScreen message={t('teamSquad_loading')} />;
   }
 
   if (!teamId) {
@@ -428,9 +437,9 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
       <SafeAreaView style={styles.safe}>
         <EmptyState
           icon="business-outline"
-          title="Henüz takımın yok"
-          subtitle="Takım profilini oluşturarak başla"
-          actionLabel="Takım Oluştur"
+          title={t('teamHome_noTeamTitle')}
+          subtitle={t('teamSquad_noTeamSub')}
+          actionLabel={t('teamHome_createTeam')}
           onAction={() => navigate('teamEdit')}
         />
       </SafeAreaView>
@@ -443,14 +452,14 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
         <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
           <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>KADRO YÖNETİMİ</Text>
+        <Text style={styles.title}>{t('teamSquad_title')}</Text>
         <View style={{ width: 42 }} />
       </View>
 
       {playerCount === null ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: theme.text, fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, marginBottom: 8 }}>Kaç Kişilik?</Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 14, fontFamily: FontFamily.body, marginBottom: 32 }}>Maç formatını seç</Text>
+          <Text style={{ color: theme.text, fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, marginBottom: 8 }}>{t('teamSquad_howManyTitle')}</Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, fontFamily: FontFamily.body, marginBottom: 32 }}>{t('teamSquad_howManySub')}</Text>
           {PLAYER_COUNTS.map((count) => (
             <TouchableOpacity
               key={count}
@@ -477,9 +486,9 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.bodySemiBold }}>{count}v{count}</Text>
                 <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.mono }}>
-                  {count === 5 ? 'Halı saha (küçük)' : count === 7 ? 'Halı saha (büyük)' : count === 8 ? '8v8 Format' : '11v11 Tam saha'}
+                  {count === 5 ? t('teamSquad_format5') : count === 7 ? t('teamSquad_format7') : count === 8 ? t('teamSquad_format8') : t('teamSquad_format11')}
                 </Text>
-                <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} formasyon</Text>
+                <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} {t('teamSquad_formationsCount')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -492,14 +501,14 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, paddingHorizontal: 16 }}
           >
             <Ionicons name="chevron-back" size={13} color={theme.gold} />
-            <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.mono }}>{playerCount}v{playerCount} Formatı Değiştir</Text>
+            <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.mono }}>{playerCount}v{playerCount} {t('teamSquad_changeFormat')}</Text>
           </TouchableOpacity>
 
           <View style={{ marginBottom: 12 }}>
             <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1, marginBottom: 8, paddingHorizontal: 16 }}>
-              {playerCount}v{playerCount} FORMASYONLAR
+              {playerCount}v{playerCount} {t('teamSquad_formationsHeader')}
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
               {Object.keys(FORMATIONS_BY_COUNT[playerCount] || {}).map((f) => (
                 <TouchableOpacity
                   key={f}
@@ -553,7 +562,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                   </View>
                   <View style={styles.playerNameTag}>
                     <Text style={styles.playerNameText} numberOfLines={1}>
-                      {member ? getFirstName(member.full_name) : getPositionLabel(pos.role)}
+                      {member ? getFirstName(member.full_name) : getPositionLabel(pos.role, lang)}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -562,12 +571,12 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>KADRO</Text>
-            <Text style={styles.sectionCount}>{squadMembers.length} oyuncu</Text>
+            <Text style={styles.sectionTitle}>{t('teamSquad_squadHeader')}</Text>
+            <Text style={styles.sectionCount}>{squadMembers.length} {t('teamSquad_playersCount')}</Text>
           </View>
 
           {squadMembers.length === 0 ? (
-            <EmptyState icon="people-outline" title="Kadroda oyuncu yok" subtitle="Oyuncu davet ederek kadrona ekle" />
+            <EmptyState icon="people-outline" title={t('teamSquad_emptySquadTitle')} subtitle={t('teamSquad_emptySquadSub')} />
           ) : (
             <View style={styles.squadList}>
               {squadMembers.map((m) => (
@@ -577,7 +586,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.squadName}>{m.full_name}</Text>
-                    <Text style={styles.squadMeta}>{m.position || 'Pozisyon belirtilmedi'}</Text>
+                    <Text style={styles.squadMeta}>{m.position || t('teamSquad_positionUnspecified')}</Text>
                   </View>
                   <Text style={styles.squadScore}>{m.score}</Text>
                   <HapticTouchable
@@ -598,43 +607,44 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
 
           <HapticTouchable style={[styles.inviteBtn, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={handleInvite}>
             <Ionicons name="person-add-outline" size={15} color={Paper.ink} />
-            <Text style={styles.inviteBtnText}>Oyuncu Davet Et</Text>
+            <Text style={styles.inviteBtnText}>{t('teamSquad_inviteBtn')}</Text>
           </HapticTouchable>
         </ScrollView>
       )}
 
-      <Modal visible={pickerSlotIndex !== null} animationType="slide" transparent onRequestClose={() => setPickerSlotIndex(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>OYUNCU SEÇ</Text>
-              <HapticTouchable onPress={() => setPickerSlotIndex(null)}>
-                <Ionicons name="close" size={19} color={theme.textSecondary} />
-              </HapticTouchable>
-            </View>
-            {unassignedMembers.length === 0 ? (
-              <View style={{ paddingVertical: 32 }}>
-                <EmptyState icon="person-outline" title="Atanmamış oyuncu yok" subtitle="Tüm oyuncular sahada yerleştirildi" />
-              </View>
-            ) : (
-              <ScrollView style={{ maxHeight: 360 }}>
-                {unassignedMembers.map((m) => (
-                  <TouchableOpacity key={m.id} style={styles.pickerRow} onPress={() => assignToSlot(m)}>
-                    <View style={styles.squadAvatar}>
-                      <Ionicons name="person-outline" size={17} color={theme.gold} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.squadName}>{m.full_name}</Text>
-                      <Text style={styles.squadMeta}>{m.position || 'Pozisyon belirtilmedi'}</Text>
-                    </View>
-                    <Text style={styles.squadScore}>{m.score}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
+      <BottomSheet
+        visible={pickerSlotIndex !== null}
+        onClose={() => setPickerSlotIndex(null)}
+        theme={theme}
+        contentStyle={{ maxHeight: '75%' }}
+      >
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{t('teamSquad_pickPlayerTitle')}</Text>
+          <HapticTouchable onPress={() => setPickerSlotIndex(null)}>
+            <Ionicons name="close" size={19} color={theme.textSecondary} />
+          </HapticTouchable>
         </View>
-      </Modal>
+        {unassignedMembers.length === 0 ? (
+          <View style={{ paddingVertical: 32 }}>
+            <EmptyState icon="person-outline" title={t('teamSquad_noUnassignedTitle')} subtitle={t('teamSquad_noUnassignedSub')} />
+          </View>
+        ) : (
+          <ScrollView style={{ maxHeight: 360 }}>
+            {unassignedMembers.map((m) => (
+              <TouchableOpacity key={m.id} style={styles.pickerRow} onPress={() => assignToSlot(m)}>
+                <View style={styles.squadAvatar}>
+                  <Ionicons name="person-outline" size={17} color={theme.gold} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.squadName}>{m.full_name}</Text>
+                  <Text style={styles.squadMeta}>{m.position || t('teamSquad_positionUnspecified')}</Text>
+                </View>
+                <Text style={styles.squadScore}>{m.score}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </BottomSheet>
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>

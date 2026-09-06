@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, ElementRef } from 'react';
 import {
   View,
   Text,
@@ -19,14 +19,20 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
+// expo-media-library'nin native modülü web'de yok; import'u statik bırakırsak
+// (Metro her platformda değerlendirdiği için) web build'i anında çöküyor. Bu
+// yüzden sadece native platformlarda lazy-require ediyoruz.
+const MediaLibrary: typeof import('expo-media-library') | null =
+  Platform.OS !== 'web' ? require('expo-media-library') : null;
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
@@ -35,6 +41,13 @@ import PlayerShareCard from '../components/PlayerShareCard';
 import FadeInView from '../components/FadeInView';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
 import { FOOTBALL_POSITIONS } from '../constants/footballPositions';
+
+interface GalleryItem {
+  id: string;
+  storage_path: string;
+  url: string;
+  created_at: string;
+}
 
 interface PlayerCardStats {
   hiz: number;
@@ -54,19 +67,19 @@ const defaultCardStats = (score: number): PlayerCardStats => ({
   savunma: Math.max(1, Math.min(99, score - 10 + Math.floor(Math.random() * 15))),
 });
 
-const skillsFromStats = (s: PlayerCardStats) => [
-  { name: 'Hız', value: s.hiz },
-  { name: 'Pas', value: s.pas },
-  { name: 'Şut', value: s.sut },
-  { name: 'Dayanıklılık', value: s.dayaniklilik },
-  { name: 'Dribbling', value: s.dribbling },
-  { name: 'Savunma', value: s.savunma },
+const skillsFromStats = (s: PlayerCardStats, t: (key: any) => string) => [
+  { name: t('performance_skillSpeed'), value: s.hiz },
+  { name: t('performance_skillPass'), value: s.pas },
+  { name: t('performance_skillShot'), value: s.sut },
+  { name: t('performance_skillStamina'), value: s.dayaniklilik },
+  { name: t('performance_skillDribbling'), value: s.dribbling },
+  { name: t('performance_skillDefense'), value: s.savunma },
 ];
 
-const extraStats = [
-  { val: '0', label: 'Gol' },
-  { val: '0', label: 'Asist' },
-  { val: '0', label: 'Maç' },
+const getExtraStats = (t: (key: any) => string) => [
+  { val: '0', label: t('performance_goalsLabel') },
+  { val: '0', label: t('profile_assistsLabel') },
+  { val: '0', label: t('teamProfile_statMatches') },
 ];
 
 const FOOT_OPTIONS = ['Sol Ayak', 'Sağ Ayak', 'Her İkisi'];
@@ -115,12 +128,18 @@ type PickerType = 'position' | 'age' | 'height' | 'weight' | 'city' | 'district'
 
 export default function ProfileScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [uploadingGalleryPhoto, setUploadingGalleryPhoto] = useState(false);
+  const [galleryPreviewUrl, setGalleryPreviewUrl] = useState<string | null>(null);
+  const [showGalleryGrid, setShowGalleryGrid] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [position, setPosition] = useState('');
@@ -144,7 +163,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
   // Set once an admin has reviewed an AI video-analysis job for this player
   // (profiles.overall_rating, written by ai-jobs.component.ts in admin-app).
   const [aiOverall, setAiOverall] = useState<number | null>(null);
-  const cardRef = useRef<ViewShot>(null);
+  const cardRef = useRef<ElementRef<typeof ViewShot>>(null);
 
   useEffect(() => {
     loadProfile();
@@ -162,6 +181,8 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
     setIsPremium(!!user?.user_metadata?.premium);
     setPremiumUntil(user?.user_metadata?.premium_until ?? null);
+
+    loadGallery(uid);
 
     const { data, error } = await supabase
       .from('profiles')
@@ -208,10 +229,131 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       // Empty code means the request never reached the server (network failure).
       // A real Postgrest error code (e.g. PGRST116) just means no profile exists yet.
       if (!error.code) {
-        setToast({ message: 'Profil yüklenemedi', type: 'error' });
+        setToast({ message: t('profile_loadFailed'), type: 'error' });
       }
     }
     setLoading(false);
+  };
+
+  const loadGallery = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('player_gallery')
+      .select('id, storage_path, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (__DEV__) console.log('Galeri yüklenemedi:', error);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setGalleryItems([]);
+      return;
+    }
+
+    const items = await Promise.all(
+      data.map(async (row): Promise<GalleryItem | null> => {
+        // 'videos' is a private bucket, so a signed URL is required (a plain
+        // getPublicUrl would 400 since the bucket has no public read access).
+        const { data: signed } = await supabase.storage
+          .from('videos')
+          .createSignedUrl(row.storage_path, 3600);
+        if (!signed?.signedUrl) return null;
+        return {
+          id: row.id,
+          storage_path: row.storage_path,
+          url: signed.signedUrl,
+          created_at: row.created_at,
+        };
+      })
+    );
+
+    setGalleryItems(items.filter((item): item is GalleryItem => item !== null));
+  };
+
+  const handleGalleryAddPress = () => {
+    Alert.alert(t('profile_galleryAlertTitle'), t('profile_howToAddPhoto'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: t('sahadan_gallery'), onPress: () => pickGalleryPhoto('library') },
+      { text: t('sahadan_camera'), onPress: () => pickGalleryPhoto('camera') },
+    ]);
+  };
+
+  const pickGalleryPhoto = async (source: 'camera' | 'library') => {
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permission.status !== 'granted') {
+      Alert.alert(
+        t('teamProfile_permissionTitle'),
+        source === 'camera'
+          ? t('aiAnalysis_cameraPermissionBody')
+          : t('aiAnalysis_galleryPermissionBody'),
+        [
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+
+    const pickerOptions = {
+      mediaTypes: ['images'] as ImagePicker.MediaType[],
+      allowsEditing: true,
+      aspect: [4, 3] as [number, number],
+      quality: 0.7,
+    };
+    const picked =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync(pickerOptions)
+        : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+    if (picked.canceled || !picked.assets[0]) return;
+
+    setUploadingGalleryPhoto(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
+        setToast({ message: t('createMatch_needSession'), type: 'error' });
+        return;
+      }
+
+      const asset = picked.assets[0];
+      const path = `${user.id}/gallery/${Date.now()}.jpg`;
+      const buffer = await fetch(asset.uri).then((r) => r.arrayBuffer());
+
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(path, buffer, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('player_gallery')
+        .insert({ user_id: user.id, storage_path: path })
+        .select()
+        .single();
+      if (insertError) throw insertError;
+
+      const { data: signed } = await supabase.storage
+        .from('videos')
+        .createSignedUrl(path, 3600);
+
+      if (signed?.signedUrl) {
+        setGalleryItems((prev) => [
+          { id: inserted.id, storage_path: path, url: signed.signedUrl, created_at: inserted.created_at },
+          ...prev,
+        ]);
+      }
+
+      setToast({ message: t('profile_photoAddedToGallery'), type: 'success' });
+      sendLocalNotification(t('profile_photoAddedNotifTitle'), t('profile_photoAddedNotifBody'));
+    } catch (err) {
+      if (__DEV__) console.log('Galeri fotoğrafı yüklenemedi:', err);
+      setToast({ message: t('teamProfile_photoUploadFailed'), type: 'error' });
+    }
+    setUploadingGalleryPhoto(false);
   };
 
   const handleSave = async () => {
@@ -221,7 +363,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       const uid = userId ?? session?.user?.id ?? null;
       if (!uid) {
         if (__DEV__) console.log('Profil kaydedilemedi: oturum açmış kullanıcı bulunamadı');
-        setToast({ message: 'Kullanıcı oturumu bulunamadı. Çıkış yapıp tekrar giriş deneyin.', type: 'error' });
+        setToast({ message: t('teamEdit_noSession'), type: 'error' });
         setSaving(false);
         return;
       }
@@ -248,7 +390,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
       if (updateError) {
         if (__DEV__) console.log('Profil güncellenemedi:', updateError);
-        setToast({ message: 'Profil güncellenemedi', type: 'error' });
+        setToast({ message: t('profile_updateFailed'), type: 'error' });
         setSaving(false);
         return;
       }
@@ -259,7 +401,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           .insert({ user_id: uid, ...payload, score: 0 });
         if (insertError) {
           if (__DEV__) console.log('Profil oluşturulamadı:', insertError);
-          setToast({ message: 'Profil oluşturulamadı', type: 'error' });
+          setToast({ message: t('profile_createFailed'), type: 'error' });
           setSaving(false);
           return;
         }
@@ -269,20 +411,20 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       setEditMode(false);
       setOpenPicker(null);
       await loadProfile();
-      setToast({ message: 'Profil güncellendi', type: 'success' });
-      sendLocalNotification('Profil Güncellendi ✅', 'Profiliniz başarıyla kaydedildi.');
+      setToast({ message: t('profile_updateSuccess'), type: 'success' });
+      sendLocalNotification(t('profile_updatedNotifTitle'), t('profile_updatedNotifBody'));
     } catch (err) {
       if (__DEV__) console.log('Profil kaydedilirken beklenmeyen hata:', err);
-      setToast({ message: 'Beklenmeyen bir hata oluştu', type: 'error' });
+      setToast({ message: t('findOpponent_unexpectedError'), type: 'error' });
       setSaving(false);
     }
   };
 
   const handleAvatarPress = () => {
-    Alert.alert('Profil Fotoğrafı', 'Fotoğrafını nasıl eklemek istersin?', [
-      { text: 'İptal', style: 'cancel' },
-      { text: 'Galeri', onPress: () => pickAvatar('library') },
-      { text: 'Kamera', onPress: () => pickAvatar('camera') },
+    Alert.alert(t('profile_avatarAlertTitle'), t('profile_howToAddPhoto'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: t('sahadan_gallery'), onPress: () => pickAvatar('library') },
+      { text: t('sahadan_camera'), onPress: () => pickAvatar('camera') },
     ]);
   };
 
@@ -294,13 +436,13 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
     if (permission.status !== 'granted') {
       Alert.alert(
-        'İzin Gerekli',
+        t('teamProfile_permissionTitle'),
         source === 'camera'
-          ? 'Fotoğraf çekmek için ayarlardan kamera iznini açmanız gerekiyor.'
-          : 'Fotoğraf seçmek için ayarlardan galeri iznini açmanız gerekiyor.',
+          ? t('aiAnalysis_cameraPermissionBody')
+          : t('aiAnalysis_galleryPermissionBody'),
         [
-          { text: 'İptal', style: 'cancel' },
-          { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return;
@@ -324,7 +466,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) {
-        setToast({ message: 'Oturum açmanız gerekiyor', type: 'error' });
+        setToast({ message: t('createMatch_needSession'), type: 'error' });
         return;
       }
 
@@ -347,24 +489,28 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setAvatarUrl(publicUrl);
-      setToast({ message: 'Profil fotoğrafı güncellendi', type: 'success' });
-      sendLocalNotification('Fotoğraf Güncellendi 📸', 'Profil fotoğrafınız başarıyla güncellendi.');
+      setToast({ message: t('profile_avatarUpdated'), type: 'success' });
+      sendLocalNotification(t('profile_avatarUpdatedNotifTitle'), t('profile_avatarUpdatedNotifBody'));
     } catch (err) {
       if (__DEV__) console.log('Profil fotoğrafı yüklenemedi:', err);
-      setToast({ message: 'Profil fotoğrafı yüklenemedi', type: 'error' });
+      setToast({ message: t('profile_avatarUploadFailed'), type: 'error' });
     }
     setUploadingAvatar(false);
   };
 
   const saveToGallery = async (uri: string, showAlert = true) => {
+    if (!MediaLibrary) {
+      Alert.alert(t('profile_notSupportedTitle'), t('profile_notSupportedBody'));
+      return false;
+    }
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('İzin Gerekli', 'Galeri iznine ihtiyaç var.');
+      Alert.alert(t('teamProfile_permissionTitle'), t('profile_galleryPermissionNeeded'));
       return false;
     }
     await MediaLibrary.saveToLibraryAsync(uri);
     if (showAlert) {
-      Alert.alert('✅ Kaydedildi!', 'Oyuncu kartın galeriye kaydedildi.');
+      Alert.alert(t('profile_savedTitle'), t('profile_savedBody'));
     }
     return true;
   };
@@ -378,19 +524,19 @@ export default function ProfileScreen({ navigate, userId }: Props) {
     if (canOpen) {
       await Linking.openURL(instagramUrl);
       Alert.alert(
-        'Instagram Hikaye',
-        'Kart galeriye kaydedildi! Instagram\'ı açıp hikayeden yükleyebilirsin.',
-        [{ text: 'Tamam' }]
+        t('profile_instagramStoryTitle'),
+        t('profile_instagramStoryBody'),
+        [{ text: t('profile_ok') }]
       );
     } else {
-      Alert.alert('Instagram bulunamadı', 'Instagram yüklü değil.');
+      Alert.alert(t('profile_instagramNotFoundTitle'), t('profile_instagramNotFoundBody'));
     }
   };
 
   const shareToTwitter = async (uri: string) => {
     await saveToGallery(uri, false);
     const tweetText = encodeURIComponent(
-      `Footbally'de oyuncu kartım hazır! 🏆⚽ Skor: ${score}/100\n\n#Footbally #Futbol #Football\ngetfootbally.com`
+      `${t('profile_tweetText')} ${score}/100\n\n#Footbally #Futbol #Football\ngetfootbally.com`
     );
     const twitterUrl = `twitter://post?message=${tweetText}`;
     const webUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
@@ -400,7 +546,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
   const shareToWhatsApp = async (uri: string) => {
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'WhatsApp\'ta Paylaş' });
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: t('profile_shareOnWhatsappDialogTitle') });
     }
   };
 
@@ -408,7 +554,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(uri, {
         mimeType: 'image/png',
-        dialogTitle: 'Footbally Oyuncu Kartını Paylaş',
+        dialogTitle: t('profile_shareCardDialogTitle'),
       });
     }
   };
@@ -437,7 +583,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       }
     } catch (err) {
       if (__DEV__) console.log('Paylaşım hatası:', err);
-      Alert.alert('Hata', 'Paylaşım sırasında bir sorun oluştu.');
+      Alert.alert(t('regions_error'), t('profile_shareErrorBody'));
     } finally {
       setShowShareCard(false);
     }
@@ -464,35 +610,43 @@ export default function ProfileScreen({ navigate, userId }: Props) {
   };
 
   if (loading) {
-    return <LoadingScreen message="Profil yükleniyor..." />;
+    return <LoadingScreen message={t('profile_loading')} />;
   }
 
-  const stats = [{ val: String(score), label: 'Skor' }, ...extraStats];
+  const stats = [{ val: String(score), label: t('profile_scoreLabel') }, ...getExtraStats(t)];
 
   const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
 
+  const hasProfileBasics = !!(position && city && age);
+  const rewardLevel = getLevel(score, t);
+  const rewardBadges = getBadges(score, hasProfileBasics, isPremiumActive, t);
+  const unlockedBadgesCount = rewardBadges.filter((b) => b.unlocked).length;
+  const rewardMonthKey = rawProfile?.reward_premium_month_key ?? null;
+  const daysClaimedThisMonth = rewardMonthKey === currentMonthKey() ? rawProfile?.reward_premium_days_this_month ?? 0 : 0;
+  const remainingRewardDays = Math.max(0, MAX_REWARD_PREMIUM_DAYS_PER_MONTH - daysClaimedThisMonth);
+
   const scoreSuggestions = [
-    { key: 'full_name', done: !!rawProfile?.full_name, label: 'İsim ekle', points: 10 },
-    { key: 'position', done: !!rawProfile?.position, label: 'Pozisyon ekle', points: 10 },
-    { key: 'city', done: !!rawProfile?.city, label: 'Şehir ekle', points: 5 },
-    { key: 'age', done: !!rawProfile?.age, label: 'Yaş ekle', points: 5 },
-    { key: 'height', done: !!rawProfile?.height, label: 'Boy ekle', points: 5 },
-    { key: 'weight', done: !!rawProfile?.weight, label: 'Kilo ekle', points: 5 },
-    { key: 'foot', done: !!rawProfile?.foot, label: 'Baskın ayak ekle', points: 3 },
-    { key: 'district', done: !!rawProfile?.district, label: 'İlçe ekle', points: 3 },
-    { key: 'club', done: !!rawProfile?.club, label: 'Kulüp ekle', points: 4 },
+    { key: 'full_name', done: !!rawProfile?.full_name, label: t('profile_addName'), points: 10 },
+    { key: 'position', done: !!rawProfile?.position, label: t('profile_addPosition'), points: 10 },
+    { key: 'city', done: !!rawProfile?.city, label: t('profile_addCity'), points: 5 },
+    { key: 'age', done: !!rawProfile?.age, label: t('profile_addAge'), points: 5 },
+    { key: 'height', done: !!rawProfile?.height, label: t('profile_addHeight'), points: 5 },
+    { key: 'weight', done: !!rawProfile?.weight, label: t('profile_addWeight'), points: 5 },
+    { key: 'foot', done: !!rawProfile?.foot, label: t('profile_addFoot'), points: 3 },
+    { key: 'district', done: !!rawProfile?.district, label: t('profile_addDistrict'), points: 3 },
+    { key: 'club', done: !!rawProfile?.club, label: t('profile_addClub'), points: 4 },
   ].filter((s) => !s.done);
 
   const bio = [
-    { label: 'Pozisyon', value: position || '-' },
-    { label: 'Yaş', value: age || '-' },
+    { label: t('profile_bioPosition'), value: position || '-' },
+    { label: t('profile_bioAge'), value: age || '-' },
     {
-      label: 'Boy / Kilo',
+      label: t('profile_bioHeightWeight'),
       value: height || weight ? `${height || '-'} cm / ${weight || '-'} kg` : '-',
     },
-    { label: 'Baskın Ayak', value: foot || '-' },
-    { label: 'Şehir', value: city ? `${city}${district ? `, ${district}` : ''}` : '-' },
-    { label: 'Kulüp', value: club || '-' },
+    { label: t('profile_bioFoot'), value: foot || '-' },
+    { label: t('profile_bioCity'), value: city ? `${city}${district ? `, ${district}` : ''}` : '-' },
+    { label: t('profile_bioClub'), value: club || '-' },
   ];
 
   if (editMode) {
@@ -502,35 +656,35 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           <View style={[styles.editHeader, { paddingTop: 60 }]}>
             <TouchableOpacity onPress={() => { setEditMode(false); setOpenPicker(null); }} style={[styles.editHeaderBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} disabled={saving}>
               <Ionicons name="chevron-back" size={15} color={theme.gold} />
-              <Text style={styles.editHeaderCancel}>İptal</Text>
+              <Text style={styles.editHeaderCancel}>{t('common_cancel')}</Text>
             </TouchableOpacity>
-            <Text style={styles.editHeaderTitle}>Profili Düzenle</Text>
+            <Text style={styles.editHeaderTitle}>{t('teamProfile_editProfile')}</Text>
             <TouchableOpacity onPress={handleSave} style={styles.editHeaderBtn} disabled={saving}>
               {saving ? (
                 <ActivityIndicator color={theme.gold} />
               ) : (
-                <Text style={styles.editHeaderSave}>Kaydet</Text>
+                <Text style={styles.editHeaderSave}>{t('match_save')}</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.editContent} showsVerticalScrollIndicator={false}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>AD SOYAD</Text>
+              <Text style={styles.inputLabel}>{t('profile_fullNameLabel')}</Text>
               <TextInput
                 style={styles.input}
                 value={fullName}
                 onChangeText={setFullName}
-                placeholder="Ad Soyad"
+                placeholder={t('profile_fullNamePlaceholder')}
                 placeholderTextColor={theme.textSecondary}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>POZİSYON</Text>
+              <Text style={styles.inputLabel}>{t('profile_positionLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('position')}>
                 <Text style={position ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {position || 'Pozisyon seçin'} {openPicker === 'position' ? '▲' : '▼'}
+                  {position || t('profile_selectPosition')} {openPicker === 'position' ? '▲' : '▼'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -558,9 +712,9 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>YAŞ</Text>
+              <Text style={styles.inputLabel}>{t('profile_ageLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('age')}>
-                <Text style={styles.inputValueText}>{age} yaş {openPicker === 'age' ? '▲' : '▼'}</Text>
+                <Text style={styles.inputValueText}>{age} {t('teamProfile_ageSuffix')} {openPicker === 'age' ? '▲' : '▼'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -568,14 +722,14 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <View style={styles.inlinePicker}>
                 <Picker selectedValue={age} onValueChange={setAge} itemStyle={{ color: theme.text }}>
                   {AGE_OPTIONS.map((n) => (
-                    <Picker.Item key={n} label={`${n} yaş`} value={String(n)} color={theme.text} />
+                    <Picker.Item key={n} label={`${n} ${t('teamProfile_ageSuffix')}`} value={String(n)} color={theme.text} />
                   ))}
                 </Picker>
               </View>
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>BOY (CM)</Text>
+              <Text style={styles.inputLabel}>{t('profile_heightLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('height')}>
                 <Text style={styles.inputValueText}>{height} cm {openPicker === 'height' ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -592,7 +746,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>KİLO (KG)</Text>
+              <Text style={styles.inputLabel}>{t('profile_weightLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('weight')}>
                 <Text style={styles.inputValueText}>{weight} kg {openPicker === 'weight' ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -609,7 +763,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>BASKIN AYAK</Text>
+              <Text style={styles.inputLabel}>{t('profile_footLabel')}</Text>
               <View style={styles.footRow}>
                 {FOOT_OPTIONS.map((f) => (
                   <TouchableOpacity
@@ -624,10 +778,10 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>ŞEHİR</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_cityLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('city')}>
                 <Text style={city ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {city || 'Şehir seçin'} {openPicker === 'city' ? '▲' : '▼'}
+                  {city || t('createMatch_citySelect')} {openPicker === 'city' ? '▲' : '▼'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -650,14 +804,14 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>İLÇE</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_districtLabel')}</Text>
               <TouchableOpacity
                 style={[styles.input, !city && styles.inputDisabled]}
                 onPress={() => city && togglePicker('district')}
                 disabled={!city}
               >
                 <Text style={district ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {district || 'İlçe seçin'} {openPicker === 'district' ? '▲' : '▼'}
+                  {district || t('createMatch_districtSelect')} {openPicker === 'district' ? '▲' : '▼'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -680,12 +834,12 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>KULÜP (OPSİYONEL)</Text>
+              <Text style={styles.inputLabel}>{t('profile_clubLabel')}</Text>
               <TextInput
                 style={styles.input}
                 value={club}
                 onChangeText={setClub}
-                placeholder="Takımınız varsa girin"
+                placeholder={t('profile_clubPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
               />
             </View>
@@ -742,12 +896,12 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <Ionicons name="camera-outline" size={14} color={Paper.ink} />
             </TouchableOpacity>
           </HapticTouchable>
-          <Text style={styles.name}>{fullName || 'İsim giriniz'}</Text>
-          <Text style={styles.position}>{position || 'Pozisyon giriniz'}</Text>
-          <Text style={styles.club}>{club || 'Kulüp giriniz'}</Text>
+          <Text style={styles.name}>{fullName || t('profile_enterNamePlaceholder')}</Text>
+          <Text style={styles.position}>{position || t('profile_enterPositionPlaceholder')}</Text>
+          <Text style={styles.club}>{club || t('profile_enterClubPlaceholder')}</Text>
           {isPremiumActive && (
             <View style={styles.premiumMemberBadge}>
-              <Text style={styles.premiumMemberText}>PREMIUM ÜYE</Text>
+              <Text style={styles.premiumMemberText}>{t('profile_premiumMemberBadge')}</Text>
             </View>
           )}
         </FadeInView>
@@ -765,7 +919,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         {/* Score Progress */}
         <View style={styles.card}>
           <View style={styles.scoreCardHeader}>
-            <Text style={styles.cardTitle}>Genel Skor</Text>
+            <Text style={styles.cardTitle}>{t('profile_overallScoreTitle')}</Text>
             <Text style={styles.scoreCardValue}>{score}/100</Text>
           </View>
           <View style={styles.completionTrack}>
@@ -774,7 +928,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
           {score < 100 && scoreSuggestions.length > 0 && (
             <>
-              <Text style={styles.scoreHint}>Skorunu artırmak için:</Text>
+              <Text style={styles.scoreHint}>{t('profile_scoreHintPrefix')}</Text>
               {scoreSuggestions.map((s) => (
                 <TouchableOpacity
                   key={s.key}
@@ -783,7 +937,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
                 >
                   <Ionicons name="star-outline" size={13} color={theme.gold} />
                   <Text style={styles.scoreSuggestionText}>
-                    {s.label} (+{s.points} puan)
+                    {s.label} (+{s.points} {t('profile_pointsSuffix')})
                   </Text>
                   <Ionicons name="chevron-forward" size={13} color={theme.gold} />
                 </TouchableOpacity>
@@ -793,10 +947,34 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
           {score >= 100 && (
             <View style={styles.scoreCompleteBanner}>
-              <Text style={styles.scoreCompleteText}>Profil tamamlandı! Scoutlar seni görebilir.</Text>
+              <Text style={styles.scoreCompleteText}>{t('profile_completeBannerText')}</Text>
             </View>
           )}
         </View>
+
+        {/* Ödüller & Tecrübe */}
+        <HapticTouchable style={styles.card} onPress={() => navigate('badges')}>
+          <View style={styles.scoreCardHeader}>
+            <Text style={styles.cardTitle}>{t('profile_rewardsTitle')}</Text>
+            <Text style={[styles.scoreCardValue, { color: theme[rewardLevel.colorKey] }]}>{rewardLevel.label}</Text>
+          </View>
+          <View style={styles.completionTrack}>
+            <View style={[styles.completionFill, { width: `${score}%`, backgroundColor: theme[rewardLevel.colorKey] }]} />
+          </View>
+          <View style={styles.rewardStatsRow}>
+            <Text style={[styles.scoreHint, { flex: 1, marginTop: 0, marginBottom: 0 }]}>{unlockedBadgesCount}/{rewardBadges.length} {t('profile_badgesUnlockedSuffix')}</Text>
+            <Text style={[styles.scoreHint, { flex: 1, marginTop: 0, marginBottom: 0, textAlign: 'right' }]}>{daysClaimedThisMonth}/{MAX_REWARD_PREMIUM_DAYS_PER_MONTH} {t('profile_premiumEarnedSuffix')}</Text>
+          </View>
+          {remainingRewardDays > 0 && (
+            <View style={styles.rewardsCta}>
+              <Ionicons name="gift-outline" size={14} color={theme.gold} />
+              <Text style={styles.rewardsCtaText}>
+                {t('badges_remainingRewardPrefix')}{remainingRewardDays}{t('badges_remainingRewardSuffix')}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.gold} />
+            </View>
+          )}
+        </HapticTouchable>
 
         {/* Bio */}
         <View style={styles.card}>
@@ -811,18 +989,18 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         <View style={styles.actionRow}>
           <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setEditMode(true)}>
             <Ionicons name="create-outline" size={14} color={theme.gold} />
-            <Text style={styles.editBtnText}>Düzenle</Text>
+            <Text style={styles.editBtnText}>{t('profile_editBtn')}</Text>
           </HapticTouchable>
           <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setShowShareCard(true)}>
             <Ionicons name="share-outline" size={14} color={theme.gold} />
-            <Text style={styles.editBtnText}>Profil Paylaş</Text>
+            <Text style={styles.editBtnText}>{t('profile_shareProfile')}</Text>
           </HapticTouchable>
         </View>
 
         {/* Skills */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Yetenek Skorları</Text>
-          {skillsFromStats(cardStats).map((s, i) => (
+          <Text style={styles.cardTitle}>{t('performance_skillScoresTitle')}</Text>
+          {skillsFromStats(cardStats, t).map((s, i) => (
             <View key={i} style={styles.skillItem}>
               <View style={styles.skillTop}>
                 <Text style={styles.skillName}>{s.name}</Text>
@@ -835,24 +1013,39 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           ))}
         </View>
 
-        {/* Video Gallery */}
+        {/* Photo Gallery */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Video Galeri</Text>
-          <HapticTouchable>
-            <Text style={styles.sectionLink}>Tümü</Text>
+          <Text style={styles.sectionTitle}>{t('profile_photoGalleryTitle')}</Text>
+          <HapticTouchable
+            disabled={galleryItems.length <= 4}
+            onPress={() => setShowGalleryGrid(true)}
+          >
+            <Text style={[styles.sectionLink, galleryItems.length <= 4 && { opacity: 0.35 }]}>{t('common_all')}</Text>
           </HapticTouchable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gallery}>
-          {[1, 2, 3].map((_, i) => (
-            <HapticTouchable key={i} style={styles.galleryItem}>
-              <View style={styles.playBtn}>
-                <Ionicons name="play" size={13} color={Paper.ink} />
-              </View>
+          {galleryItems.map((item) => (
+            <HapticTouchable
+              key={item.id}
+              style={styles.galleryItem}
+              onPress={() => setGalleryPreviewUrl(item.url)}
+            >
+              <Image source={{ uri: item.url }} style={styles.galleryImage} />
             </HapticTouchable>
           ))}
-          <HapticTouchable style={[styles.galleryItem, styles.galleryAdd]}>
-            <Ionicons name="add" size={20} color={theme.gold} />
-            <Text style={styles.galleryAddText}>Ekle</Text>
+          <HapticTouchable
+            style={[styles.galleryItem, styles.galleryAdd]}
+            onPress={handleGalleryAddPress}
+            disabled={uploadingGalleryPhoto}
+          >
+            {uploadingGalleryPhoto ? (
+              <ActivityIndicator size="small" color={theme.gold} />
+            ) : (
+              <>
+                <Ionicons name="add" size={20} color={theme.gold} />
+                <Text style={styles.galleryAddText}>{t('profile_addLabel')}</Text>
+              </>
+            )}
           </HapticTouchable>
         </ScrollView>
 
@@ -868,7 +1061,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
       <Modal visible={showShareCard} transparent animationType="fade" onRequestClose={() => setShowShareCard(false)}>
         <View style={styles.shareModalOverlay}>
-          <Text style={styles.shareModalTitle}>Oyuncu Kartın</Text>
+          <Text style={styles.shareModalTitle}>{t('profile_playerCardTitle')}</Text>
           <ViewShot ref={cardRef} options={{ format: 'png', quality: 1.0 }}>
             <PlayerShareCard
               name={fullName}
@@ -881,7 +1074,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               stats={cardStats}
             />
           </ViewShot>
-          <Text style={styles.shareModalHint}>Kartını kaydet veya paylaş</Text>
+          <Text style={styles.shareModalHint}>{t('profile_shareCardHint')}</Text>
 
           <View style={styles.shareOptionsList}>
             <TouchableOpacity
@@ -890,8 +1083,8 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             >
               <Ionicons name="logo-instagram" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
-                <Text style={styles.shareOptionTitle}>Instagram Hikaye</Text>
-                <Text style={styles.shareOptionSubtitle}>Hikayene ekle</Text>
+                <Text style={styles.shareOptionTitle}>{t('profile_instagramStoryOption')}</Text>
+                <Text style={styles.shareOptionSubtitle}>{t('profile_instagramStorySub')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -902,8 +1095,8 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             >
               <Ionicons name="logo-twitter" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
-                <Text style={styles.shareOptionTitle}>X (Twitter)</Text>
-                <Text style={styles.shareOptionSubtitle}>Tweet olarak paylaş</Text>
+                <Text style={styles.shareOptionTitle}>{t('profile_twitterOption')}</Text>
+                <Text style={styles.shareOptionSubtitle}>{t('profile_twitterSub')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -915,7 +1108,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <Ionicons name="logo-whatsapp" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
                 <Text style={styles.shareOptionTitle}>WhatsApp</Text>
-                <Text style={styles.shareOptionSubtitle}>Arkadaşlarınla paylaş</Text>
+                <Text style={styles.shareOptionSubtitle}>{t('profile_whatsappSub')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -926,14 +1119,14 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             >
               <Ionicons name="download-outline" size={20} color="#fff" />
               <View style={styles.shareOptionTextWrap}>
-                <Text style={styles.shareOptionTitle}>Galeriye Kaydet</Text>
-                <Text style={styles.shareOptionSubtitle}>Fotoğraf olarak indir</Text>
+                <Text style={styles.shareOptionTitle}>{t('profile_saveToGalleryOption')}</Text>
+                <Text style={styles.shareOptionSubtitle}>{t('profile_saveToGallerySub')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => captureAndShare('general')} style={styles.shareOptionMore}>
-              <Text style={styles.shareOptionMoreText}>Diğer uygulamalar</Text>
+              <Text style={styles.shareOptionMoreText}>{t('profile_moreApps')}</Text>
               <Ionicons name="chevron-forward" size={13} color="#666" />
             </TouchableOpacity>
 
@@ -941,9 +1134,62 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               onPress={() => setShowShareCard(false)}
               style={[styles.shareModalCloseBtn, styles.shareModalCloseBtnCentered]}
             >
-              <Text style={styles.shareModalCloseBtnText}>Kapat</Text>
+              <Text style={styles.shareModalCloseBtnText}>{t('match_close')}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!!galleryPreviewUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGalleryPreviewUrl(null)}
+      >
+        <View style={styles.galleryPreviewOverlay}>
+          <TouchableOpacity
+            style={styles.galleryPreviewCloseBtn}
+            onPress={() => setGalleryPreviewUrl(null)}
+          >
+            <Ionicons name="close" size={26} color="#fff" />
+          </TouchableOpacity>
+          {galleryPreviewUrl && (
+            <Image
+              source={{ uri: galleryPreviewUrl }}
+              style={styles.galleryPreviewImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showGalleryGrid}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGalleryGrid(false)}
+      >
+        <View style={styles.galleryGridOverlay}>
+          <View style={styles.galleryGridHeader}>
+            <Text style={styles.shareModalTitle}>{t('profile_photoGalleryTitle')}</Text>
+            <TouchableOpacity onPress={() => setShowGalleryGrid(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.galleryGridContent}>
+            {galleryItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.galleryGridItem}
+                onPress={() => {
+                  setShowGalleryGrid(false);
+                  setGalleryPreviewUrl(item.url);
+                }}
+              >
+                <Image source={{ uri: item.url }} style={styles.galleryGridImage} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -969,7 +1215,7 @@ const createStyles = (theme: Theme) =>
     avatar: {
       width: 96,
       height: 96,
-      borderRadius: RADIUS,
+      borderRadius: 48,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.gold,
@@ -1076,6 +1322,19 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.gold,
     },
     scoreCompleteText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, flex: 1 },
+    rewardStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 8 },
+    rewardsCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      padding: 12,
+      marginTop: 12,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    rewardsCtaText: { flex: 1, fontFamily: FontFamily.body, fontSize: 12, color: theme.text, lineHeight: 17 },
     bioRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -1132,17 +1391,38 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
+      overflow: 'hidden',
     },
-    playBtn: {
-      width: 30,
-      height: 30,
-      borderRadius: RADIUS,
-      backgroundColor: theme.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    galleryImage: { width: '100%', height: '100%' },
     galleryAdd: { borderColor: theme.goldDark },
     galleryAddText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold, marginTop: 4 },
+
+    // Photo gallery lightbox / grid modals (always dark, matches share card modal)
+    galleryPreviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
+    galleryPreviewImage: { width: '100%', height: '70%' },
+    galleryPreviewCloseBtn: { position: 'absolute', top: 60, right: 24, zIndex: 1, padding: 8 },
+    galleryGridOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', paddingTop: 60 },
+    galleryGridHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      marginBottom: 16,
+    },
+    galleryGridContent: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: 16,
+      gap: 8,
+    },
+    galleryGridItem: {
+      width: '31%',
+      aspectRatio: 1,
+      borderRadius: RADIUS,
+      overflow: 'hidden',
+      backgroundColor: theme.card,
+    },
+    galleryGridImage: { width: '100%', height: '100%' },
 
     // Full-screen edit view (rendered in place of the profile view, no Modal)
     editSafe: { flex: 1, backgroundColor: theme.bg },

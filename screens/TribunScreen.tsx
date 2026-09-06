@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
@@ -52,6 +53,7 @@ interface Props {
 
 export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -114,7 +116,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
       .limit(HISTORY_LIMIT);
 
     if (error) {
-      if (__DEV__) console.log('Tribün yüklenemedi:', error);
+      if (__DEV__) console.log('Sahadan yüklenemedi:', error);
       setMessages([]);
       setLoading(false);
       return;
@@ -131,10 +133,10 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   };
 
   const handleAttachPress = () => {
-    Alert.alert('Medya Ekle', 'Fotoğraf veya video paylaş', [
-      { text: 'İptal', style: 'cancel' },
-      { text: 'Galeri', onPress: () => pickMedia('library') },
-      { text: 'Kamera', onPress: () => pickMedia('camera') },
+    Alert.alert(t('sahadan_mediaAddTitle'), t('sahadan_mediaAddBody'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: t('sahadan_gallery'), onPress: () => pickMedia('library') },
+      { text: t('sahadan_camera'), onPress: () => pickMedia('camera') },
     ]);
   };
 
@@ -146,13 +148,13 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
 
     if (permission.status !== 'granted') {
       Alert.alert(
-        'İzin Gerekli',
+        t('teamProfile_permissionTitle'),
         source === 'camera'
-          ? 'Fotoğraf/video çekmek için ayarlardan kamera iznini açmanız gerekiyor.'
-          : 'Fotoğraf/video seçmek için ayarlardan galeri iznini açmanız gerekiyor.',
+          ? t('sahadan_cameraPermissionBody')
+          : t('sahadan_galleryPermissionBody'),
         [
-          { text: 'İptal', style: 'cancel' },
-          { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return;
@@ -214,13 +216,13 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
       }
     } catch (err) {
       if (__DEV__) console.log('Mesaj gönderilemedi:', err);
-      setToast({ message: 'Mesaj gönderilemedi', type: 'error' });
+      setToast({ message: t('sahadan_sendFailed'), type: 'error' });
     }
     setSending(false);
   };
 
   if (loading) {
-    return <LoadingScreen message="Tribün yükleniyor..." />;
+    return <LoadingScreen message={t('sahadan_loading')} />;
   }
 
   return (
@@ -240,8 +242,8 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
             <Ionicons name="megaphone-outline" size={17} color={theme.gold} />
           </View>
           <View style={styles.titleWrap}>
-            <Text style={styles.title} numberOfLines={1}>TRİBÜN</Text>
-            <Text style={styles.subtitle} numberOfLines={1}>Tüm oyuncular ve takımlar</Text>
+            <Text style={styles.title} numberOfLines={1}>{t('sahadan_title').toUpperCase()}</Text>
+            <Text style={styles.subtitle} numberOfLines={1}>{t('sahadan_subtitle')}</Text>
           </View>
         </View>
 
@@ -257,7 +259,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
               <View style={styles.emptyIconWrap}>
                 <Ionicons name="megaphone-outline" size={22} color={theme.gold} />
               </View>
-              <Text style={styles.emptyText}>Henüz mesaj yok, tribünde ilk sesi sen çıkar</Text>
+              <Text style={styles.emptyText}>{t('sahadan_empty')}</Text>
             </View>
           ) : (
             messages.map((m) => {
@@ -282,11 +284,11 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
                             identity?.kind === 'team' ? styles.tagChipTextTeam : styles.tagChipTextPlayer,
                           ]}
                         >
-                          {identity?.kind === 'team' ? 'TAKIM' : 'OYUNCU'}
+                          {identity?.kind === 'team' ? t('sahadan_tagTeam') : t('sahadan_tagPlayer')}
                         </Text>
                       </View>
                       <Text style={styles.senderName} numberOfLines={1}>
-                        {identity?.name ?? 'Kullanıcı'}
+                        {identity?.name ?? t('common_defaultUser')}
                       </Text>
                     </View>
                   )}
@@ -310,7 +312,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
                         onPress={() => Linking.openURL(m.media_url!)}
                       >
                         <Ionicons name="play-circle" size={34} color={mine ? Paper.ink : theme.gold} />
-                        <Text style={[styles.mediaVideoLabel, mine && styles.bubbleTextMine]}>Videoyu Aç</Text>
+                        <Text style={[styles.mediaVideoLabel, mine && styles.bubbleTextMine]}>{t('sahadan_videoOpen')}</Text>
                       </HapticTouchable>
                     )}
                     {!!m.content && (
@@ -342,7 +344,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
               </View>
             )}
             <Text style={styles.pendingLabel}>
-              {pendingMedia.type === 'video' ? 'Video eklendi' : 'Fotoğraf eklendi'}
+              {pendingMedia.type === 'video' ? t('sahadan_videoAdded') : t('sahadan_photoAdded')}
             </Text>
             <HapticTouchable style={styles.pendingRemoveBtn} onPress={() => setPendingMedia(null)}>
               <Ionicons name="close" size={16} color={theme.textSecondary} />
@@ -356,7 +358,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
           </HapticTouchable>
           <TextInput
             style={styles.input}
-            placeholder="Tribün'e yaz..."
+            placeholder={t('sahadan_placeholder')}
             placeholderTextColor={theme.textSecondary}
             value={text}
             onChangeText={(t) => setText(t.slice(0, MAX_LENGTH))}

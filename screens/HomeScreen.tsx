@@ -16,12 +16,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { hexToRgba, Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
-import { gridItemsData } from '../api/mockData';
+import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
+import TournamentTeaser from '../components/TournamentTeaser';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 const RADIUS = CARD_RADIUS;
@@ -63,46 +64,64 @@ type Task = {
   icon: IoniconName;
 };
 
-const DAILY_TIPS = [
-  "Profilini tamamla, scout'ların seni bulma ihtimalini %3 artır",
-  'Bugün bir maça katıl ve performansını kaydet',
-  'AI analizin için bir maç fotoğrafı yükle',
-  'Scout ağında 12 scout aktif, profilini güncel tut',
-  'Bu hafta 3 yeni fırsat eklendi, kaçırma!',
+// Uygulamanın asıl akışını belirleyen 4 temel keşif akışı — Ana Sayfa'da diğer
+// kısayollardan daha belirgin gösterilir.
+const getDiscoverItems = (t: (key: TranslationKey) => string): { key: string; icon: IoniconName; title: string; sub: string; screen: string; colorKey: 'gold' | 'purple' }[] => [
+  { key: 'players', icon: 'people-outline', title: t('discover_players'), sub: t('discover_playersSub'), screen: 'scout', colorKey: 'gold' },
+  { key: 'teams', icon: 'shield-outline', title: t('discover_teams'), sub: t('discover_teamsSub'), screen: 'findOpponent', colorKey: 'purple' },
+  { key: 'matchSeekers', icon: 'football-outline', title: t('discover_matchSeekers'), sub: t('discover_matchSeekersSub'), screen: 'match', colorKey: 'purple' },
+  { key: 'playerSeekers', icon: 'search-outline', title: t('discover_playerSeekers'), sub: t('discover_playerSeekersSub'), screen: 'findPlayer', colorKey: 'gold' },
 ];
 
-const PLATFORM_ACTIVITY: { icon: IoniconName; text: string; time: string }[] = [
-  { icon: 'business-outline', text: 'Galatasaray Akademi 2 yeni oyuncu aradı', time: '5 dk' },
-  { icon: 'person-outline', text: "İstanbul'da 8 yeni oyuncu kayıt oldu", time: '1 sa' },
-  { icon: 'football-outline', text: "Kadıköy'de yeni maç oluşturuldu", time: '2 sa' },
-  { icon: 'flag-outline', text: 'Bundesliga scout 3 profil inceledi', time: '3 sa' },
+const getDailyTips = (t: (key: TranslationKey) => string) => [
+  t('home_tip1'),
+  t('home_tip2'),
+  t('home_tip3'),
+  t('home_tip4'),
+  t('home_tip5'),
 ];
 
-const getGreeting = () => {
+const getPlatformActivity = (t: (key: TranslationKey) => string): { icon: IoniconName; text: string; time: string }[] => [
+  { icon: 'business-outline', text: t('home_activity1'), time: '5m' },
+  { icon: 'person-outline', text: t('home_activity2'), time: '1h' },
+  { icon: 'football-outline', text: t('home_activity3'), time: '2h' },
+  { icon: 'flag-outline', text: t('home_activity4'), time: '3h' },
+];
+
+const getGridItems = (t: (key: TranslationKey) => string) => [
+  { icon: '📈' as const, title: t('performance'), sub: t('home_gridPerformanceSub'), screen: 'footbally' },
+  { icon: '⏱️' as const, title: t('matchAnalysis'), sub: t('home_gridMatchAnalysisSub'), screen: 'match' },
+  { icon: '🎯' as const, title: t('career'), sub: t('home_gridCareerSub'), screen: 'profile' },
+  { icon: '⭐' as const, title: t('opportunities'), sub: t('home_gridOpportunitiesSub'), screen: 'activities' },
+  { icon: '🤖' as const, title: t('aiAnalysis'), sub: t('home_gridAiSub'), screen: 'ai' },
+  { icon: '🔍' as const, title: t('scoutNetwork'), sub: t('home_gridScoutSub'), screen: 'scout' },
+];
+
+const getGreeting = (t: (key: TranslationKey) => string) => {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'Günaydın';
-  if (hour >= 12 && hour < 18) return 'İyi Öğlenler';
-  return 'İyi Akşamlar';
+  if (hour >= 5 && hour < 12) return t('home_goodMorning');
+  if (hour >= 12 && hour < 18) return t('home_goodAfternoon');
+  return t('home_goodEvening');
 };
 
-const getScoreLevel = (score: number, theme: Theme) => {
-  if (score >= 100) return { label: 'Mükemmel', color: theme.gold };
-  if (score >= 81) return { label: 'Elit', color: theme.goldLight };
-  if (score >= 61) return { label: 'İyi Seviye', color: theme.gold };
-  if (score >= 31) return { label: 'Gelişiyor', color: '#f59e0b' };
-  return { label: 'Başlangıç', color: theme.error };
+const getScoreLevel = (score: number, theme: Theme, t: (key: TranslationKey) => string) => {
+  if (score >= 100) return { label: t('level_perfect'), color: theme.gold };
+  if (score >= 81) return { label: t('level_elite'), color: theme.goldLight };
+  if (score >= 61) return { label: t('level_good'), color: theme.gold };
+  if (score >= 31) return { label: t('level_developing'), color: '#f59e0b' };
+  return { label: t('level_beginner'), color: theme.error };
 };
 
-const formatRelativeTime = (iso: string) => {
+const formatRelativeTime = (iso: string, t: (key: TranslationKey) => string) => {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return 'şimdi';
-  if (minutes < 60) return `${minutes} dk önce`;
+  if (minutes < 1) return t('time_now');
+  if (minutes < 60) return `${minutes} ${t('time_minutesAgoSuffix')}`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} saat önce`;
+  if (hours < 24) return `${hours} ${t('time_hoursAgoSuffix')}`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return 'Dün';
-  return `${days} gün önce`;
+  if (days === 1) return t('time_yesterday');
+  return `${days} ${t('time_daysAgoSuffix')}`;
 };
 
 interface Props {
@@ -128,11 +147,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
   const [showAllTasks, setShowAllTasks] = useState(false);
   const unreadCount = notifications.filter((n) => n.unread).length;
   const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
-  const dailyTip = DAILY_TIPS[Math.floor(Date.now() / 86400000) % DAILY_TIPS.length];
-  const scoreLevel = getScoreLevel(score, theme);
+  const dailyTips = getDailyTips(t);
+  const dailyTip = dailyTips[Math.floor(Date.now() / 86400000) % dailyTips.length];
+  const scoreLevel = getScoreLevel(score, theme, t);
+  const gridItems = getGridItems(t);
+  const platformActivity = getPlatformActivity(t);
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const scoreCountAnim = useRef(new Animated.Value(0)).current;
-  const gridAnims = useRef(gridItemsData.map(() => new Animated.Value(0))).current;
+  const gridAnims = useRef(gridItems.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     Animated.timing(scoreAnim, {
@@ -201,18 +223,18 @@ export default function HomeScreen({ navigate, userId }: Props) {
 
   const calculateTasks = (p: any, premiumActive: boolean) => {
     setTasks([
-      { id: 'name', title: 'İsmini ekle', desc: 'Profilinde adın görünsün', points: 10, done: !!p.full_name, screen: 'profile', icon: 'person-outline' },
-      { id: 'position', title: 'Pozisyon seç', desc: 'Oynadığın mevkii belirt', points: 10, done: !!p.position, screen: 'profile', icon: 'football-outline' },
-      { id: 'age', title: 'Yaşını ekle', desc: "Scout'lar yaş bilgine bakıyor", points: 5, done: !!p.age, screen: 'profile', icon: 'calendar-outline' },
-      { id: 'height', title: 'Boy bilgini gir', desc: 'Fiziksel özelliklerini tamamla', points: 5, done: !!p.height, screen: 'profile', icon: 'resize-outline' },
-      { id: 'weight', title: 'Kilo bilgini gir', desc: 'Fiziksel özelliklerini tamamla', points: 5, done: !!p.weight, screen: 'profile', icon: 'barbell-outline' },
-      { id: 'city', title: 'Şehir ekle', desc: 'Yakınındaki fırsatları gör', points: 5, done: !!p.city, screen: 'profile', icon: 'location-outline' },
-      { id: 'district', title: 'İlçe ekle', desc: 'Daha doğru eşleşme için', points: 3, done: !!p.district, screen: 'profile', icon: 'map-outline' },
-      { id: 'foot', title: 'Baskın ayak seç', desc: 'Sol mu sağ mı?', points: 3, done: !!p.foot, screen: 'profile', icon: 'footsteps-outline' },
-      { id: 'match', title: 'İlk maça katıl', desc: 'Performansını kayıt altına al', points: 15, done: false, screen: 'match', icon: 'football-outline' },
-      { id: 'apply', title: 'Bir fırsata başvur', desc: 'Kariyerinde ilk adımı at', points: 10, done: false, screen: 'activities', icon: 'flag-outline' },
-      { id: 'photo', title: 'Profil fotoğrafı ekle', desc: "Scout'lar fotoğraflı profili tercih eder", points: 10, done: !!p.avatar_url, screen: 'profile', icon: 'camera-outline' },
-      { id: 'premium', title: "Premium'a geç", desc: 'Tüm özelliklerin kilidini aç', points: 19, done: premiumActive, screen: 'premium', icon: 'star-outline' },
+      { id: 'name', title: t('home_taskNameTitle'), desc: t('home_taskNameDesc'), points: 10, done: !!p.full_name, screen: 'profile', icon: 'person-outline' },
+      { id: 'position', title: t('home_taskPositionTitle'), desc: t('home_taskPositionDesc'), points: 10, done: !!p.position, screen: 'profile', icon: 'football-outline' },
+      { id: 'age', title: t('home_taskAgeTitle'), desc: t('home_taskAgeDesc'), points: 5, done: !!p.age, screen: 'profile', icon: 'calendar-outline' },
+      { id: 'height', title: t('home_taskHeightTitle'), desc: t('home_taskPhysicalDesc'), points: 5, done: !!p.height, screen: 'profile', icon: 'resize-outline' },
+      { id: 'weight', title: t('home_taskWeightTitle'), desc: t('home_taskPhysicalDesc'), points: 5, done: !!p.weight, screen: 'profile', icon: 'barbell-outline' },
+      { id: 'city', title: t('home_taskCityTitle'), desc: t('home_taskCityDesc'), points: 5, done: !!p.city, screen: 'profile', icon: 'location-outline' },
+      { id: 'district', title: t('home_taskDistrictTitle'), desc: t('home_taskDistrictDesc'), points: 3, done: !!p.district, screen: 'profile', icon: 'map-outline' },
+      { id: 'foot', title: t('home_taskFootTitle'), desc: t('home_taskFootDesc'), points: 3, done: !!p.foot, screen: 'profile', icon: 'footsteps-outline' },
+      { id: 'match', title: t('home_taskMatchTitle'), desc: t('home_taskMatchDesc'), points: 15, done: false, screen: 'match', icon: 'football-outline' },
+      { id: 'apply', title: t('home_taskApplyTitle'), desc: t('home_taskApplyDesc'), points: 10, done: false, screen: 'activities', icon: 'flag-outline' },
+      { id: 'photo', title: t('home_taskPhotoTitle'), desc: t('home_taskPhotoDesc'), points: 10, done: !!p.avatar_url, screen: 'profile', icon: 'camera-outline' },
+      { id: 'premium', title: t('home_taskPremiumTitle'), desc: t('home_taskPremiumDesc'), points: 19, done: premiumActive, screen: 'premium', icon: 'star-outline' },
     ]);
   };
 
@@ -240,7 +262,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
           date: m.date,
           time: m.time,
           location: m.location,
-          tag: 'Yaklaşan',
+          tag: t('home_upcomingTag'),
           tagColor: theme.gold,
         }))
       );
@@ -268,7 +290,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         data.map((n: any) => ({
           id: String(n.id),
           msg: n.message ?? n.msg ?? '',
-          time: formatRelativeTime(n.created_at),
+          time: formatRelativeTime(n.created_at, t),
           unread: !n.read,
         }))
       );
@@ -327,10 +349,10 @@ export default function HomeScreen({ navigate, userId }: Props) {
         <View style={styles.header}>
           <View>
             <View style={styles.greetingRow}>
-              <Text style={styles.greeting}>{getGreeting().toUpperCase()}</Text>
+              <Text style={styles.greeting}>{getGreeting(t).toUpperCase()}</Text>
               {isPremiumActive && (
                 <View style={styles.premiumBadge}>
-                  <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+                  <Text style={styles.premiumBadgeText}>{t('premium').toUpperCase()}</Text>
                 </View>
               )}
             </View>
@@ -359,6 +381,30 @@ export default function HomeScreen({ navigate, userId }: Props) {
           </View>
         </View>
 
+        <TournamentTeaser />
+
+        {/* Keşfet — uygulamanın asıl akışını belirleyen 4 temel taşı: oyuncu bul,
+            takım bul, maç arayanlar, oyuncu arayanlar. Diğer kısayollardan daha
+            belirgin olması için en üstte, büyük kartlarla gösteriliyor. */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('discover_title')}</Text>
+        </View>
+        <View style={styles.discoverGrid}>
+          {getDiscoverItems(t).map((item) => (
+            <HapticTouchable
+              key={item.key}
+              style={styles.discoverCard}
+              onPress={() => navigate(item.screen)}
+            >
+              <View style={[styles.discoverIconWrap, { backgroundColor: hexToRgba(theme[item.colorKey], 0.16) }]}>
+                <Ionicons name={item.icon} size={22} color={theme[item.colorKey]} />
+              </View>
+              <Text style={styles.discoverTitle}>{item.title}</Text>
+              <Text style={styles.discoverSub}>{item.sub}</Text>
+            </HapticTouchable>
+          ))}
+        </View>
+
         {/* Daily Tip */}
         <View style={styles.tipCard}>
           <Text style={styles.tipText}>{dailyTip}</Text>
@@ -380,7 +426,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         >
           <HapticTouchable style={styles.scoreCard}>
             <View style={styles.scoreInfo}>
-              <Text style={styles.scoreLabel}>GENEL SKOR</Text>
+              <Text style={styles.scoreLabel}>{t('generalScore').toUpperCase()}</Text>
               <Text style={[styles.scoreValue, { color: scoreLevel.color }]}>{displayScore}</Text>
               <View style={[styles.scoreLevelPill, { borderColor: scoreLevel.color }]}>
                 <Text style={[styles.scoreLevelText, { color: scoreLevel.color }]}>{scoreLevel.label}</Text>
@@ -389,7 +435,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
             <View style={styles.scoreDivider} />
             <View style={styles.scorePercent}>
               <Text style={[styles.scoreRingText, { color: scoreLevel.color }]}>{displayScore}%</Text>
-              <Text style={styles.scorePercentLabel}>TAMAMLANDI</Text>
+              <Text style={styles.scorePercentLabel}>{t('home_completed')}</Text>
             </View>
           </HapticTouchable>
         </Animated.View>
@@ -398,7 +444,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         {tasks.length > 0 && (
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ color: theme.text, fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>SKORU TAMAMLA</Text>
+              <Text style={{ color: theme.text, fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_completeScore')}</Text>
               <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints} puan</Text>
             </View>
 
@@ -418,7 +464,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   marginBottom: 8,
                 }}
               >
-                <Text style={{ color: theme.gold, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>TÜM GÖREVLER TAMAMLANDI</Text>
+                <Text style={{ color: theme.gold, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_allTasksCompleted')}</Text>
               </View>
             ) : (
               pendingTasks.map((task) => (
@@ -455,7 +501,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
                     <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.monoMedium }}>+{task.points}</Text>
-                    <Text style={{ color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.body }}>puan</Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.body }}>{t('home_point')}</Text>
                   </View>
                 </HapticTouchable>
               ))
@@ -474,7 +520,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 borderColor: theme.border,
               }}
             >
-              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>Tüm Görevleri Gör</Text>
+              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{t('home_seeAllTasks')}</Text>
               <Ionicons name="chevron-forward" size={14} color={theme.gold} />
             </HapticTouchable>
           </View>
@@ -485,7 +531,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
           <Text style={styles.sectionTitle}>{t('quickAccess')}</Text>
         </View>
         <View style={styles.grid}>
-          {gridItemsData.map((item, i) => (
+          {gridItems.map((item, i) => (
             <Animated.View
               key={i}
               style={{
@@ -514,10 +560,10 @@ export default function HomeScreen({ navigate, userId }: Props) {
 
         {/* Activity Feed */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Platform Aktivitesi</Text>
+          <Text style={styles.sectionTitle}>{t('home_platformActivity')}</Text>
         </View>
         <View style={styles.activityList}>
-          {PLATFORM_ACTIVITY.map((a, i) => (
+          {platformActivity.map((a, i) => (
             <View key={i} style={styles.activityItem}>
               <View style={styles.activityIconWrap}>
                 <Ionicons name={a.icon} size={16} color={theme.gold} />
@@ -532,14 +578,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('upcomingMatches')}</Text>
           <HapticTouchable onPress={() => navigate('match')}>
-            <Text style={styles.sectionLink}>Tümü</Text>
+            <Text style={styles.sectionLink}>{t('common_all')}</Text>
           </HapticTouchable>
         </View>
         {matches.length === 0 && (
           <EmptyState
             icon="football-outline"
-            title="Henüz maç yok"
-            subtitle="Yaklaşan maçlar burada görünecek"
+            title={t('home_noMatchesYet')}
+            subtitle={t('home_noMatchesSub')}
           />
         )}
         {matches.map((match) => (
@@ -569,14 +615,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('recentNotifications')}</Text>
           <HapticTouchable onPress={() => navigate('notifications')}>
-            <Text style={styles.sectionLink}>Tümü</Text>
+            <Text style={styles.sectionLink}>{t('common_all')}</Text>
           </HapticTouchable>
         </View>
         {notifications.length === 0 && (
           <EmptyState
             icon="notifications-outline"
-            title="Henüz bildirim yok"
-            subtitle="Bildirimler burada görünecek"
+            title={t('notif_empty')}
+            subtitle={t('notif_emptySub')}
           />
         )}
         {notifications.map((notif) => (
@@ -605,15 +651,15 @@ export default function HomeScreen({ navigate, userId }: Props) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.border }}>
             <HapticTouchable style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => setShowAllTasks(false)}>
               <Ionicons name="chevron-back" size={16} color={theme.gold} />
-              <Text style={{ color: theme.gold, fontFamily: FontFamily.mono, fontSize: 13 }}>Geri</Text>
+              <Text style={{ color: theme.gold, fontFamily: FontFamily.mono, fontSize: 13 }}>{t('common_back')}</Text>
             </HapticTouchable>
-            <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>GÖREVLER</Text>
+            <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_tasks')}</Text>
             <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{completedPoints}/{totalPoints}</Text>
           </View>
 
           <View style={{ margin: 16, backgroundColor: theme.card2, borderRadius: RADIUS, padding: 16, borderWidth: 1, borderColor: theme.border }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ color: theme.text, fontFamily: FontFamily.mono, fontSize: 12 }}>Genel İlerleme</Text>
+              <Text style={{ color: theme.text, fontFamily: FontFamily.mono, fontSize: 12 }}>{t('home_overallProgress')}</Text>
               <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium, fontSize: 12 }}>{Math.round(taskProgress)}%</Text>
             </View>
             <View style={{ height: 4, backgroundColor: theme.border }}>
@@ -686,9 +732,9 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   borderColor: theme.gold,
                 }}
               >
-                <Text style={{ color: theme.gold, fontSize: 18, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>TEBRİKLER!</Text>
+                <Text style={{ color: theme.gold, fontSize: 18, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>{t('home_congrats')}</Text>
                 <Text style={{ color: theme.textSecondary, textAlign: 'center', fontFamily: FontFamily.body }}>
-                  Tüm görevleri tamamladın. Profilin mükemmel!
+                  {t('home_allTasksDone')}
                 </Text>
               </View>
             )}
@@ -814,6 +860,31 @@ const createStyles = (theme: Theme) =>
     },
     sectionTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
     sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    discoverGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: 24,
+      gap: 12,
+      marginBottom: 28,
+    },
+    discoverCard: {
+      width: '47%',
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    discoverIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    discoverTitle: { fontFamily: FontFamily.display, fontSize: 16, color: theme.text, marginBottom: 4, letterSpacing: 0.3 },
+    discoverSub: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary },
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',

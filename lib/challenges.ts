@@ -33,7 +33,8 @@ export async function sendMatchChallenge(
       '⚔️',
       `${myTeamName} takımı ${opponentTeamName} takımına maç daveti gönderdi`,
       'teamHome',
-      'Yeni Maç Daveti'
+      'Yeni Maç Daveti',
+      'match'
     );
   }
 

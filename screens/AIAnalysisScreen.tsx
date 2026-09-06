@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
@@ -41,28 +42,28 @@ type AnalysisResult = {
 
 type PickedMedia = { kind: 'photo'; uri: string; fileName: string; base64: string };
 
-const ANALYZING_MESSAGES = [
-  'Görüntü analiz ediliyor...',
-  'Performans hesaplanıyor...',
-  'Sonuçlar hazırlanıyor...',
+const getAnalyzingMessages = (t: (key: any) => string) => [
+  t('aiAnalysis_msg1'),
+  t('aiAnalysis_msg2'),
+  t('aiAnalysis_msg3'),
 ];
 
-const HOW_IT_WORKS: { icon: IoniconName; title: string; desc: string }[] = [
-  { icon: 'camera-outline', title: 'Fotoğraf Yükle', desc: 'Maçtan bir kare' },
-  { icon: 'hardware-chip-outline', title: 'AI Analiz Eder', desc: '30 saniyede sonuç' },
-  { icon: 'trophy-outline', title: 'Gelişimini Gör', desc: 'Detaylı rapor' },
+const getHowItWorks = (t: (key: any) => string): { icon: IoniconName; title: string; desc: string }[] => [
+  { icon: 'camera-outline', title: t('aiAnalysis_step1Title'), desc: t('aiAnalysis_step1Desc') },
+  { icon: 'hardware-chip-outline', title: t('aiAnalysis_step2Title'), desc: t('aiAnalysis_step2Desc') },
+  { icon: 'trophy-outline', title: t('aiAnalysis_step3Title'), desc: t('aiAnalysis_step3Desc') },
 ];
 
-const TRUST_INDICATORS = [
-  '50.000+ analiz yapıldı',
-  '%96 doğruluk oranı',
-  'UEFA lisanslı metodoloji',
+const getTrustIndicators = (t: (key: any) => string) => [
+  t('aiAnalysis_trust1'),
+  t('aiAnalysis_trust2'),
+  t('aiAnalysis_trust3'),
 ];
 
-const getConfidenceLabel = (confidence: number) => {
-  if (confidence < 60) return 'Görüntü kalitesi düşük, sonuçlar kesin olmayabilir';
-  if (confidence < 80) return 'Orta güven';
-  return 'Yüksek güven';
+const getConfidenceLabel = (confidence: number, t: (key: any) => string) => {
+  if (confidence < 60) return t('aiAnalysis_confidenceLow');
+  if (confidence < 80) return t('aiAnalysis_confidenceMid');
+  return t('aiAnalysis_confidenceHigh');
 };
 
 interface Props {
@@ -71,6 +72,10 @@ interface Props {
 
 export default function AIAnalysisScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const ANALYZING_MESSAGES = getAnalyzingMessages(t);
+  const HOW_IT_WORKS = getHowItWorks(t);
+  const TRUST_INDICATORS = getTrustIndicators(t);
   const styles = createStyles(theme);
   const [stage, setStage] = useState<Stage>('idle');
   const [media, setMedia] = useState<PickedMedia | null>(null);
@@ -131,11 +136,11 @@ export default function AIAnalysisScreen({ navigate }: Props) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'İzin Gerekli',
-        'Fotoğraf seçmek için ayarlardan galeri iznini açmanız gerekiyor.',
+        t('teamProfile_permissionTitle'),
+        t('aiAnalysis_galleryPermissionBody'),
         [
-          { text: 'İptal', style: 'cancel' },
-          { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return false;
@@ -147,11 +152,11 @@ export default function AIAnalysisScreen({ navigate }: Props) {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'İzin Gerekli',
-        'Fotoğraf çekmek için ayarlardan kamera iznini açmanız gerekiyor.',
+        t('teamProfile_permissionTitle'),
+        t('aiAnalysis_cameraPermissionBody'),
         [
-          { text: 'İptal', style: 'cancel' },
-          { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return false;
@@ -176,11 +181,11 @@ export default function AIAnalysisScreen({ navigate }: Props) {
 
       const asset = picked.assets?.[0];
       if (!asset) {
-        setToast({ message: 'Fotoğraf seçilemedi, tekrar deneyin', type: 'error' });
+        setToast({ message: t('aiAnalysis_pickFailed'), type: 'error' });
         return;
       }
       if (!asset.base64) {
-        setToast({ message: 'Fotoğraf okunamadı', type: 'error' });
+        setToast({ message: t('aiAnalysis_readFailed'), type: 'error' });
         return;
       }
 
@@ -196,7 +201,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
       await runAnalysis(photoMedia);
     } catch (err) {
       if (__DEV__) console.log('Fotoğraf seçilemedi:', err);
-      setToast({ message: 'Galeri açılamadı, kamerayı deneyin', type: 'error' });
+      setToast({ message: t('aiAnalysis_galleryOpenFailed'), type: 'error' });
     }
   };
 
@@ -217,11 +222,11 @@ export default function AIAnalysisScreen({ navigate }: Props) {
 
       const asset = picked.assets?.[0];
       if (!asset) {
-        setToast({ message: 'Fotoğraf çekilemedi, tekrar deneyin', type: 'error' });
+        setToast({ message: t('aiAnalysis_captureFailedRetry'), type: 'error' });
         return;
       }
       if (!asset.base64) {
-        setToast({ message: 'Fotoğraf okunamadı', type: 'error' });
+        setToast({ message: t('aiAnalysis_readFailed'), type: 'error' });
         return;
       }
 
@@ -237,7 +242,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
       await runAnalysis(photoMedia);
     } catch (err) {
       if (__DEV__) console.log('Fotoğraf çekilemedi:', err);
-      setToast({ message: 'Fotoğraf çekilemedi', type: 'error' });
+      setToast({ message: t('aiAnalysis_captureFailed'), type: 'error' });
     }
   };
 
@@ -248,7 +253,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) {
-        setToast({ message: 'Oturum açmanız gerekiyor', type: 'error' });
+        setToast({ message: t('createMatch_needSession'), type: 'error' });
         setStage('preview');
         return;
       }
@@ -278,7 +283,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
       const [{ analysis }] = await Promise.all([work(), minDelay]);
 
       if (analysis.valid === false) {
-        setNotFootballMessage(analysis.message ?? 'Bu görüntü futbol içeriği değil. Lütfen bir maç fotoğrafı veya ekran görüntüsü yükleyin.');
+        setNotFootballMessage(analysis.message ?? t('aiAnalysis_notFootballDefault'));
         setStage('notFootball');
         return;
       }
@@ -297,10 +302,10 @@ export default function AIAnalysisScreen({ navigate }: Props) {
       setResult(resultData);
       setStage('result');
 
-      sendLocalNotification('AI Analizi Tamamlandı', `Skorun: ${resultData.score}`);
+      sendLocalNotification(t('aiAnalysis_completedNotifTitle'), `${t('aiAnalysis_completedNotifBodyPrefix')} ${resultData.score}`);
     } catch (err) {
       if (__DEV__) console.log('Analiz yapılamadı:', err);
-      setToast({ message: 'Analiz yapılamadı', type: 'error' });
+      setToast({ message: t('aiAnalysis_analysisFailed'), type: 'error' });
       setStage('preview');
     }
   };
@@ -317,14 +322,14 @@ export default function AIAnalysisScreen({ navigate }: Props) {
   };
 
   const handleSaveResult = () => {
-    setToast({ message: 'Analiz profiline kaydedildi', type: 'success' });
+    setToast({ message: t('aiAnalysis_savedToast'), type: 'success' });
   };
 
   const handleShareResult = async () => {
     if (!result) return;
     try {
       await Share.share({
-        message: `Footbally AI Analiz Skorum: ${result.score}/100`,
+        message: `${t('aiAnalysis_shareMessagePrefix')} ${result.score}/100`,
       });
     } catch (err) {
       if (__DEV__) console.log('Paylaşılamadı:', err);
@@ -343,16 +348,16 @@ export default function AIAnalysisScreen({ navigate }: Props) {
             <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
           <View>
-            <Text style={styles.title}>AI PERFORMANS ANALİZİ</Text>
-            <Text style={styles.subtitle}>Dünya standartlarında futbol analizi</Text>
+            <Text style={styles.title}>{t('aiAnalysis_title')}</Text>
+            <Text style={styles.subtitle}>{t('aiAnalysis_subtitle')}</Text>
           </View>
         </View>
 
         {stage === 'idle' && (
           <>
             <View style={styles.trustRow}>
-              {TRUST_INDICATORS.map((t, i) => (
-                <Text key={i} style={styles.trustText}>{t}</Text>
+              {TRUST_INDICATORS.map((indicator, i) => (
+                <Text key={i} style={styles.trustText}>{indicator}</Text>
               ))}
             </View>
 
@@ -376,35 +381,35 @@ export default function AIAnalysisScreen({ navigate }: Props) {
                 <View style={styles.uploadIconWrap}>
                   <Ionicons name="camera-outline" size={24} color={theme.gold} />
                 </View>
-                <Text style={styles.uploadOptionTitle}>Kamera ile Çek</Text>
-                <Text style={styles.uploadOptionBadge}>Önerilen</Text>
+                <Text style={styles.uploadOptionTitle}>{t('aiAnalysis_takePhoto')}</Text>
+                <Text style={styles.uploadOptionBadge}>{t('aiAnalysis_recommended')}</Text>
               </HapticTouchable>
               <HapticTouchable style={styles.uploadOption} onPress={handlePickPhoto}>
                 <View style={styles.uploadIconWrap}>
                   <Ionicons name="images-outline" size={24} color={theme.gold} />
                 </View>
-                <Text style={styles.uploadOptionTitle}>Galeriden Seç</Text>
+                <Text style={styles.uploadOptionTitle}>{t('aiAnalysis_pickFromGallery')}</Text>
               </HapticTouchable>
             </View>
             <View style={styles.hintBox}>
               <Text style={styles.hintText}>
-                İpucu: Maçtan ekran görüntüsü alıp galeriden yükleyebilir ya da direkt fotoğraf çekebilirsin
+                {t('aiAnalysis_hint')}
               </Text>
             </View>
 
-            <Text style={styles.sampleSectionTitle}>Örnek Analiz</Text>
+            <Text style={styles.sampleSectionTitle}>{t('aiAnalysis_sampleSectionTitle')}</Text>
             <View style={styles.sampleCard}>
               <View style={styles.sampleBlurLayer}>
-                <Text style={styles.sampleScoreLabel}>AI SKORU</Text>
+                <Text style={styles.sampleScoreLabel}>{t('aiAnalysis_aiScoreLabel')}</Text>
                 <Text style={styles.sampleScoreValue}>87</Text>
-                <Text style={styles.sampleRow}>Kylian Mbappé benzeri hız profili</Text>
-                <Text style={styles.sampleRow}>Güçlü yön: Dribbling, Hız</Text>
-                <Text style={styles.sampleRow}>Gelişim: Şut isabeti</Text>
+                <Text style={styles.sampleRow}>{t('aiAnalysis_sampleComparison')}</Text>
+                <Text style={styles.sampleRow}>{t('aiAnalysis_sampleStrength')}</Text>
+                <Text style={styles.sampleRow}>{t('aiAnalysis_sampleImprovement')}</Text>
               </View>
               <View style={styles.sampleLockOverlay}>
                 <Ionicons name="lock-closed-outline" size={22} color={theme.text} style={{ marginBottom: 12 }} />
                 <HapticTouchable style={styles.sampleUnlockBtn} onPress={() => navigate('premium')}>
-                  <Text style={styles.sampleUnlockText}>Premium ile kilidi aç</Text>
+                  <Text style={styles.sampleUnlockText}>{t('aiAnalysis_unlockWithPremium')}</Text>
                 </HapticTouchable>
               </View>
             </View>
@@ -418,10 +423,10 @@ export default function AIAnalysisScreen({ navigate }: Props) {
               <Text style={styles.previewName} numberOfLines={1}>{media.fileName}</Text>
             </View>
             <HapticTouchable style={styles.analyzeBtn} onPress={handleAnalyze}>
-              <Text style={styles.analyzeBtnText}>Analiz Et</Text>
+              <Text style={styles.analyzeBtnText}>{t('aiAnalysis_analyze')}</Text>
             </HapticTouchable>
             <HapticTouchable style={styles.retryBtn} onPress={handleReset}>
-              <Text style={styles.retryText}>Vazgeç</Text>
+              <Text style={styles.retryText}>{t('match_giveUp')}</Text>
             </HapticTouchable>
           </View>
         )}
@@ -431,7 +436,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
             <Ionicons name="close-circle-outline" size={32} color={theme.error} style={{ alignSelf: 'center', marginBottom: 14 }} />
             <Text style={styles.errorText}>{notFootballMessage}</Text>
             <HapticTouchable style={styles.retryBtn} onPress={handleReset}>
-              <Text style={styles.retryText}>Yeni Analiz Yap</Text>
+              <Text style={styles.retryText}>{t('aiAnalysis_newAnalysis')}</Text>
             </HapticTouchable>
           </View>
         )}
@@ -451,15 +456,15 @@ export default function AIAnalysisScreen({ navigate }: Props) {
                 },
               ]}
             >
-              <Text style={styles.scoreLabel}>AI SKORU</Text>
+              <Text style={styles.scoreLabel}>{t('aiAnalysis_aiScoreLabel')}</Text>
               <Text style={styles.scoreValue}>{result.score}</Text>
               {!!result.playerComparison && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{result.playerComparison}</Text>
                 </View>
               )}
-              {!!result.position && <Text style={styles.positionText}>Pozisyon: {result.position}</Text>}
-              <Text style={styles.confidenceText}>{getConfidenceLabel(result.confidence)}</Text>
+              {!!result.position && <Text style={styles.positionText}>{t('aiAnalysis_positionPrefix')} {result.position}</Text>}
+              <Text style={styles.confidenceText}>{getConfidenceLabel(result.confidence, t)}</Text>
             </Animated.View>
 
             {!!result.warning && (
@@ -475,7 +480,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
             )}
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Güçlü Yönler</Text>
+              <Text style={styles.cardTitle}>{t('aiAnalysis_strengthsTitle')}</Text>
               {result.strengths.map((s, i) => (
                 <View key={i} style={styles.row}>
                   <View style={[styles.dotMark, { backgroundColor: theme.success }]} />
@@ -485,7 +490,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Gelişim Alanları</Text>
+              <Text style={styles.cardTitle}>{t('aiAnalysis_improvementsTitle')}</Text>
               {result.improvements.map((s, i) => (
                 <View key={i} style={styles.row}>
                   <View style={[styles.dotMark, { backgroundColor: '#f59e0b' }]} />
@@ -495,7 +500,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Önerilen Antrenmanlar</Text>
+              <Text style={styles.cardTitle}>{t('aiAnalysis_trainingsTitle')}</Text>
               {result.trainings.map((s, i) => (
                 <View key={i} style={styles.row}>
                   <View style={[styles.dotMark, { backgroundColor: theme.gold }]} />
@@ -506,15 +511,15 @@ export default function AIAnalysisScreen({ navigate }: Props) {
 
             <View style={styles.resultActionsRow}>
               <HapticTouchable style={styles.saveBtn} onPress={handleSaveResult}>
-                <Text style={styles.saveBtnText}>Analizi Kaydet</Text>
+                <Text style={styles.saveBtnText}>{t('aiAnalysis_saveResult')}</Text>
               </HapticTouchable>
               <HapticTouchable style={styles.shareBtn} onPress={handleShareResult}>
-                <Text style={styles.shareBtnText}>Paylaş</Text>
+                <Text style={styles.shareBtnText}>{t('aiAnalysis_share')}</Text>
               </HapticTouchable>
             </View>
 
             <HapticTouchable style={styles.retryBtn} onPress={handleReset}>
-              <Text style={styles.retryText}>Tekrar Analiz Et</Text>
+              <Text style={styles.retryText}>{t('aiAnalysis_retryAnalysis')}</Text>
             </HapticTouchable>
           </View>
         )}

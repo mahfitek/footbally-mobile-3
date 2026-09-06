@@ -6,13 +6,13 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
-  Modal,
   FlatList,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,7 @@ import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
+import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
 
@@ -47,16 +48,16 @@ type AcceptedConnectionView = {
   position: string | null;
 };
 
-const formatRelativeTime = (iso: string) => {
+const formatRelativeTime = (iso: string, t: (key: any) => string) => {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return 'şimdi';
-  if (minutes < 60) return `${minutes} dk`;
+  if (minutes < 1) return t('time_now');
+  if (minutes < 60) return `${minutes} ${t('time_minutesAgoSuffix')}`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} sa`;
+  if (hours < 24) return `${hours} ${t('time_hoursAgoSuffix')}`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return 'Dün';
-  return `${days} gün`;
+  if (days === 1) return t('time_yesterday');
+  return `${days} ${t('time_daysAgoSuffix')}`;
 };
 
 interface Props {
@@ -65,6 +66,7 @@ interface Props {
 
 export default function MessagesScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [tab, setTab] = useState<'messages' | 'connections' | 'tribun'>('messages');
   const [search, setSearch] = useState('');
@@ -192,9 +194,9 @@ export default function MessagesScreen({ navigate }: Props) {
       const unread = msgs.filter((m) => !m.read && m.receiver_id === user.id).length;
       return {
         id: otherId,
-        name: nameMap.get(otherId) ?? 'Kullanıcı',
+        name: nameMap.get(otherId) ?? t('common_defaultUser'),
         preview: last.content,
-        time: formatRelativeTime(last.created_at),
+        time: formatRelativeTime(last.created_at, t),
         unread,
         online: false,
       };
@@ -254,7 +256,7 @@ export default function MessagesScreen({ navigate }: Props) {
       pending.map((c: any) => ({
         connectionId: c.id,
         userId: c.requester_id,
-        name: profileMap.get(c.requester_id)?.full_name ?? 'Kullanıcı',
+        name: profileMap.get(c.requester_id)?.full_name ?? t('common_defaultUser'),
         position: profileMap.get(c.requester_id)?.position ?? null,
       }))
     );
@@ -264,7 +266,7 @@ export default function MessagesScreen({ navigate }: Props) {
         return {
           connectionId: c.id,
           userId: otherId,
-          name: profileMap.get(otherId)?.full_name ?? 'Kullanıcı',
+          name: profileMap.get(otherId)?.full_name ?? t('common_defaultUser'),
           position: profileMap.get(otherId)?.position ?? null,
         };
       })
@@ -278,25 +280,25 @@ export default function MessagesScreen({ navigate }: Props) {
       .update({ status: 'accepted' })
       .eq('id', req.connectionId);
     if (error) {
-      setToast({ message: 'Bağlantı kabul edilemedi', type: 'error' });
+      setToast({ message: t('messages_acceptFailed'), type: 'error' });
       return;
     }
     notifyUser(
       req.userId,
       'people-outline',
-      'Bağlantı isteğiniz kabul edildi',
+      t('messages_acceptedNotifBody'),
       'messages',
-      'Bağlantı Kabul Edildi',
+      t('messages_acceptedNotifTitle'),
       'scout'
     );
-    setToast({ message: 'Bağlantı kabul edildi', type: 'success' });
+    setToast({ message: t('messages_acceptedToast'), type: 'success' });
     loadConnections();
   };
 
   const handleRejectRequest = async (req: PendingRequestView) => {
     const { error } = await supabase.from('connections').delete().eq('id', req.connectionId);
     if (error) {
-      setToast({ message: 'İstek reddedilemedi', type: 'error' });
+      setToast({ message: t('messages_rejectFailed'), type: 'error' });
       return;
     }
     setPendingRequests((prev) => prev.filter((p) => p.connectionId !== req.connectionId));
@@ -306,7 +308,7 @@ export default function MessagesScreen({ navigate }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>MESAJLAR</Text>
+          <Text style={styles.title}>{t('messages_headerTitle')}</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 12 }}>
           <SkeletonCard height={80} />
@@ -333,7 +335,7 @@ export default function MessagesScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>MESAJLAR</Text>
+          <Text style={styles.title}>{t('messages_headerTitle')}</Text>
           {unreadCount > 0 && (
             <View style={styles.headerUnreadBadge}>
               <Text style={styles.headerUnreadText}>{unreadCount}</Text>
@@ -342,7 +344,7 @@ export default function MessagesScreen({ navigate }: Props) {
           <View style={{ flex: 1 }} />
           <HapticTouchable style={[styles.newMessageBtn, { flexDirection: 'row', alignItems: 'center', gap: 6 }]} onPress={openNewMessage}>
             <Ionicons name="create-outline" size={13} color={theme.gold} />
-            <Text style={styles.newMessageBtnText}>Yeni Mesaj</Text>
+            <Text style={styles.newMessageBtnText}>{t('messages_newMessage')}</Text>
           </HapticTouchable>
         </View>
 
@@ -351,35 +353,32 @@ export default function MessagesScreen({ navigate }: Props) {
             style={[styles.tabBtn, tab === 'messages' && styles.tabBtnActive]}
             onPress={() => setTab('messages')}
           >
-            <Text style={[styles.tabText, tab === 'messages' && styles.tabTextActive]}>Mesajlar</Text>
+            <Text style={[styles.tabText, tab === 'messages' && styles.tabTextActive]}>{t('messages')}</Text>
           </HapticTouchable>
           <HapticTouchable
             style={[styles.tabBtn, tab === 'connections' && styles.tabBtnActive]}
             onPress={() => setTab('connections')}
           >
-            <Text style={[styles.tabText, tab === 'connections' && styles.tabTextActive]}>Bağlantılar</Text>
+            <Text style={[styles.tabText, tab === 'connections' && styles.tabTextActive]}>{t('messages_connectionsTab')}</Text>
           </HapticTouchable>
           <HapticTouchable
             style={[styles.tabBtn, tab === 'tribun' && styles.tabBtnActive]}
             onPress={() => setTab('tribun')}
           >
-            <Text style={[styles.tabText, tab === 'tribun' && styles.tabTextActive]}>Tribün</Text>
+            <Text style={[styles.tabText, tab === 'tribun' && styles.tabTextActive]}>{t('sahadan_title')}</Text>
           </HapticTouchable>
         </View>
 
         {tab === 'tribun' && (
           <View style={styles.tribunCard}>
             <View style={styles.tribunIconWrap}>
-              <Ionicons name="megaphone-outline" size={22} color={theme.gold} />
+              <Ionicons name="megaphone-outline" size={22} color="#FFFFFF" />
             </View>
-            <Text style={styles.tribunTitle}>TRİBÜN</Text>
-            <Text style={styles.tribunSub}>
-              Türkiye genelindeki tüm oyuncular ve takımlarla tek bir odada sohbet et, fotoğraf ve
-              video paylaş. Her mesajın yanında gönderenin [OYUNCU] veya [TAKIM] etiketi görünür.
-            </Text>
+            <Text style={styles.tribunTitle}>{t('sahadan_title').toUpperCase()}</Text>
+            <Text style={styles.tribunSub}>{t('messages_tribunDesc')}</Text>
             <HapticTouchable style={styles.tribunBtn} onPress={() => navigate('tribun')}>
               <Ionicons name="chatbubbles-outline" size={14} color={Paper.ink} />
-              <Text style={styles.tribunBtnText}>Sohbete Katıl</Text>
+              <Text style={styles.tribunBtnText}>{t('messages_joinChat')}</Text>
             </HapticTouchable>
           </View>
         )}
@@ -390,7 +389,7 @@ export default function MessagesScreen({ navigate }: Props) {
               <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Sohbet ara..."
+                placeholder={t('messages_searchPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
                 value={search}
                 onChangeText={setSearch}
@@ -400,9 +399,9 @@ export default function MessagesScreen({ navigate }: Props) {
             {chats.length === 0 ? (
               <EmptyState
                 icon="chatbubble-outline"
-                title="Henüz mesaj yok"
-                subtitle="Scout veya takımlarla iletişime geç"
-                actionLabel="Scout Ara"
+                title={t('messages_emptyChatsTitle')}
+                subtitle={t('messages_emptyChatsSub')}
+                actionLabel={t('messages_findScout')}
                 onAction={() => navigate('scout')}
               />
             ) : (
@@ -456,7 +455,7 @@ export default function MessagesScreen({ navigate }: Props) {
               <>
                 {pendingRequests.length > 0 && (
                   <View style={styles.pendingSection}>
-                    <Text style={styles.sectionLabel}>BEKLEYEN İSTEKLER</Text>
+                    <Text style={styles.sectionLabel}>{t('messages_pendingRequests')}</Text>
                     <View style={styles.chatList}>
                       {pendingRequests.map((r) => (
                         <View key={r.connectionId} style={styles.connectionItem}>
@@ -474,13 +473,13 @@ export default function MessagesScreen({ navigate }: Props) {
                               style={styles.messageBtn}
                               onPress={() => handleAcceptRequest(r)}
                             >
-                              <Text style={styles.messageBtnText}>Kabul Et</Text>
+                              <Text style={styles.messageBtnText}>{t('teamProfile_accept')}</Text>
                             </HapticTouchable>
                             <HapticTouchable
                               style={styles.rejectBtn}
                               onPress={() => handleRejectRequest(r)}
                             >
-                              <Text style={styles.rejectBtnText}>Reddet</Text>
+                              <Text style={styles.rejectBtnText}>{t('teamProfile_reject')}</Text>
                             </HapticTouchable>
                           </View>
                         </View>
@@ -492,9 +491,9 @@ export default function MessagesScreen({ navigate }: Props) {
                 {acceptedConnections.length === 0 ? (
                   <EmptyState
                     icon="people-outline"
-                    title="Henüz bağlantın yok"
-                    subtitle="Scout panelinden oyuncularla bağlantı kur"
-                    actionLabel="Scout Ara"
+                    title={t('messages_emptyConnectionsTitle')}
+                    subtitle={t('messages_emptyConnectionsSub')}
+                    actionLabel={t('messages_findScout')}
                     onAction={() => navigate('scout')}
                   />
                 ) : (
@@ -514,7 +513,7 @@ export default function MessagesScreen({ navigate }: Props) {
                           style={styles.messageBtn}
                           onPress={() => navigate('chat', { id: c.userId, name: c.name })}
                         >
-                          <Text style={styles.messageBtnText}>Mesaj</Text>
+                          <Text style={styles.messageBtnText}>{t('teamProfile_message')}</Text>
                         </HapticTouchable>
                       </View>
                     ))}
@@ -526,65 +525,61 @@ export default function MessagesScreen({ navigate }: Props) {
         )}
       </ScrollView>
 
-      <Modal
+      <BottomSheet
         visible={newMessageModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setNewMessageModal(false)}
+        onClose={() => setNewMessageModal(false)}
+        theme={theme}
+        contentStyle={{ maxHeight: '85%', minHeight: '60%', paddingHorizontal: 0 }}
       >
-        <View style={styles.modalOverlay}>
-          <SafeAreaView style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>YENİ MESAJ</Text>
-              <HapticTouchable onPress={() => setNewMessageModal(false)}>
-                <Ionicons name="close" size={20} color={theme.textSecondary} />
-              </HapticTouchable>
-            </View>
-
-            <View style={styles.searchWrap}>
-              <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="İsimle ara..."
-                placeholderTextColor={theme.textSecondary}
-                value={userSearch}
-                onChangeText={setUserSearch}
-                autoFocus
-              />
-            </View>
-
-            {searchingUsers ? (
-              <ActivityIndicator color={theme.gold} style={{ marginTop: 20 }} />
-            ) : (
-              <FlatList
-                data={userResults}
-                keyExtractor={(item) => item.user_id}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
-                keyboardShouldPersistTaps="handled"
-                ListEmptyComponent={
-                  <Text style={styles.modalEmptyText}>Kullanıcı bulunamadı</Text>
-                }
-                renderItem={({ item }) => (
-                  <HapticTouchable
-                    style={styles.userResultRow}
-                    onPress={() => handleSelectUser(item)}
-                  >
-                    <View style={styles.chatAvatar}>
-                      <Ionicons name="person-outline" size={20} color={theme.gold} />
-                    </View>
-                    <View style={styles.chatText}>
-                      <Text style={styles.chatName}>{item.full_name || 'Kullanıcı'}</Text>
-                      <Text style={styles.connectionRole}>
-                        {[item.position, item.city].filter(Boolean).join(' · ') || '-'}
-                      </Text>
-                    </View>
-                  </HapticTouchable>
-                )}
-              />
-            )}
-          </SafeAreaView>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{t('messages_newMessageModalTitle')}</Text>
+          <HapticTouchable onPress={() => setNewMessageModal(false)}>
+            <Ionicons name="close" size={20} color={theme.textSecondary} />
+          </HapticTouchable>
         </View>
-      </Modal>
+
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('messages_searchByName')}
+            placeholderTextColor={theme.textSecondary}
+            value={userSearch}
+            onChangeText={setUserSearch}
+            autoFocus
+          />
+        </View>
+
+        {searchingUsers ? (
+          <ActivityIndicator color={theme.gold} style={{ marginTop: 20 }} />
+        ) : (
+          <FlatList
+            data={userResults}
+            keyExtractor={(item) => item.user_id}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <Text style={styles.modalEmptyText}>{t('messages_userNotFound')}</Text>
+            }
+            renderItem={({ item }) => (
+              <HapticTouchable
+                style={styles.userResultRow}
+                onPress={() => handleSelectUser(item)}
+              >
+                <View style={styles.chatAvatar}>
+                  <Ionicons name="person-outline" size={20} color={theme.gold} />
+                </View>
+                <View style={styles.chatText}>
+                  <Text style={styles.chatName}>{item.full_name || t('common_defaultUser')}</Text>
+                  <Text style={styles.connectionRole}>
+                    {[item.position, item.city].filter(Boolean).join(' · ') || '-'}
+                  </Text>
+                </View>
+              </HapticTouchable>
+            )}
+          />
+        )}
+      </BottomSheet>
 
       <Toast
         visible={!!toast}
@@ -696,10 +691,9 @@ const createStyles = (theme: Theme) =>
     tribunIconWrap: {
       width: 52,
       height: 52,
-      borderRadius: RADIUS,
-      backgroundColor: theme.card2,
-      borderWidth: 1,
-      borderColor: theme.border,
+      borderRadius: 26,
+      backgroundColor: theme.purple,
+      borderWidth: 0,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 14,

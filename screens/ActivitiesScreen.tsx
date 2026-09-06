@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { activityFiltersData } from '../api/mockData';
@@ -34,6 +35,7 @@ type OpportunityView = {
 
 export default function ActivitiesScreen() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [activeFilter, setActiveFilter] = useState('Tümü');
   const [applied, setApplied] = useState<Record<string | number, boolean>>({});
@@ -63,7 +65,7 @@ export default function ActivitiesScreen() {
         // A missing PostgREST error code means the request never reached the
         // server (real network failure).
         if (!error.code) {
-          setToast({ message: 'Fırsatlar yüklenemedi', type: 'error' });
+          setToast({ message: t('activities_loadFailed'), type: 'error' });
         }
         setOpportunities([]);
       } else if (data && data.length > 0) {
@@ -111,15 +113,15 @@ export default function ActivitiesScreen() {
     }
 
     setApplied((prev) => ({ ...prev, [opportunityId]: true }));
-    setToast({ message: 'Başvurunuz alındı', type: 'success' });
-    sendLocalNotification('Başvuru Alındı! 🎯', 'Başvurunuz iletildi. Kulüpten yanıt bekleyin.');
+    setToast({ message: t('activities_applySuccess'), type: 'success' });
+    sendLocalNotification(t('activities_applyNotifTitle'), t('activities_applyNotifBody'));
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.title}>FIRSATLAR</Text>
+          <Text style={styles.title}>{t('activities_title')}</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 16 }}>
           <SkeletonCard height={200} />
@@ -155,12 +157,13 @@ export default function ActivitiesScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>FIRSATLAR</Text>
+          <Text style={styles.title}>{t('activities_title')}</Text>
         </View>
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={styles.filters}
         >
           {activityFiltersData.map((f) => {
@@ -192,14 +195,14 @@ export default function ActivitiesScreen() {
           opportunities.length === 0 ? (
             <EmptyState
               icon="flash-outline"
-              title="Henüz fırsat yok"
-              subtitle="Yeni fırsatlar yakında eklenecek"
+              title={t('activities_emptyTitle')}
+              subtitle={t('activities_emptySub')}
             />
           ) : (
             <EmptyState
               icon="search-outline"
-              title="Bu filtrede fırsat yok"
-              subtitle="Farklı bir filtre deneyin"
+              title={t('activities_emptyFilteredTitle')}
+              subtitle={t('activities_emptyFilteredSub')}
             />
           )
         ) : (
@@ -241,7 +244,7 @@ export default function ActivitiesScreen() {
                   disabled={!!applied[op.id]}
                 >
                   <Text style={[styles.applyBtnText, applied[op.id] && styles.applyBtnTextDone]}>
-                    {applied[op.id] ? 'Başvuruldu' : 'Başvur'}
+                    {applied[op.id] ? t('activities_applied') : t('activities_apply')}
                   </Text>
                 </HapticTouchable>
               </View>

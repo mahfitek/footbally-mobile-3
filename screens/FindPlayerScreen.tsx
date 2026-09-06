@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
@@ -148,10 +149,12 @@ type FilterKey = 'city' | 'district' | 'position' | null;
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
+  onBack?: () => void;
 }
 
-export default function FindPlayerScreen({ navigate }: Props) {
+export default function FindPlayerScreen({ navigate, onBack }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -179,27 +182,52 @@ export default function FindPlayerScreen({ navigate }: Props) {
   };
 
   const handleInvite = (player: FakePlayer) => {
-    setToast({ message: `${player.full_name} adlı oyuncuya davet gönderildi`, type: 'success' });
-    sendLocalNotification('Davet Gönderildi 📨', `${player.full_name} oyuncusuna takım daveti gönderildi.`);
+    setToast({ message: `${player.full_name} ${t('findPlayer_inviteSentToast')}`, type: 'success' });
+    sendLocalNotification(t('findPlayer_inviteSentTitle'), `${player.full_name} ${t('findPlayer_inviteSentBody')}`);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
+        <HapticTouchable style={styles.backBtn} onPress={() => (onBack ? onBack() : navigate('teamHome'))}>
           <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>OYUNCU BUL</Text>
-        <Text style={styles.count}>{filteredPlayers.length} oyuncu</Text>
+        <Text style={styles.title}>{t('findPlayer_title')}</Text>
+        <Text style={styles.count}>{filteredPlayers.length} {t('findPlayer_countSuffix')}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {(selectedCity || selectedDistrict || selectedPositions.length > 0) && (
+          <View style={styles.activeChipsRow}>
+            {selectedCity && (
+              <HapticTouchable style={styles.activeChip} onPress={() => { setSelectedCity(''); setSelectedDistrict(''); }}>
+                <Ionicons name="location" size={12} color={theme.gold} />
+                <Text style={styles.activeChipText}>{selectedCity}</Text>
+                <Ionicons name="close" size={13} color={theme.textSecondary} />
+              </HapticTouchable>
+            )}
+            {selectedDistrict && (
+              <HapticTouchable style={styles.activeChip} onPress={() => setSelectedDistrict('')}>
+                <Ionicons name="location" size={12} color={theme.gold} />
+                <Text style={styles.activeChipText}>{selectedDistrict}</Text>
+                <Ionicons name="close" size={13} color={theme.textSecondary} />
+              </HapticTouchable>
+            )}
+            {selectedPositions.map((pos) => (
+              <HapticTouchable key={pos} style={styles.activeChip} onPress={() => togglePosition(pos)}>
+                <Text style={styles.activeChipText}>{pos}</Text>
+                <Ionicons name="close" size={13} color={theme.textSecondary} />
+              </HapticTouchable>
+            ))}
+          </View>
+        )}
+
         <HapticTouchable
           style={[styles.filterBtn, { borderColor: selectedCity ? theme.gold : theme.border }]}
           onPress={() => setOpenFilter(openFilter === 'city' ? null : 'city')}
         >
           <Text style={[styles.filterBtnText, { color: selectedCity ? theme.gold : theme.textSecondary }]}>
-            {selectedCity || 'Şehir Seç'}
+            {selectedCity || t('findPlayer_selectCity')}
           </Text>
           <Ionicons name={openFilter === 'city' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
         </HapticTouchable>
@@ -215,7 +243,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
                   setOpenFilter(null);
                 }}
               >
-                <Text style={styles.dropdownAllText}>Tümü (Şehir Seçme)</Text>
+                <Text style={styles.dropdownAllText}>{t('findPlayer_allCities')}</Text>
               </HapticTouchable>
               {TURKEY_CITIES.map((c) => (
                 <HapticTouchable
@@ -242,7 +270,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
               onPress={() => setOpenFilter(openFilter === 'district' ? null : 'district')}
             >
               <Text style={[styles.filterBtnText, { color: selectedDistrict ? theme.gold : theme.textSecondary }]}>
-                {selectedDistrict || 'İlçe Seç (Opsiyonel)'}
+                {selectedDistrict || t('findPlayer_selectDistrict')}
               </Text>
               <Ionicons name={openFilter === 'district' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
             </HapticTouchable>
@@ -257,7 +285,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
                       setOpenFilter(null);
                     }}
                   >
-                    <Text style={styles.dropdownAllText}>Tümü (İlçe Seçme)</Text>
+                    <Text style={styles.dropdownAllText}>{t('findPlayer_allDistricts')}</Text>
                   </HapticTouchable>
                   {(TURKEY_CITIES.find((c) => c.name === selectedCity)?.districts ?? []).map((d) => (
                     <HapticTouchable
@@ -283,7 +311,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
           onPress={() => setOpenFilter(openFilter === 'position' ? null : 'position')}
         >
           <Text style={[styles.filterBtnText, { color: selectedPositions.length > 0 ? theme.gold : theme.textSecondary }]}>
-            {selectedPositions.length > 0 ? `${selectedPositions.length} pozisyon seçildi` : 'Pozisyon Seç'}
+            {selectedPositions.length > 0 ? `${selectedPositions.length} ${t('findPlayer_positionsSelected')}` : t('findPlayer_selectPosition')}
           </Text>
           <Ionicons name={openFilter === 'position' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
         </HapticTouchable>
@@ -312,7 +340,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
               ))}
               {selectedPositions.length > 0 && (
                 <HapticTouchable style={styles.clearPositionsBtn} onPress={() => setSelectedPositions([])}>
-                  <Text style={styles.clearText}>Seçimi Temizle</Text>
+                  <Text style={styles.clearText}>{t('findPlayer_clearSelection')}</Text>
                 </HapticTouchable>
               )}
             </ScrollView>
@@ -321,12 +349,12 @@ export default function FindPlayerScreen({ navigate }: Props) {
 
         {(selectedCity || selectedPositions.length > 0) && (
           <HapticTouchable style={styles.clearAllBtn} onPress={clearFilters}>
-            <Text style={styles.clearText}>Filtreleri Temizle</Text>
+            <Text style={styles.clearText}>{t('findPlayer_clearFilters')}</Text>
           </HapticTouchable>
         )}
 
         {filteredPlayers.length === 0 ? (
-          <EmptyState icon="search-outline" title="Oyuncu bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="search-outline" title={t('findPlayer_notFound')} subtitle={t('findPlayer_tryDifferentFilters')} />
         ) : (
           filteredPlayers.map((player) => (
             <View key={player.id} style={styles.playerCard}>
@@ -344,13 +372,13 @@ export default function FindPlayerScreen({ navigate }: Props) {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.playerScore}>{player.score}</Text>
-                  <Text style={styles.scoreLabel}>SKOR</Text>
+                  <Text style={styles.scoreLabel}>{t('findPlayer_score')}</Text>
                 </View>
               </View>
 
               <View style={styles.infoPills}>
                 <View style={styles.infoPill}>
-                  <Text style={styles.infoPillText}>{player.age} yaş</Text>
+                  <Text style={styles.infoPillText}>{player.age} {t('findPlayer_age')}</Text>
                 </View>
                 <View style={styles.infoPill}>
                   <Text style={styles.infoPillText}>{player.foot}</Text>
@@ -364,9 +392,9 @@ export default function FindPlayerScreen({ navigate }: Props) {
 
               <View style={styles.statsBlock}>
                 {[
-                  { label: 'HIZ', value: player.stats.hiz },
-                  { label: 'PAS', value: player.stats.pas },
-                  { label: 'ŞUT', value: player.stats.sut },
+                  { label: t('findPlayer_statSpeed'), value: player.stats.hiz },
+                  { label: t('findPlayer_statPass'), value: player.stats.pas },
+                  { label: t('findPlayer_statShot'), value: player.stats.sut },
                 ].map((stat) => (
                   <View key={stat.label} style={styles.statRow}>
                     <Text style={styles.statLabel}>{stat.label}</Text>
@@ -381,17 +409,17 @@ export default function FindPlayerScreen({ navigate }: Props) {
               <View style={styles.actionsRow}>
                 {player.price > 0 ? (
                   <View style={styles.pricedBadge}>
-                    <Text style={styles.pricedBadgeLabel}>Ücretli Oyuncu</Text>
+                    <Text style={styles.pricedBadgeLabel}>{t('findPlayer_paidPlayer')}</Text>
                     <Text style={styles.pricedBadgeValue}>₺{player.price}/ay</Text>
                   </View>
                 ) : (
                   <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeLabel}>Ücretsiz Oyuncu</Text>
-                    <Text style={styles.freeBadgeValue}>Serbest Transfer</Text>
+                    <Text style={styles.freeBadgeLabel}>{t('findPlayer_freePlayer')}</Text>
+                    <Text style={styles.freeBadgeValue}>{t('findPlayer_freeAgent')}</Text>
                   </View>
                 )}
                 <HapticTouchable style={styles.inviteBtn} onPress={() => handleInvite(player)}>
-                  <Text style={styles.inviteBtnText}>Davet Et</Text>
+                  <Text style={styles.inviteBtnText}>{t('findPlayer_invite')}</Text>
                 </HapticTouchable>
               </View>
             </View>
@@ -427,6 +455,19 @@ const createStyles = (theme: Theme) =>
     title: { color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 },
     count: { color: theme.gold, fontSize: 12, marginLeft: 'auto', fontFamily: FontFamily.mono },
     content: { paddingHorizontal: 16, paddingBottom: 40 },
+    activeChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+    activeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: hexToRgba(theme.gold, 0.12),
+      borderWidth: 1,
+      borderColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    activeChipText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.text },
     filterBtn: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -485,7 +526,7 @@ const createStyles = (theme: Theme) =>
     avatar: {
       width: 52,
       height: 52,
-      borderRadius: RADIUS,
+      borderRadius: 26,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',

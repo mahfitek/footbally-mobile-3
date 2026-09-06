@@ -14,24 +14,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
 import HapticTouchable from '../components/HapticTouchable';
 import FadeInView from '../components/FadeInView';
 
 const RADIUS = CARD_RADIUS;
-const PAPER_BG = Paper.bg;
-const PAPER_INK = Paper.ink;
-const PAPER_MUTED = Paper.muted;
-const PAPER_LINE = Paper.line;
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'Invalid login credentials': 'Email veya şifre hatalı',
-};
-
-const translateError = (message: string) => ERROR_MESSAGES[message] ?? message;
+const translateError = (message: string, t: (key: TranslationKey) => string) =>
+  message === 'Invalid login credentials' ? t('login_invalidCredentials') : message;
 
 interface Props {
   onLogin: (userType: 'player' | 'team') => void;
@@ -40,6 +35,7 @@ interface Props {
 
 export default function LoginScreen({ onLogin, onRegister }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [userType, setUserType] = useState<'player' | 'team'>('player');
   const [email, setEmail] = useState('');
@@ -48,18 +44,18 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      Alert.alert('Hata', 'Lütfen email adresinizi girin');
+      Alert.alert(t('login_errorTitle'), t('login_emailRequired'));
       return;
     }
     if (!password) {
-      Alert.alert('Hata', 'Lütfen şifrenizi girin');
+      Alert.alert(t('login_errorTitle'), t('login_passwordRequired'));
       return;
     }
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setLoading(false);
-      Alert.alert('Giriş Hatası', translateError(error.message));
+      Alert.alert(t('login_error'), translateError(error.message, t));
       return;
     }
 
@@ -70,7 +66,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
       if (!access.allowed) {
         await supabase.auth.signOut();
         setLoading(false);
-        Alert.alert('Giriş Engellendi', access.message);
+        Alert.alert(t('login_blocked'), access.message);
         return;
       }
       if (access.expiredBan && banRow) {
@@ -108,31 +104,31 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
               <Image source={require('../assets/logo-icon-square.png')} style={styles.crest} />
               <Text style={styles.cardBrand}>FOOTBALLY</Text>
             </View>
-            <Text style={styles.cardLabel}>OYUNCU LİSANSI · GİRİŞ</Text>
+            <Text style={styles.cardLabel}>{t('login_licenseLabel')}</Text>
 
             <View style={styles.roleRow}>
               <HapticTouchable
                 onPress={() => setUserType('player')}
                 style={[styles.roleTab, userType === 'player' && styles.roleTabActive]}
               >
-                <Text style={[styles.roleTitle, userType === 'player' && styles.roleTitleActive]}>Oyuncuyum</Text>
-                <Text style={[styles.roleSub, userType === 'player' && styles.roleSubActive]}>Kariyer yönetimi</Text>
+                <Text style={[styles.roleTitle, userType === 'player' && styles.roleTitleActive]}>{t('login_iAmPlayer')}</Text>
+                <Text style={[styles.roleSub, userType === 'player' && styles.roleSubActive]}>{t('login_careerManagement')}</Text>
               </HapticTouchable>
               <HapticTouchable
                 onPress={() => setUserType('team')}
                 style={[styles.roleTab, userType === 'team' && styles.roleTabActive]}
               >
-                <Text style={[styles.roleTitle, userType === 'team' && styles.roleTitleActive]}>Takımım Var</Text>
-                <Text style={[styles.roleSub, userType === 'team' && styles.roleSubActive]}>Oyuncu &amp; rakip bul</Text>
+                <Text style={[styles.roleTitle, userType === 'team' && styles.roleTitleActive]}>{t('login_iHaveTeam')}</Text>
+                <Text style={[styles.roleSub, userType === 'team' && styles.roleSubActive]}>{t('login_findPlayersOpponents')}</Text>
               </HapticTouchable>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>E-POSTA</Text>
+              <Text style={styles.inputLabel}>{t('login_emailLabel')}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="scout@footbally.app"
-                placeholderTextColor={PAPER_MUTED}
+                placeholderTextColor={theme.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -141,11 +137,11 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>ŞİFRE</Text>
+              <Text style={styles.inputLabel}>{t('login_passwordLabel')}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor={PAPER_MUTED}
+                placeholderTextColor={theme.textMuted}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -158,26 +154,26 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={PAPER_INK} />
+                <ActivityIndicator color={theme.bg} />
               ) : (
-                <Text style={styles.btnGoldText}>Giriş Yap</Text>
+                <Text style={styles.btnGoldText}>{t('login_signIn')}</Text>
               )}
             </HapticTouchable>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>VEYA</Text>
+              <Text style={styles.dividerText}>{t('login_or')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <View style={styles.socialRow}>
               <HapticTouchable style={styles.socialBtn} onPress={() => onLogin(userType)}>
-                <Ionicons name="logo-google" size={16} color={PAPER_INK} />
-                <Text style={styles.socialBtnText}>Google</Text>
+                <Ionicons name="logo-google" size={16} color={theme.text} />
+                <Text style={styles.socialBtnText}>{t('login_google')}</Text>
               </HapticTouchable>
               <HapticTouchable style={styles.socialBtn} onPress={() => onLogin(userType)}>
-                <Ionicons name="logo-apple" size={18} color={PAPER_INK} />
-                <Text style={styles.socialBtnText}>Apple</Text>
+                <Ionicons name="logo-apple" size={18} color={theme.text} />
+                <Text style={styles.socialBtnText}>{t('login_apple')}</Text>
               </HapticTouchable>
             </View>
           </View>
@@ -185,23 +181,23 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
 
         {/* Register */}
         <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Hesabın yok mu? </Text>
+          <Text style={styles.registerText}>{t('login_noAccount')}</Text>
           <HapticTouchable onPress={() => onRegister(userType)} disabled={loading}>
-            <Text style={styles.registerLink}>Hesap Oluştur</Text>
+            <Text style={styles.registerLink}>{t('login_createAccount')}</Text>
           </HapticTouchable>
         </View>
 
         {/* Şartlar + Gizlilik */}
         <Text style={styles.legalText}>
-          Giriş yaparak{' '}
+          {t('login_legalPrefix')}
           <Text style={styles.legalLink} onPress={() => Linking.openURL('https://getfootbally.com/terms')}>
-            Şartlar
+            {t('login_terms')}
           </Text>
-          {' '}ve{' '}
+          {t('login_and')}
           <Text style={styles.legalLink} onPress={() => Linking.openURL('https://getfootbally.com/privacy')}>
-            Gizlilik Politikası
+            {t('login_privacy')}
           </Text>
-          'nı kabul edersin.
+          {t('login_legalSuffix')}
         </Text>
 
       </ScrollView>
@@ -238,7 +234,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
     },
     card: {
-      backgroundColor: PAPER_BG,
+      backgroundColor: theme.card2,
       borderRadius: RADIUS,
       padding: 22,
       borderWidth: 1,
@@ -253,35 +249,37 @@ const createStyles = (theme: Theme) =>
     crest: {
       width: 32,
       height: 32,
-      borderRadius: RADIUS,
+      borderRadius: 8,
       resizeMode: 'contain',
     },
     cardBrand: {
       fontFamily: FontFamily.display,
       fontSize: 20,
       letterSpacing: 2,
-      color: PAPER_INK,
+      color: theme.text,
     },
     cardLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 11,
       letterSpacing: 1,
-      color: PAPER_MUTED,
+      color: theme.gold,
       paddingBottom: 14,
       marginBottom: 18,
       borderBottomWidth: 1,
-      borderBottomColor: PAPER_LINE,
+      borderBottomColor: theme.border,
     },
     roleRow: {
       flexDirection: 'row',
       marginBottom: 20,
+      borderRadius: RADIUS,
+      overflow: 'hidden',
     },
     roleTab: {
       flex: 1,
       paddingVertical: 12,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: PAPER_LINE,
+      borderColor: theme.border,
     },
     roleTabActive: {
       backgroundColor: theme.gold,
@@ -291,19 +289,19 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.display,
       fontSize: 14,
       letterSpacing: 1,
-      color: PAPER_INK,
+      color: theme.text,
     },
     roleTitleActive: {
-      color: PAPER_INK,
+      color: theme.bg,
     },
     roleSub: {
       fontFamily: FontFamily.mono,
       fontSize: 10,
-      color: PAPER_MUTED,
+      color: theme.textMuted,
       marginTop: 2,
     },
     roleSubActive: {
-      color: PAPER_INK,
+      color: theme.bg,
     },
     inputGroup: {
       marginBottom: 16,
@@ -311,25 +309,25 @@ const createStyles = (theme: Theme) =>
     inputLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 10,
-      color: PAPER_MUTED,
+      color: theme.textMuted,
       letterSpacing: 1,
       marginBottom: 8,
     },
     input: {
       height: 48,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.bg,
       borderRadius: RADIUS,
       paddingHorizontal: 14,
-      color: PAPER_INK,
+      color: theme.text,
       fontFamily: FontFamily.mono,
       fontSize: 14,
       borderWidth: 1,
-      borderColor: PAPER_LINE,
+      borderColor: theme.border,
     },
     btnGold: {
       height: 52,
       backgroundColor: theme.gold,
-      borderRadius: RADIUS,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 8,
@@ -341,7 +339,7 @@ const createStyles = (theme: Theme) =>
     btnGoldText: {
       fontFamily: FontFamily.display,
       fontSize: 15,
-      color: PAPER_INK,
+      color: theme.bg,
       letterSpacing: 1,
     },
     divider: {
@@ -353,12 +351,12 @@ const createStyles = (theme: Theme) =>
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: PAPER_LINE,
+      backgroundColor: theme.border,
     },
     dividerText: {
       fontFamily: FontFamily.mono,
       fontSize: 10,
-      color: PAPER_MUTED,
+      color: theme.textMuted,
       letterSpacing: 1,
     },
     socialRow: {
@@ -371,16 +369,16 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       gap: 8,
       backgroundColor: 'transparent',
-      borderRadius: RADIUS,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: PAPER_LINE,
+      borderColor: theme.border,
     },
     socialBtnText: {
       fontFamily: FontFamily.mono,
       fontSize: 12,
-      color: PAPER_INK,
+      color: theme.text,
     },
     registerRow: {
       flexDirection: 'row',

@@ -10,7 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
@@ -56,6 +57,7 @@ interface Props {
 
 export default function ScoutScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tümü');
@@ -68,12 +70,19 @@ export default function ScoutScreen({ navigate }: Props) {
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [viewerName, setViewerName] = useState('');
+  const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
+  const [isPremium, setIsPremium] = useState(false);
+  const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
+  const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
+  const FREE_PREVIEW_COUNT = 2;
 
   useEffect(() => {
     loadPlayers();
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
       setViewerId(session.user.id);
+      setIsPremium(!!session.user.user_metadata?.premium);
+      setPremiumUntil(session.user.user_metadata?.premium_until ?? null);
       supabase
         .from('profiles')
         .select('full_name')
@@ -85,8 +94,37 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const recordProfileView = (player: PlayerView) => {
     if (player.id === viewerId) return;
-    supabase.from('profile_views').insert({ viewer_id: viewerId, viewed_user_id: player.id, viewer_name: viewerName || 'Bir scout' });
-    notifyUser(player.id, 'eye-outline', `${viewerName || 'Bir scout'} profilini inceledi`, 'profile', 'Profilin İncelendi');
+    supabase.from('profile_views').insert({ viewer_id: viewerId, viewed_user_id: player.id, viewer_name: viewerName || t('scout_defaultViewerName') });
+    notifyUser(player.id, 'eye-outline', `${viewerName || t('scout_defaultViewerName')} ${t('scout_viewedNotifBody')}`, 'profile', t('scout_viewedNotifTitle'), 'scout');
+  };
+
+  const requestConnection = async (player: PlayerView) => {
+    if (!viewerId || player.id === viewerId || requestedIds.has(player.id)) return;
+    const { error } = await supabase
+      .from('connections')
+      .insert({ requester_id: viewerId, target_id: player.id, status: 'pending' });
+
+    if (error) {
+      if (error.code === '23505') {
+        setRequestedIds((prev) => new Set(prev).add(player.id));
+        setToast({ message: t('scout_alreadyRequested'), type: 'error' });
+      } else {
+        if (__DEV__) console.log('Bağlantı isteği gönderilemedi:', error);
+        setToast({ message: t('scout_requestFailed'), type: 'error' });
+      }
+      return;
+    }
+
+    setRequestedIds((prev) => new Set(prev).add(player.id));
+    notifyUser(
+      player.id,
+      'person-add-outline',
+      `${viewerName || t('common_defaultUser')} ${t('scout_connectionRequestNotifBody')}`,
+      'messages',
+      t('scout_connectionRequestNotifTitle'),
+      'scout'
+    );
+    setToast({ message: t('scout_requestSent'), type: 'success' });
   };
 
   const onRefresh = () => {
@@ -108,7 +146,7 @@ export default function ScoutScreen({ navigate }: Props) {
         setPlayers(
           (data ?? []).map((p: any) => ({
             id: p.user_id,
-            name: p.full_name ?? 'İsimsiz Oyuncu',
+            name: p.full_name ?? t('teamProfile_unnamedPlayer'),
             position: p.position ?? '-',
             age: p.age ?? '-',
             city: p.city ?? '-',
@@ -129,7 +167,7 @@ export default function ScoutScreen({ navigate }: Props) {
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <View style={styles.backBtn} />
-          <Text style={styles.title}>SCOUT PANELİ</Text>
+          <Text style={styles.title}>{t('scout_title')}</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
           <SkeletonCard height={84} />
@@ -156,7 +194,7 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const handleNearbyMatchesPress = () => {
     setNearbyOnly((prev) => !prev);
-    setToast({ message: 'Konum tabanlı maç eşleştirmesi yakında aktif olacak', type: 'success' });
+    setToast({ message: t('scout_nearbyComingSoon'), type: 'success' });
   };
 
   const adjustAge = (index: 0 | 1, delta: number) => {
@@ -191,18 +229,18 @@ export default function ScoutScreen({ navigate }: Props) {
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
             <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>SCOUT PANELİ</Text>
+          <Text style={styles.title}>{t('scout_title')}</Text>
         </View>
 
         {/* Beni İnceleyen Scoutlar */}
         <View style={styles.viewersHeader}>
           <Text style={styles.viewersHeaderText}>
-            {SCOUT_VIEWERS.length} scout bu hafta profilini inceledi
+            {SCOUT_VIEWERS.length} {t('scout_scoutsViewedProfile')}
           </Text>
           <HapticTouchable onPress={() => setOnlineScoutsOnly((prev) => !prev)}>
             <View style={[styles.onlineToggle, onlineScoutsOnly && styles.onlineToggleActive]}>
               <Text style={[styles.onlineToggleText, onlineScoutsOnly && styles.onlineToggleTextActive]}>
-                Online Scoutlar
+                {t('scout_onlineScouts')}
               </Text>
             </View>
           </HapticTouchable>
@@ -210,6 +248,7 @@ export default function ScoutScreen({ navigate }: Props) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={styles.viewersRow}
         >
           {visibleScoutViewers.map((s) => (
@@ -226,7 +265,7 @@ export default function ScoutScreen({ navigate }: Props) {
                 style={styles.viewerMsgBtn}
                 onPress={() => navigate('chat', { id: s.id, name: s.name })}
               >
-                <Text style={styles.viewerMsgBtnText}>Mesaj Gönder</Text>
+                <Text style={styles.viewerMsgBtnText}>{t('scout_sendMessage')}</Text>
               </HapticTouchable>
             </View>
           ))}
@@ -236,7 +275,7 @@ export default function ScoutScreen({ navigate }: Props) {
           <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Oyuncu ara: İsim, pozisyon, şehir..."
+            placeholder={t('scout_searchPlaceholder')}
             placeholderTextColor={theme.textSecondary}
             value={search}
             onChangeText={setSearch}
@@ -246,6 +285,7 @@ export default function ScoutScreen({ navigate }: Props) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={styles.filters}
         >
           <HapticTouchable
@@ -253,7 +293,7 @@ export default function ScoutScreen({ navigate }: Props) {
             onPress={handleNearbyMatchesPress}
           >
             <Text style={[styles.pillText, nearbyOnly && styles.pillTextActive]}>
-              Yakınımdaki Maçlar
+              {t('scout_nearbyMatches')}
             </Text>
           </HapticTouchable>
           {filters.map((f) => (
@@ -270,7 +310,7 @@ export default function ScoutScreen({ navigate }: Props) {
         </ScrollView>
 
         <View style={styles.ageRangeCard}>
-          <Text style={styles.ageRangeLabel}>YAŞ ARALIĞI</Text>
+          <Text style={styles.ageRangeLabel}>{t('scout_ageRange')}</Text>
           <View style={styles.ageRangeRow}>
             <View style={styles.ageStepper}>
               <HapticTouchable style={styles.ageStepBtn} onPress={() => adjustAge(0, -1)}>
@@ -297,16 +337,16 @@ export default function ScoutScreen({ navigate }: Props) {
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
             <Ionicons name="hardware-chip-outline" size={15} color={theme.gold} />
-            <Text style={styles.aiLabel}>AI ÖNERİSİ</Text>
+            <Text style={styles.aiLabel}>{t('scout_aiSuggestion')}</Text>
           </View>
-          <Text style={styles.aiText}>Henüz yeterli veri yok</Text>
+          <Text style={styles.aiText}>{t('scout_notEnoughData')}</Text>
         </View>
 
         {filteredPlayers.length === 0 ? (
-          <EmptyState icon="search-outline" title="Oyuncu bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="search-outline" title={t('scout_notFound')} subtitle={t('scout_tryDifferentFilters')} />
         ) : (
           <View style={styles.list}>
-            {filteredPlayers.map((p) => (
+            {(isPremiumActive ? filteredPlayers : filteredPlayers.slice(0, FREE_PREVIEW_COUNT)).map((p) => (
               <HapticTouchable key={p.id} style={styles.playerCard} onPress={() => recordProfileView(p)}>
                 <View style={styles.avatar}>
                   <Ionicons name="person-outline" size={22} color={theme.gold} />
@@ -314,18 +354,45 @@ export default function ScoutScreen({ navigate }: Props) {
                 <View style={styles.playerInfo}>
                   <Text style={styles.playerName}>{p.name}</Text>
                   <Text style={styles.playerMeta}>
-                    {p.position} · {p.age} yaş · {p.city}
+                    {p.position} · {p.age} {t('teamProfile_ageSuffix')} · {p.city}
                   </Text>
-                  <HapticTouchable
-                    style={styles.contactBtn}
-                    onPress={() => navigate('chat', { id: p.id, name: p.name })}
-                  >
-                    <Text style={styles.contactBtnText}>İletişim Kur</Text>
-                  </HapticTouchable>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    <HapticTouchable
+                      style={styles.contactBtn}
+                      onPress={() => navigate('chat', { id: p.id, name: p.name })}
+                    >
+                      <Text style={styles.contactBtnText}>{t('scout_contact')}</Text>
+                    </HapticTouchable>
+                    <HapticTouchable
+                      style={[styles.contactBtn, requestedIds.has(p.id) && styles.contactBtnDisabled]}
+                      onPress={() => requestConnection(p)}
+                      disabled={requestedIds.has(p.id)}
+                    >
+                      <Text style={styles.contactBtnText}>
+                        {requestedIds.has(p.id) ? t('scout_requestedLabel') : t('scout_requestConnection')}
+                      </Text>
+                    </HapticTouchable>
+                  </View>
                 </View>
                 <Text style={styles.playerScore}>{p.score}</Text>
               </HapticTouchable>
             ))}
+
+            {!isPremiumActive && filteredPlayers.length > FREE_PREVIEW_COUNT && (
+              <View style={styles.lockedCard}>
+                <View style={styles.lockedIconWrap}>
+                  <Ionicons name="lock-closed" size={20} color={theme.gold} />
+                </View>
+                <Text style={styles.lockedBadge}>{t('scout_premiumRequired')}</Text>
+                <Text style={styles.lockedTitle}>+{filteredPlayers.length - FREE_PREVIEW_COUNT} {t('scout_morePlayersLocked')}</Text>
+                <Text style={styles.lockedSubtitle}>
+                  {t('scout_lockedSubtitle')}
+                </Text>
+                <HapticTouchable style={styles.lockedBtn} onPress={() => navigate('premium')}>
+                  <Text style={styles.lockedBtnText}>{t('scout_upgrade')}</Text>
+                </HapticTouchable>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -498,7 +565,7 @@ const createStyles = (theme: Theme) =>
     avatar: {
       width: 48,
       height: 48,
-      borderRadius: RADIUS,
+      borderRadius: 24,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
@@ -516,5 +583,46 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 6,
     },
     contactBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    contactBtnDisabled: { borderColor: theme.border, opacity: 0.6 },
     playerScore: { fontFamily: FontFamily.display, fontSize: 20, color: theme.gold },
+    lockedCard: {
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    lockedIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: hexToRgba(theme.gold, 0.16),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    lockedBadge: {
+      fontFamily: FontFamily.monoMedium,
+      fontSize: 10,
+      letterSpacing: 1.5,
+      color: theme.gold,
+      marginBottom: 8,
+    },
+    lockedTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: theme.text, marginBottom: 6, textAlign: 'center' },
+    lockedSubtitle: {
+      fontFamily: FontFamily.body,
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 19,
+      marginBottom: 18,
+    },
+    lockedBtn: {
+      backgroundColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      paddingHorizontal: 24,
+      paddingVertical: 13,
+    },
+    lockedBtnText: { fontFamily: FontFamily.display, fontSize: 13, color: theme.bg, letterSpacing: 1 },
   });

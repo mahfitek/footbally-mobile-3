@@ -57,9 +57,16 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
     messages: t('messages'),
     profile: t('profile'),
   };
-  const items = (isTeam ? TEAM_ITEMS : PLAYER_ITEMS).map((item) =>
-    isTeam ? item : { ...item, label: PLAYER_LABELS[item.tab] ?? item.label }
-  );
+  const TEAM_LABELS: Record<string, string> = {
+    teamHome: t('nav_teamHome'),
+    findPlayer: t('nav_findPlayer'),
+    teamSquad: t('nav_teamSquad'),
+    teamProfile: t('nav_teamProfile'),
+  };
+  const items = (isTeam ? TEAM_ITEMS : PLAYER_ITEMS).map((item) => ({
+    ...item,
+    label: (isTeam ? TEAM_LABELS[item.tab] : PLAYER_LABELS[item.tab]) ?? item.label,
+  }));
   const centerTab: TabName = isTeam ? 'findOpponent' : 'footbally';
   const allTabs = isTeam ? TEAM_TABS : PLAYER_TABS;
   const scales = useRef(

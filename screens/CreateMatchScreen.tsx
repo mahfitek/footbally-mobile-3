@@ -8,14 +8,15 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   FlatList,
 } from 'react-native';
 import HapticTouchable from '../components/HapticTouchable';
+import BottomSheet from '../components/BottomSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
@@ -47,6 +48,8 @@ function formatTimeForSupabase(d: Date): string {
 
 export default function CreateMatchScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const styles = createStyles(theme);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date());
@@ -89,7 +92,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
 
   const handleSubmit = async () => {
     if (!title.trim() || !city.trim() || !district.trim() || !location.trim()) {
-      setToast({ message: 'Lütfen tüm alanları doldurun', type: 'error' });
+      setToast({ message: t('createMatch_fillAllFields'), type: 'error' });
       return;
     }
 
@@ -98,7 +101,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) {
-        setToast({ message: 'Oturum açmanız gerekiyor', type: 'error' });
+        setToast({ message: t('createMatch_needSession'), type: 'error' });
         setSaving(false);
         return;
       }
@@ -117,17 +120,17 @@ export default function CreateMatchScreen({ navigate }: Props) {
 
       if (error) {
         if (__DEV__) console.log('Maç oluşturulamadı:', error);
-        setToast({ message: 'Maç oluşturulamadı', type: 'error' });
+        setToast({ message: t('createMatch_createFailed'), type: 'error' });
         setSaving(false);
         return;
       }
 
-      sendLocalNotification('Maç Oluşturuldu', `${title.trim()} maçı oluşturuldu.`);
-      setToast({ message: 'Maç oluşturuldu', type: 'success' });
+      sendLocalNotification(t('createMatch_createdNotifTitle'), `${title.trim()} ${t('createMatch_createdNotifBody')}`);
+      setToast({ message: t('createMatch_createdToast'), type: 'success' });
       setTimeout(() => navigate('match'), 800);
     } catch (err) {
       if (__DEV__) console.log('Maç oluşturulurken beklenmeyen hata:', err);
-      setToast({ message: 'Beklenmeyen bir hata oluştu', type: 'error' });
+      setToast({ message: t('createMatch_unexpectedError'), type: 'error' });
       setSaving(false);
     }
   };
@@ -142,7 +145,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('match')}>
             <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>MAÇ OLUŞTUR</Text>
+          <Text style={styles.title}>{t('createMatch_title')}</Text>
         </View>
 
         <ScrollView
@@ -151,10 +154,10 @@ export default function CreateMatchScreen({ navigate }: Props) {
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}
         >
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>MAÇ ADI</Text>
+            <Text style={styles.inputLabel}>{t('createMatch_nameLabel')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Örn. U21 Amatör Lig"
+              placeholder={t('createMatch_namePlaceholder')}
               placeholderTextColor={theme.textSecondary}
               value={title}
               onChangeText={setTitle}
@@ -163,18 +166,18 @@ export default function CreateMatchScreen({ navigate }: Props) {
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>TARİH</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_dateLabel')}</Text>
               <HapticTouchable style={styles.input} onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.inputValueText}>
-                  {date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
                 </Text>
               </HapticTouchable>
             </View>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>SAAT</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_timeLabel')}</Text>
               <HapticTouchable style={styles.input} onPress={() => setShowTimePicker(true)}>
                 <Text style={styles.inputValueText}>
-                  {time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  {time.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: false })}
                 </Text>
               </HapticTouchable>
             </View>
@@ -185,7 +188,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
               value={date}
               mode="date"
               display="spinner"
-              locale="tr-TR"
+              locale={dateLocale}
               minimumDate={new Date()}
               onChange={(_event, selectedDate) => {
                 setShowDatePicker(false);
@@ -208,32 +211,32 @@ export default function CreateMatchScreen({ navigate }: Props) {
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>ŞEHİR</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_cityLabel')}</Text>
               <HapticTouchable style={styles.input} onPress={() => setCityModalVisible(true)}>
                 <Text style={city ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {city || 'Şehir seçin'}
+                  {city || t('createMatch_citySelect')}
                 </Text>
               </HapticTouchable>
             </View>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>İLÇE</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_districtLabel')}</Text>
               <HapticTouchable
                 style={[styles.input, !city && styles.inputDisabled]}
                 onPress={() => city && setDistrictModalVisible(true)}
                 disabled={!city}
               >
                 <Text style={district ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {district || 'İlçe seçin'}
+                  {district || t('createMatch_districtSelect')}
                 </Text>
               </HapticTouchable>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>KONUM</Text>
+            <Text style={styles.inputLabel}>{t('createMatch_locationLabel')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ataşehir Halı Saha"
+              placeholder={t('createMatch_locationPlaceholder')}
               placeholderTextColor={theme.textSecondary}
               value={location}
               onChangeText={setLocation}
@@ -241,7 +244,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>OYUNCU SAYISI (TAKIM BAŞINA)</Text>
+            <Text style={styles.inputLabel}>{t('createMatch_playerCountLabel')}</Text>
             <View style={styles.typeRow}>
               {PLAYER_COUNTS.map((n) => (
                 <HapticTouchable
@@ -260,7 +263,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>MAÇ TİPİ</Text>
+            <Text style={styles.inputLabel}>{t('createMatch_typeLabel')}</Text>
             <View style={styles.typeRow}>
               {MATCH_CATEGORIES.map((c) => (
                 <HapticTouchable
@@ -284,83 +287,65 @@ export default function CreateMatchScreen({ navigate }: Props) {
             {saving ? (
               <ActivityIndicator color={Paper.ink} />
             ) : (
-              <Text style={styles.submitBtnText}>Maç Oluştur</Text>
+              <Text style={styles.submitBtnText}>{t('match_createMatch')}</Text>
             )}
           </HapticTouchable>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={cityModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setCityModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Şehir Seçin</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Şehir ara..."
-              placeholderTextColor={theme.textSecondary}
-              value={citySearch}
-              onChangeText={setCitySearch}
-            />
-            <FlatList
-              data={filteredCities}
-              keyExtractor={(item) => String(item.plate)}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <HapticTouchable style={styles.listRow} onPress={() => handleSelectCity(item.name)}>
-                  <Text style={styles.listRowPlate}>{item.plate}</Text>
-                  <Text style={styles.listRowText}>{item.name}</Text>
-                </HapticTouchable>
-              )}
-              style={styles.list}
-            />
-            <HapticTouchable style={styles.modalCancelBtn} onPress={() => setCityModalVisible(false)}>
-              <Text style={styles.modalCancelText}>Vazgeç</Text>
+      <BottomSheet visible={cityModalVisible} onClose={() => setCityModalVisible(false)} theme={theme} contentStyle={{ height: '75%' }}>
+        <Text style={styles.modalTitle}>{t('createMatch_selectCityTitle')}</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('createMatch_citySearchPlaceholder')}
+          placeholderTextColor={theme.textSecondary}
+          value={citySearch}
+          onChangeText={setCitySearch}
+        />
+        <FlatList
+          data={filteredCities}
+          keyExtractor={(item) => String(item.plate)}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <HapticTouchable style={styles.listRow} onPress={() => handleSelectCity(item.name)}>
+              <Text style={styles.listRowPlate}>{item.plate}</Text>
+              <Text style={styles.listRowText}>{item.name}</Text>
             </HapticTouchable>
-          </View>
-        </View>
-      </Modal>
+          )}
+          style={styles.list}
+        />
+        <HapticTouchable style={styles.modalCancelBtn} onPress={() => setCityModalVisible(false)}>
+          <Text style={styles.modalCancelText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
-      <Modal
-        visible={districtModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setDistrictModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>İlçe Seçin</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="İlçe ara..."
-              placeholderTextColor={theme.textSecondary}
-              value={districtSearch}
-              onChangeText={setDistrictSearch}
-            />
-            <FlatList
-              data={filteredDistricts}
-              keyExtractor={(item) => item}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <HapticTouchable style={styles.listRow} onPress={() => handleSelectDistrict(item)}>
-                  <Text style={styles.listRowText}>{item}</Text>
-                </HapticTouchable>
-              )}
-              style={styles.list}
-            />
-            <HapticTouchable
-              style={styles.modalCancelBtn}
-              onPress={() => setDistrictModalVisible(false)}
-            >
-              <Text style={styles.modalCancelText}>Vazgeç</Text>
+      <BottomSheet visible={districtModalVisible} onClose={() => setDistrictModalVisible(false)} theme={theme} contentStyle={{ height: '75%' }}>
+        <Text style={styles.modalTitle}>{t('createMatch_selectDistrictTitle')}</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('createMatch_districtSearchPlaceholder')}
+          placeholderTextColor={theme.textSecondary}
+          value={districtSearch}
+          onChangeText={setDistrictSearch}
+        />
+        <FlatList
+          data={filteredDistricts}
+          keyExtractor={(item) => item}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <HapticTouchable style={styles.listRow} onPress={() => handleSelectDistrict(item)}>
+              <Text style={styles.listRowText}>{item}</Text>
             </HapticTouchable>
-          </View>
-        </View>
-      </Modal>
+          )}
+          style={styles.list}
+        />
+        <HapticTouchable
+          style={styles.modalCancelBtn}
+          onPress={() => setDistrictModalVisible(false)}
+        >
+          <Text style={styles.modalCancelText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast
         visible={!!toast}

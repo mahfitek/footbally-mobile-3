@@ -11,6 +11,10 @@ export const DarkTheme = {
   gold: '#FFB347',
   goldLight: '#FFC670',
   goldDark: '#D98F2B',
+  // getfootbally.com'daki "scout'a görün" vurgusu ve ikincil rozet/avatar rengi.
+  purple: '#8B7CF6',
+  purpleLight: '#A99BFF',
+  purpleDark: '#6C5CE0',
   success: '#2BAF66',
   error: '#F16063',
   tabBar: 'rgba(14,21,36,0.97)',
@@ -32,6 +36,9 @@ export const LightTheme = {
   gold: '#C97F1E',
   goldLight: '#FFB347',
   goldDark: '#8F5710',
+  purple: '#6C5CE0',
+  purpleLight: '#8B7CF6',
+  purpleDark: '#4B3FB0',
   success: '#1E8F52',
   error: '#dc2626',
   tabBar: 'rgba(255,255,255,0.97)',
@@ -41,7 +48,11 @@ export type Theme = typeof DarkTheme;
 
 // "Lisans Kartı" tasarım sistemi — 2026-08 yeniden tasarımı: resmi belge/scouting
 // raporu estetiği, tek radius, tüm ekranlarda ortak kağıt paneli.
-export const CARD_RADIUS = 6;
+// 2026-09: getfootbally.com web tasarımıyla hizalamak için radius yumuşatıldı
+// (sivri "belge" köşesinden web'in yuvarlak kart/pill diline geçiş) ve pill'ler
+// için ayrı bir tam-yuvarlak sabit eklendi.
+export const CARD_RADIUS = 18;
+export const PILL_RADIUS = 999;
 export const Paper = {
   bg: '#ECE6D8',
   ink: '#171410',

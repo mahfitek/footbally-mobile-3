@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
@@ -19,16 +20,41 @@ import HapticTouchable from '../components/HapticTouchable';
 const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
-const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-
-const skills = [
-  { name: 'Hız', value: 0 },
-  { name: 'Pas', value: 0 },
-  { name: 'Şut', value: 0 },
-  { name: 'Dayanıklılık', value: 0 },
-  { name: 'Dribbling', value: 0 },
-  { name: 'Savunma', value: 0 },
+const getDays = (t: (key: any) => string) => [
+  t('performance_dayMon'),
+  t('performance_dayTue'),
+  t('performance_dayWed'),
+  t('performance_dayThu'),
+  t('performance_dayFri'),
+  t('performance_daySat'),
+  t('performance_daySun'),
 ];
+
+const getSkills = (t: (key: any) => string) => [
+  { name: t('performance_skillSpeed'), value: 0 },
+  { name: t('performance_skillPass'), value: 0 },
+  { name: t('performance_skillShot'), value: 0 },
+  { name: t('performance_skillStamina'), value: 0 },
+  { name: t('performance_skillDribbling'), value: 0 },
+  { name: t('performance_skillDefense'), value: 0 },
+];
+
+const getAiInsight = (matchesPlayed: number, winRate: number, goals: number, hasPlayed: boolean, lang: 'tr' | 'en'): string => {
+  if (!hasPlayed) {
+    return lang === 'tr' ? 'İlk maçını oyna ve AI analizini gör' : 'Play your first match to see your AI analysis';
+  }
+  if (matchesPlayed >= 3) {
+    const tail = winRate >= 50
+      ? (lang === 'tr' ? 'Harika gidiyorsun, bu formu koru!' : "You're doing great, keep up this form!")
+      : (lang === 'tr' ? 'Daha fazla maça katılarak formunu yükseltebilirsin.' : 'You can improve your form by joining more matches.');
+    return lang === 'tr'
+      ? `Son ${matchesPlayed} maçında %${winRate} galibiyet oranın ve toplam ${goals} golün var. ${tail}`
+      : `In your last ${matchesPlayed} matches you have a ${winRate}% win rate and ${goals} total goals. ${tail}`;
+  }
+  return lang === 'tr'
+    ? `${matchesPlayed} maç oynadın. Daha fazla maça katıl, performansını takip edelim.`
+    : `You've played ${matchesPlayed} match(es). Join more matches so we can track your performance.`;
+};
 
 const CHART_HEIGHT = 120;
 const PLATFORM_AVERAGE_SCORE = 65;
@@ -48,6 +74,9 @@ interface Props {
 
 export default function PerformanceScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t, lang } = useLanguage();
+  const days = getDays(t);
+  const skills = getSkills(t);
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -106,21 +135,15 @@ export default function PerformanceScreen({ navigate }: Props) {
   };
 
   const miniStats: { icon: IoniconName; val: string; label: string }[] = [
-    { icon: 'football-outline', val: String(goals), label: 'Gol' },
-    { icon: 'trophy-outline', val: String(wins), label: 'Galibiyet' },
-    { icon: 'business-outline', val: String(matchesPlayed), label: 'Maç' },
+    { icon: 'football-outline', val: String(goals), label: t('performance_goalsLabel') },
+    { icon: 'trophy-outline', val: String(wins), label: t('teamProfile_statWins') },
+    { icon: 'business-outline', val: String(matchesPlayed), label: t('teamProfile_statMatches') },
   ];
 
   const hasPlayed = matchesPlayed > 0;
   const winRate = hasPlayed ? Math.round((wins / matchesPlayed) * 100) : 0;
 
-  const aiInsight = hasPlayed
-    ? matchesPlayed >= 3
-      ? `Son ${matchesPlayed} maçında %${winRate} galibiyet oranın ve toplam ${goals} golün var. ${
-          winRate >= 50 ? 'Harika gidiyorsun, bu formu koru!' : 'Daha fazla maça katılarak formunu yükseltebilirsin.'
-        }`
-      : `${matchesPlayed} maç oynadın. Daha fazla maça katıl, performansını takip edelim.`
-    : 'İlk maçını oyna ve AI analizini gör';
+  const aiInsight = getAiInsight(matchesPlayed, winRate, goals, hasPlayed, lang);
 
   const chartAvgLabel = weeklyForm.length > 0
     ? Math.round(weeklyForm.reduce((sum, r) => sum + formBarHeight(r.result), 0) / weeklyForm.length)
@@ -129,7 +152,7 @@ export default function PerformanceScreen({ navigate }: Props) {
   const last7 = Array.from({ length: 7 }, (_, i) => weeklyForm[weeklyForm.length - 7 + i] ?? null);
 
   if (loading) {
-    return <LoadingScreen message="Performans yükleniyor..." />;
+    return <LoadingScreen message={t('performance_loading')} />;
   }
 
   return (
@@ -143,14 +166,14 @@ export default function PerformanceScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>PERFORMANS</Text>
+          <Text style={styles.title}>{t('performance_title')}</Text>
         </View>
 
         {/* AI Insight */}
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
             <Ionicons name="hardware-chip-outline" size={15} color={theme.gold} />
-            <Text style={styles.aiLabel}>AI ANALİZİ</Text>
+            <Text style={styles.aiLabel}>{t('performance_aiLabel')}</Text>
           </View>
           <Text style={styles.aiText}>{aiInsight}</Text>
         </View>
@@ -158,9 +181,9 @@ export default function PerformanceScreen({ navigate }: Props) {
         {!hasPlayed ? (
           <EmptyState
             icon="trophy-outline"
-            title="Henüz maç verisi yok"
-            subtitle="Maçlara katıl ve performansını takip et!"
-            actionLabel="Maç Bul"
+            title={t('performance_emptyTitle')}
+            subtitle={t('performance_emptySub')}
+            actionLabel={t('performance_findMatch')}
             onAction={() => navigate('match')}
           />
         ) : (
@@ -179,8 +202,8 @@ export default function PerformanceScreen({ navigate }: Props) {
             {/* Weekly Form Chart */}
             <View style={styles.card}>
               <View style={styles.chartHeader}>
-                <Text style={styles.cardTitle}>Son 7 Maç Formu</Text>
-                <Text style={styles.chartAvg}>Ort. {chartAvgLabel}</Text>
+                <Text style={styles.cardTitle}>{t('performance_weeklyFormTitle')}</Text>
+                <Text style={styles.chartAvg}>{t('performance_avgPrefix')} {chartAvgLabel}</Text>
               </View>
               <View style={styles.chartRow}>
                 {last7.map((r, i) => (
@@ -195,7 +218,7 @@ export default function PerformanceScreen({ navigate }: Props) {
                       />
                     </View>
                     <Text style={styles.barLabel}>
-                      {r ? (r.result === 'win' ? 'G' : r.result === 'draw' ? 'B' : r.result === 'loss' ? 'M' : '-') : days[i]}
+                      {r ? (r.result === 'win' ? t('performance_formWin') : r.result === 'draw' ? t('performance_formDraw') : r.result === 'loss' ? t('performance_formLoss') : '-') : days[i]}
                     </Text>
                   </View>
                 ))}
@@ -204,16 +227,16 @@ export default function PerformanceScreen({ navigate }: Props) {
 
             {/* Platform comparison */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Platform Karşılaştırması</Text>
+              <Text style={styles.cardTitle}>{t('performance_platformComparisonTitle')}</Text>
               <View style={styles.compareRow}>
-                <Text style={styles.compareLabel}>Sen</Text>
+                <Text style={styles.compareLabel}>{t('performance_you')}</Text>
                 <View style={styles.compareTrack}>
                   <View style={[styles.compareFill, { width: `${Math.min(100, score)}%`, backgroundColor: theme.gold }]} />
                 </View>
                 <Text style={styles.compareValue}>{score}</Text>
               </View>
               <View style={styles.compareRow}>
-                <Text style={styles.compareLabel}>Ortalama</Text>
+                <Text style={styles.compareLabel}>{t('performance_average')}</Text>
                 <View style={styles.compareTrack}>
                   <View
                     style={[
@@ -226,14 +249,14 @@ export default function PerformanceScreen({ navigate }: Props) {
               </View>
               <Text style={styles.compareHint}>
                 {score >= PLATFORM_AVERAGE_SCORE
-                  ? `Platform ortalamasının ${score - PLATFORM_AVERAGE_SCORE} puan üzerindesin`
-                  : `Platform ortalamasının ${PLATFORM_AVERAGE_SCORE - score} puan altındasın`}
+                  ? `${t('performance_aboveAveragePrefix')}${score - PLATFORM_AVERAGE_SCORE}${t('performance_aboveAverageSuffix')}`
+                  : `${t('performance_belowAveragePrefix')}${PLATFORM_AVERAGE_SCORE - score}${t('performance_belowAverageSuffix')}`}
               </Text>
             </View>
 
             {/* Skill Bars */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Yetenek Skorları</Text>
+              <Text style={styles.cardTitle}>{t('performance_skillScoresTitle')}</Text>
               {skills.map((s, i) => (
                 <View key={i} style={styles.skillItem}>
                   <View style={styles.skillTop}>
@@ -252,12 +275,12 @@ export default function PerformanceScreen({ navigate }: Props) {
         {/* Premium CTA */}
         <HapticTouchable style={styles.premiumCard} onPress={() => navigate('premium')}>
           <Ionicons name="star" size={22} color={theme.gold} style={{ marginBottom: 10 }} />
-          <Text style={styles.premiumTitle}>Premium'a Geç</Text>
+          <Text style={styles.premiumTitle}>{t('performance_premiumCta')}</Text>
           <Text style={styles.premiumSub}>
-            Detaylı analiz, sınırsız video ve scout görünürlüğü
+            {t('performance_premiumSub')}
           </Text>
           <View style={styles.premiumBtn}>
-            <Text style={styles.premiumBtnText}>Şimdi Yükselt</Text>
+            <Text style={styles.premiumBtnText}>{t('performance_upgradeNow')}</Text>
           </View>
         </HapticTouchable>
       </ScrollView>

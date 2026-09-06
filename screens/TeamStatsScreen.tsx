@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
@@ -12,6 +13,7 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
+import BottomSheet from '../components/BottomSheet';
 
 type TeamRecord = {
   id: string;
@@ -49,6 +51,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function TeamStatsScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -128,8 +131,8 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       status: c.status,
       challenger_goals: c.challenger_goals,
       opponent_goals: c.opponent_goals,
-      challengerName: c.challenger?.name ?? 'Takım',
-      opponentName: c.opponent?.name ?? 'Takım',
+      challengerName: c.challenger?.name ?? t('teamStats_defaultTeamName'),
+      opponentName: c.opponent?.name ?? t('teamStats_defaultTeamName'),
     }));
 
     const today = todayStr();
@@ -165,7 +168,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       .in('user_id', members.map((m: any) => m.user_id));
     const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
 
-    setScorers(members.map((m: any) => ({ user_id: m.user_id, full_name: nameMap.get(m.user_id) ?? 'Oyuncu', goals: m.goals ?? 0 })));
+    setScorers(members.map((m: any) => ({ user_id: m.user_id, full_name: nameMap.get(m.user_id) ?? t('match_defaultPlayerName'), goals: m.goals ?? 0 })));
   };
 
   const onRefresh = () => {
@@ -241,12 +244,12 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         )
       );
 
-      setToast({ message: 'Maç sonucu kaydedildi', type: 'success' });
+      setToast({ message: t('match_resultSaveSuccess'), type: 'success' });
       setScoreTarget(null);
       loadAll();
     } catch (err) {
       if (__DEV__) console.log('Skor kaydedilemedi:', err);
-      setToast({ message: 'Skor kaydedilemedi', type: 'error' });
+      setToast({ message: t('teamStats_scoreSaveFailed'), type: 'error' });
     }
     setSaving(false);
   };
@@ -266,7 +269,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
   if (!team) {
     return (
       <SafeAreaView style={styles.safe}>
-        <EmptyState icon="trending-up-outline" title="Henüz takımın yok" subtitle="Takım profilini oluşturarak başla" actionLabel="Takım Oluştur" onAction={() => navigate('teamEdit')} />
+        <EmptyState icon="trending-up-outline" title={t('teamHome_noTeamTitle')} subtitle={t('teamSquad_noTeamSub')} actionLabel={t('teamHome_createTeam')} onAction={() => navigate('teamEdit')} />
       </SafeAreaView>
     );
   }
@@ -279,7 +282,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
           <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>İSTATİSTİKLER</Text>
+        <Text style={styles.title}>{t('teamStats_title')}</Text>
         <View style={{ width: 42 }} />
       </View>
 
@@ -290,10 +293,10 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       >
         <View style={styles.statsRow}>
           {[
-            { value: String(totalMatches), label: 'Maç' },
-            { value: String(team.wins), label: 'Galibiyet' },
-            { value: String(team.draws), label: 'Beraberlik' },
-            { value: String(team.losses), label: 'Mağlubiyet' },
+            { value: String(totalMatches), label: t('teamProfile_statMatches') },
+            { value: String(team.wins), label: t('teamProfile_statWins') },
+            { value: String(team.draws), label: t('teamProfile_statDraws') },
+            { value: String(team.losses), label: t('teamProfile_statLosses') },
           ].map((s) => (
             <View key={s.label} style={styles.statCard}>
               <Text style={styles.statValue}>{s.value}</Text>
@@ -303,30 +306,30 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Gol İstatistikleri</Text>
+          <Text style={styles.cardTitle}>{t('teamStats_goalStatsTitle')}</Text>
           <View style={styles.goalsRow}>
             <View style={styles.goalsItem}>
               <Text style={styles.goalsValue}>{team.goals_scored}</Text>
-              <Text style={styles.goalsLabel}>Atılan Gol</Text>
+              <Text style={styles.goalsLabel}>{t('teamStats_goalsScored')}</Text>
             </View>
             <View style={styles.goalsItem}>
               <Text style={styles.goalsValue}>{team.goals_conceded}</Text>
-              <Text style={styles.goalsLabel}>Yenen Gol</Text>
+              <Text style={styles.goalsLabel}>{t('teamStats_goalsConceded')}</Text>
             </View>
             <View style={styles.goalsItem}>
               <Text style={styles.goalsValue}>{team.clean_sheets}</Text>
-              <Text style={styles.goalsLabel}>Gol Yemeden</Text>
+              <Text style={styles.goalsLabel}>{t('teamStats_cleanSheets')}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Son 5 Maç Formu</Text>
-            <Text style={styles.upcomingText}>{upcomingCount} yaklaşan maç</Text>
+            <Text style={styles.cardTitle}>{t('teamStats_last5FormTitle')}</Text>
+            <Text style={styles.upcomingText}>{upcomingCount} {t('teamStats_upcomingSuffix')}</Text>
           </View>
           {form.length === 0 ? (
-            <Text style={styles.emptyHint}>Henüz tamamlanmış maç verisi yok</Text>
+            <Text style={styles.emptyHint}>{t('teamStats_noCompletedMatches')}</Text>
           ) : (
             <View style={styles.formRow}>
               {form.map((r, i) => (
@@ -347,15 +350,15 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Gol Kralları</Text>
+          <Text style={styles.cardTitle}>{t('teamStats_topScorersTitle')}</Text>
           {scorers.length === 0 ? (
-            <Text style={styles.emptyHint}>Henüz gol verisi girilmedi</Text>
+            <Text style={styles.emptyHint}>{t('teamStats_noGoalData')}</Text>
           ) : (
             scorers.map((s, i) => (
               <View key={s.user_id} style={styles.scorerRow}>
                 <Text style={styles.scorerRank}>{i + 1}</Text>
                 <Text style={styles.scorerName}>{s.full_name}</Text>
-                <Text style={styles.scorerGoals}>{s.goals} gol</Text>
+                <Text style={styles.scorerGoals}>{s.goals} {t('teamStats_goalsSuffix')}</Text>
               </View>
             ))
           )}
@@ -363,7 +366,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
 
         {scorable.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Kabul Edilen Maçlar</Text>
+            <Text style={styles.cardTitle}>{t('teamStats_acceptedMatchesTitle')}</Text>
             {scorable.map((c) => (
               <View key={c.id} style={styles.scorableRow}>
                 <View style={{ flex: 1 }}>
@@ -371,7 +374,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
                   <Text style={styles.scorableMeta}>{c.date} · {c.time}</Text>
                 </View>
                 <HapticTouchable style={styles.scoreEntryBtn} onPress={() => openScoreEntry(c)}>
-                  <Text style={styles.scoreEntryBtnText}>Skor Gir</Text>
+                  <Text style={styles.scoreEntryBtnText}>{t('teamStats_enterScore')}</Text>
                 </HapticTouchable>
               </View>
             ))}
@@ -379,43 +382,39 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         )}
       </ScrollView>
 
-      <Modal visible={!!scoreTarget} animationType="slide" transparent onRequestClose={() => setScoreTarget(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Maç Sonucu</Text>
-            <Text style={styles.scorableMeta}>{scoreTarget?.challengerName} vs {scoreTarget?.opponentName}</Text>
+      <BottomSheet visible={!!scoreTarget} onClose={() => setScoreTarget(null)} theme={theme}>
+        <Text style={styles.modalTitle}>{t('teamStats_matchResultTitle')}</Text>
+        <Text style={styles.scorableMeta}>{scoreTarget?.challengerName} vs {scoreTarget?.opponentName}</Text>
 
-            <View style={styles.scoreInputRow}>
-              <View style={styles.scoreInputCol}>
-                <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.challengerName}</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  keyboardType="number-pad"
-                  value={challengerGoalsInput}
-                  onChangeText={setChallengerGoalsInput}
-                />
-              </View>
-              <Text style={styles.scoreDash}>—</Text>
-              <View style={styles.scoreInputCol}>
-                <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.opponentName}</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  keyboardType="number-pad"
-                  value={opponentGoalsInput}
-                  onChangeText={setOpponentGoalsInput}
-                />
-              </View>
-            </View>
-
-            <HapticTouchable style={styles.saveBtn} onPress={submitScore} disabled={saving}>
-              {saving ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
-            </HapticTouchable>
-            <HapticTouchable style={styles.cancelBtn} onPress={() => setScoreTarget(null)}>
-              <Text style={styles.cancelBtnText}>Vazgeç</Text>
-            </HapticTouchable>
+        <View style={styles.scoreInputRow}>
+          <View style={styles.scoreInputCol}>
+            <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.challengerName}</Text>
+            <TextInput
+              style={styles.scoreInput}
+              keyboardType="number-pad"
+              value={challengerGoalsInput}
+              onChangeText={setChallengerGoalsInput}
+            />
+          </View>
+          <Text style={styles.scoreDash}>—</Text>
+          <View style={styles.scoreInputCol}>
+            <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.opponentName}</Text>
+            <TextInput
+              style={styles.scoreInput}
+              keyboardType="number-pad"
+              value={opponentGoalsInput}
+              onChangeText={setOpponentGoalsInput}
+            />
           </View>
         </View>
-      </Modal>
+
+        <HapticTouchable style={styles.saveBtn} onPress={submitScore} disabled={saving}>
+          {saving ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.saveBtnText}>{t('match_save')}</Text>}
+        </HapticTouchable>
+        <HapticTouchable style={styles.cancelBtn} onPress={() => setScoreTarget(null)}>
+          <Text style={styles.cancelBtnText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
