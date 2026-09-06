@@ -25,10 +25,10 @@ import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 
 type MessageRow = {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
+  id: string | number;
+  conversation_id: string | number;
+  sender_user_id: string;
+  body: string;
   created_at: string;
   read: boolean;
 };
@@ -50,6 +50,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | number | null>(null);
   const [myName, setMyName] = useState('');
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [text, setText] = useState('');
@@ -81,22 +82,17 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
   };
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !conversationId) return;
 
     const channel = supabase
-      .channel(`messages-${userId}-${otherUserId}`)
+      .channel(`messages-${conversationId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const m = payload.new as MessageRow;
-          const inThread =
-            (m.sender_id === userId && m.receiver_id === otherUserId) ||
-            (m.sender_id === otherUserId && m.receiver_id === userId);
-          if (!inThread) return;
-
           setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]));
-          if (m.receiver_id === userId) {
+          if (m.sender_user_id !== userId) {
             supabase.from('messages').update({ read: true }).eq('id', m.id);
           }
         }
@@ -106,7 +102,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, otherUserId]);
+  }, [userId, conversationId]);
 
   const loadMessages = async () => {
     setLoading(true);
@@ -124,12 +120,35 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       .maybeSingle()
       .then(({ data }) => setMyName(data?.full_name ?? ''));
 
+    const { data: existingConv } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(
+        `and(participant_a.eq.${user.id},participant_b.eq.${otherUserId}),and(participant_a.eq.${otherUserId},participant_b.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    let convId = existingConv?.id;
+    if (!convId) {
+      const { data: newConv, error: convError } = await supabase
+        .from('conversations')
+        .insert({ participant_a: user.id, participant_b: otherUserId })
+        .select('id')
+        .single();
+      if (convError) {
+        if (__DEV__) console.log('Sohbet oluşturulamadı:', convError);
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+      convId = newConv.id;
+    }
+    setConversationId(convId);
+
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-      )
+      .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -138,7 +157,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     } else {
       setMessages(data ?? []);
       const unreadIds = (data ?? [])
-        .filter((m: any) => !m.read && m.receiver_id === user.id)
+        .filter((m: any) => !m.read && m.sender_user_id !== user.id)
         .map((m: any) => m.id);
       if (unreadIds.length > 0) {
         supabase.from('messages').update({ read: true }).in('id', unreadIds);
@@ -149,7 +168,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
 
   const handleSend = async () => {
     const content = text.trim();
-    if (!content || !userId) return;
+    if (!content || !userId || !conversationId) return;
 
     const moderation = moderateMessage(content);
     if (!moderation.allowed) {
@@ -161,7 +180,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ sender_id: userId, receiver_id: otherUserId, content })
+      .insert({ conversation_id: conversationId, sender_user_id: userId, body: content })
       .select()
       .single();
 
@@ -171,6 +190,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       setText(content);
     } else if (data) {
       setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
+      supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
       notifyUser(otherUserId, 'chatbubble-outline', `${myName || t('chat_someone')} ${t('chat_notifBody')}`, 'chat', t('chat_notifTitle'), 'message');
     }
   };
@@ -222,7 +242,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
             </View>
           ) : (
             messages.map((m) => {
-              const mine = m.sender_id === userId;
+              const mine = m.sender_user_id === userId;
               return (
                 <View
                   key={m.id}
@@ -230,7 +250,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
                 >
                   <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
                     <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
-                      {m.content}
+                      {m.body}
                     </Text>
                   </View>
                   <Text style={styles.bubbleTime}>{formatTime(m.created_at)}</Text>

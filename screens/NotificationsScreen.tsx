@@ -92,7 +92,7 @@ export default function NotificationsScreen({ navigate }: Props) {
         setNotifications(
           data.map((n: any) => ({
             id: String(n.id),
-            msg: n.message ?? n.msg ?? '',
+            msg: n.body ?? n.message ?? n.msg ?? '',
             createdAt: n.created_at,
             unread: !n.read,
           }))

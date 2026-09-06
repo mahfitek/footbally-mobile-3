@@ -149,13 +149,12 @@ export default function MessagesScreen({ navigate }: Props) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+    const { data: convRows, error: convError } = await supabase
+      .from('conversations')
+      .select('id, participant_a, participant_b')
+      .or(`participant_a.eq.${user.id},participant_b.eq.${user.id}`);
 
-    if (error) {
+    if (convError || !convRows || convRows.length === 0) {
       setChats([]);
       setUnreadCount(0);
       setLoading(false);
@@ -163,7 +162,19 @@ export default function MessagesScreen({ navigate }: Props) {
       return;
     }
 
-    if (!data || data.length === 0) {
+    const otherIdByConv = new Map<string, string>();
+    for (const c of convRows) {
+      otherIdByConv.set(String(c.id), c.participant_a === user.id ? c.participant_b : c.participant_a);
+    }
+    const convIds = convRows.map((c: any) => c.id);
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .in('conversation_id', convIds)
+      .order('created_at', { ascending: false });
+
+    if (error || !data || data.length === 0) {
       setChats([]);
       setUnreadCount(0);
       setLoading(false);
@@ -173,29 +184,29 @@ export default function MessagesScreen({ navigate }: Props) {
 
     const groups = new Map<string, any[]>();
     for (const m of data) {
-      const otherId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
-      const list = groups.get(otherId) ?? [];
+      const list = groups.get(String(m.conversation_id)) ?? [];
       list.push(m);
-      groups.set(otherId, list);
+      groups.set(String(m.conversation_id), list);
     }
 
-    const otherIds = Array.from(groups.keys());
+    const otherIds = Array.from(groups.keys()).map((convId) => otherIdByConv.get(convId)!);
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, full_name')
       .in('user_id', otherIds);
     const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
 
-    const conversations: ChatView[] = otherIds.map((otherId) => {
-      const msgs = groups.get(otherId)!;
+    const conversations: ChatView[] = Array.from(groups.keys()).map((convId) => {
+      const otherId = otherIdByConv.get(convId)!;
+      const msgs = groups.get(convId)!;
       const last = [...msgs].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )[0];
-      const unread = msgs.filter((m) => !m.read && m.receiver_id === user.id).length;
+      const unread = msgs.filter((m) => !m.read && m.sender_user_id !== user.id).length;
       return {
         id: otherId,
         name: nameMap.get(otherId) ?? t('common_defaultUser'),
-        preview: last.content,
+        preview: last.body,
         time: formatRelativeTime(last.created_at, t),
         unread,
         online: false,
@@ -203,7 +214,7 @@ export default function MessagesScreen({ navigate }: Props) {
     });
 
     setChats(conversations);
-    setUnreadCount(data.filter((m: any) => !m.read && m.receiver_id === user.id).length);
+    setUnreadCount(data.filter((m: any) => !m.read && m.sender_user_id !== user.id).length);
     setLoading(false);
     setRefreshing(false);
   };

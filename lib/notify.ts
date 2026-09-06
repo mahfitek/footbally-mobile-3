@@ -1,8 +1,8 @@
 import { supabase } from './supabase';
 
-export async function createNotification(userId: string, icon: string, message: string, screen: string = 'notifications') {
+export async function createNotification(userId: string, icon: string, message: string, screen: string = 'notifications', title?: string) {
   if (!userId) return;
-  const { error } = await supabase.from('notifications').insert({ user_id: userId, icon, message, screen, read: false });
+  const { error } = await supabase.from('notifications').insert({ user_id: userId, title: title ?? null, body: message, screen, read: false });
   if (error && __DEV__) console.log('Bildirim kaydedilemedi:', error);
 }
 
@@ -45,7 +45,7 @@ export async function notifyUser(
   category?: 'match' | 'message' | 'scout'
 ) {
   await Promise.all([
-    createNotification(userId, icon, message, screen),
+    createNotification(userId, icon, message, screen, pushTitle),
     sendPushToUser(userId, pushTitle ?? icon, message, { screen }, category),
   ]);
 }
