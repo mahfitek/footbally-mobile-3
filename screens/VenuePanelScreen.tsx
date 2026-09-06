@@ -14,14 +14,14 @@ import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 
-const DAY_KEYS: TranslationKey[] = [
-  'venue_dayMon',
-  'venue_dayTue',
-  'venue_dayWed',
-  'venue_dayThu',
-  'venue_dayFri',
-  'venue_daySat',
-  'venue_daySun',
+const DAY_SHORT_KEYS: TranslationKey[] = [
+  'venue_dayMonShort',
+  'venue_dayTueShort',
+  'venue_dayWedShort',
+  'venue_dayThuShort',
+  'venue_dayFriShort',
+  'venue_daySatShort',
+  'venue_daySunShort',
 ];
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -264,14 +264,14 @@ export default function VenuePanelScreen({ navigate, userId }: Props) {
             <Text style={styles.hintText}>{t('venuePanel_availabilityHint')}</Text>
 
             <View style={styles.dayPillsWrap}>
-              {DAY_KEYS.map((key, i) => (
+              {DAY_SHORT_KEYS.map((key, i) => (
                 <TouchableOpacity
                   key={key}
                   style={[styles.dayPill, selectedDay === i && styles.dayPillActive]}
                   onPress={() => setSelectedDay(i)}
                 >
                   <Text style={[styles.dayPillText, selectedDay === i && styles.dayPillTextActive]}>
-                    {t(key).slice(0, 3)}
+                    {t(key)}
                   </Text>
                   {(availability[i]?.length ?? 0) > 0 && <View style={styles.dayDot} />}
                 </TouchableOpacity>
