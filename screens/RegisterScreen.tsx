@@ -18,21 +18,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
-import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { translateAuthError } from '../lib/authErrors';
 import HapticTouchable from '../components/HapticTouchable';
 import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
-
-const ERROR_KEYS: Record<string, TranslationKey> = {
-  'User already registered': 'register_emailTaken',
-  'Password should be at least 6 characters': 'register_passwordTooShort',
-  'Unable to validate email address: invalid format': 'register_invalidEmail',
-};
-
-const translateError = (message: string, t: (key: TranslationKey) => string) =>
-  ERROR_KEYS[message] ? t(ERROR_KEYS[message]) : message;
 
 const POSITIONS = ['Kaleci', 'Defans', 'Orta Saha', 'Forvet'];
 
@@ -88,7 +79,7 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
     setLoading(false);
 
     if (error) {
-      Alert.alert(t('register_error'), translateError(error.message, t));
+      Alert.alert(t('register_error'), translateAuthError(error.message, t));
       return;
     }
 

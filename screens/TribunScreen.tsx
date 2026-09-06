@@ -19,6 +19,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { moderateMessage } from '../lib/security';
 import { resolveSenderIdentities, SenderIdentity } from '../lib/chatIdentity';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
@@ -178,6 +179,15 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   const handleSend = async () => {
     const content = text.trim();
     if ((!content && !pendingMedia) || !userId || sending) return;
+
+    if (content) {
+      const moderation = moderateMessage(content);
+      if (!moderation.allowed) {
+        setToast({ message: t(moderation.reasonKey), type: 'error' });
+        return;
+      }
+    }
+
     setSending(true);
 
     try {

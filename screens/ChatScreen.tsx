@@ -19,6 +19,7 @@ import { FontFamily } from '../constants/fonts';
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { notifyUser } from '../lib/notify';
+import { moderateMessage } from '../lib/security';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
@@ -149,6 +150,13 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
   const handleSend = async () => {
     const content = text.trim();
     if (!content || !userId) return;
+
+    const moderation = moderateMessage(content);
+    if (!moderation.allowed) {
+      setToast({ message: t(moderation.reasonKey), type: 'error' });
+      return;
+    }
+
     setText('');
 
     const { data, error } = await supabase

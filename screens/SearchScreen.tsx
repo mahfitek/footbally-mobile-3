@@ -8,6 +8,7 @@ import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendMatchChallenge } from '../lib/challenges';
+import { sanitizeSearchTerm } from '../lib/security';
 import { sendLocalNotification } from '../lib/notifications';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
@@ -76,7 +77,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
   const runSearch = async () => {
     setLoading(true);
-    const q = query.trim();
+    const q = sanitizeSearchTerm(query.trim());
     try {
       if (activeTab === 'players') {
         let req = supabase.from('profiles').select('user_id, full_name, position, city, score').order('score', { ascending: false }).limit(20);

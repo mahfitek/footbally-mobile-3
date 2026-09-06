@@ -17,16 +17,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
-import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
+import { translateAuthError } from '../lib/authErrors';
 import HapticTouchable from '../components/HapticTouchable';
 import FadeInView from '../components/FadeInView';
 
 const RADIUS = CARD_RADIUS;
-
-const translateError = (message: string, t: (key: TranslationKey) => string) =>
-  message === 'Invalid login credentials' ? t('login_invalidCredentials') : message;
 
 interface Props {
   onLogin: (userType: 'player' | 'team') => void;
@@ -55,7 +52,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setLoading(false);
-      Alert.alert(t('login_error'), translateError(error.message, t));
+      Alert.alert(t('login_error'), translateAuthError(error.message, t));
       return;
     }
 
