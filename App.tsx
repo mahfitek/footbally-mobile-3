@@ -43,6 +43,9 @@ import SearchScreen from './screens/SearchScreen';
 import TeamStatsScreen from './screens/TeamStatsScreen';
 import RegionsScreen from './screens/RegionsScreen';
 import BadgesScreen from './screens/BadgesScreen';
+import VenuePanelScreen from './screens/VenuePanelScreen';
+import VenuesScreen from './screens/VenuesScreen';
+import VenueDetailScreen from './screens/VenueDetailScreen';
 import BottomNav from './components/BottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
 import RatingPromptSheet from './components/RatingPromptSheet';
@@ -76,7 +79,9 @@ type Screen =
   | 'search'
   | 'teamStats'
   | 'regions'
-  | 'badges';
+  | 'badges'
+  | 'venues'
+  | 'venueDetail';
 
 type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
 
@@ -135,17 +140,21 @@ function AppContent() {
   const [screen, setScreen] = useState<Screen>('splash');
   const [history, setHistory] = useState<Screen[]>([]);
   const [chatTarget, setChatTarget] = useState<{ id: string; name: string } | null>(null);
-  const [userType, setUserType] = useState<'player' | 'team'>('player');
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [userType, setUserType] = useState<'player' | 'team' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
   const [settingsFrom, setSettingsFrom] = useState<Screen>('profile');
   const sessionRef = useRef<Session | null>(null);
   const pushTokenRef = useRef<string | null>(null);
-  const userTypeRef = useRef<'player' | 'team'>('player');
+  const userTypeRef = useRef<'player' | 'team' | 'venue'>('player');
 
   const navigate = (next: string, params?: any) => {
     if (next === 'chat' && params) {
       setChatTarget({ id: String(params.id ?? ''), name: String(params.name ?? '') });
+    }
+    if (next === 'venueDetail' && params) {
+      setSelectedVenueId(String(params.id ?? ''));
     }
     if (next === 'settings') {
       setSettingsFrom(screen);
@@ -188,16 +197,35 @@ function AppContent() {
     await supabase.from('profiles').update({ push_token: pushTokenRef.current }).eq('user_id', userId);
   };
 
-  const handleAuthSuccess = (type: 'player' | 'team') => {
-    setUserType(type);
-    userTypeRef.current = type;
-    AsyncStorage.setItem(USER_TYPE_STORAGE_KEY, type);
-    navigate(type === 'team' ? 'teamHome' : 'home');
+  // Saha sahibi hesaplari kendi kaydiyla degil, panelimizden manuel olusturuluyor
+  // (anlasmali/kuratoryel ortaklik). Bu yuzden Login/Register'daki oyuncu/takim
+  // rol secimine bagli olmadan, giris yapan kullanicinin bir saha sahibi olup
+  // olmadigi venues tablosundan dogrudan kontrol edilir.
+  const checkVenueOwnership = async (uid: string): Promise<boolean> => {
+    const { data } = await supabase.from('venues').select('id').eq('owner_user_id', uid).maybeSingle();
+    if (data) {
+      userTypeRef.current = 'venue';
+      setUserType('venue');
+      AsyncStorage.setItem(USER_TYPE_STORAGE_KEY, 'venue');
+      return true;
+    }
+    return false;
+  };
+
+  const handleAuthSuccess = async (type: 'player' | 'team') => {
+    const uid = sessionRef.current?.user?.id;
+    const isVenue = uid ? await checkVenueOwnership(uid) : false;
+    if (!isVenue) {
+      setUserType(type);
+      userTypeRef.current = type;
+      AsyncStorage.setItem(USER_TYPE_STORAGE_KEY, type);
+    }
+    navigate(!isVenue && type === 'team' ? 'teamHome' : 'home');
   };
 
   useEffect(() => {
     AsyncStorage.getItem(USER_TYPE_STORAGE_KEY).then((stored) => {
-      if (stored === 'player' || stored === 'team') {
+      if (stored === 'player' || stored === 'team' || stored === 'venue') {
         setUserType(stored);
         userTypeRef.current = stored;
       }
@@ -206,17 +234,24 @@ function AppContent() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       sessionRef.current = session;
       setCurrentUserId(session?.user?.id ?? null);
-      if (session) savePushToken(session.user.id);
+      if (session) {
+        savePushToken(session.user.id);
+        checkVenueOwnership(session.user.id);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       sessionRef.current = session;
       setCurrentUserId(session?.user?.id ?? null);
-      if (session) savePushToken(session.user.id);
+      let isVenue = false;
+      if (session) {
+        savePushToken(session.user.id);
+        isVenue = await checkVenueOwnership(session.user.id);
+      }
       setScreen((current) => {
         if (current === 'splash') return current;
         setHistory([]);
-        return session ? (userTypeRef.current === 'team' ? 'teamHome' : 'home') : 'onboarding';
+        return session ? (isVenue ? 'home' : userTypeRef.current === 'team' ? 'teamHome' : 'home') : 'onboarding';
       });
     });
 
@@ -278,7 +313,7 @@ function AppContent() {
     return () => subscription.remove();
   }, []);
 
-  const showNav = !NO_NAV_SCREENS.includes(screen);
+  const showNav = !NO_NAV_SCREENS.includes(screen) && userType !== 'venue';
 
   const renderScreen = () => {
     switch (screen) {
@@ -345,9 +380,15 @@ function AppContent() {
       case 'home':
         return userType === 'team' ? (
           <TeamHomeScreen navigate={navigate} userId={currentUserId} />
+        ) : userType === 'venue' ? (
+          <VenuePanelScreen navigate={navigate} userId={currentUserId} />
         ) : (
           <HomeScreen navigate={navigate} userId={currentUserId} />
         );
+      case 'venues':
+        return <VenuesScreen navigate={navigate} userType={userType} />;
+      case 'venueDetail':
+        return <VenueDetailScreen navigate={navigate} venueId={selectedVenueId} />;
       default:
         return userType === 'team' ? (
           <TeamHomeScreen navigate={navigate} userId={currentUserId} />

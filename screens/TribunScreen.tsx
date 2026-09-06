@@ -49,7 +49,7 @@ const formatTime = (iso: string) => {
 
 interface Props {
   navigate: (screen: string) => void;
-  userType?: 'player' | 'team';
+  userType?: 'player' | 'team' | 'venue';
 }
 
 export default function TribunScreen({ navigate, userType = 'player' }: Props) {

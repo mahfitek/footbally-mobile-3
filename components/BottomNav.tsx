@@ -25,7 +25,7 @@ export type TabName =
 interface Props {
   active: TabName;
   onPress: (tab: TabName) => void;
-  userType?: 'player' | 'team';
+  userType?: 'player' | 'team' | 'venue';
 }
 
 const PLAYER_ITEMS: { tab: TabName; icon: IoniconName; label: string }[] = [

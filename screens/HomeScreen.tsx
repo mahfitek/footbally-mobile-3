@@ -23,6 +23,7 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import TournamentTeaser from '../components/TournamentTeaser';
+import VenuesTeaser from '../components/VenuesTeaser';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 const RADIUS = CARD_RADIUS;
@@ -382,6 +383,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         </View>
 
         <TournamentTeaser />
+        <VenuesTeaser navigate={navigate} />
 
         {/* Keşfet — uygulamanın asıl akışını belirleyen 4 temel taşı: oyuncu bul,
             takım bul, maç arayanlar, oyuncu arayanlar. Diğer kısayollardan daha

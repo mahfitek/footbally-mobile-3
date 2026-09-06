@@ -14,6 +14,7 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import TournamentTeaser from '../components/TournamentTeaser';
+import VenuesTeaser from '../components/VenuesTeaser';
 import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
@@ -430,6 +431,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
         </View>
 
         <TournamentTeaser />
+        <VenuesTeaser navigate={navigate} />
 
         {!team && (
           <EmptyState

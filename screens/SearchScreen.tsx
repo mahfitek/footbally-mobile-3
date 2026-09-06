@@ -34,7 +34,7 @@ const getTabs = (t: (key: any) => string): { key: TabKey; label: string; icon: I
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
-  userType?: 'player' | 'team';
+  userType?: 'player' | 'team' | 'venue';
 }
 
 export default function SearchScreen({ navigate, userType }: Props) {
