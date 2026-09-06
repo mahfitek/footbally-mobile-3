@@ -1942,4 +1942,7 @@ const translations = {
 export type Lang = 'tr' | 'en';
 export type TranslationKey = keyof typeof translations.tr;
 
-export const t = (key: TranslationKey, lang: Lang = 'tr') => translations[lang][key] || key;
+export const t = (key: TranslationKey, lang: Lang = 'tr') => {
+  const value = translations[lang][key];
+  return value !== undefined ? value : key;
+};
