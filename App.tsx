@@ -45,6 +45,8 @@ import RegionsScreen from './screens/RegionsScreen';
 import BadgesScreen from './screens/BadgesScreen';
 import BottomNav from './components/BottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
+import RatingPromptSheet from './components/RatingPromptSheet';
+import { shouldShowRatingPrompt, markRatingPromptShown, markRatingPromptResponded } from './lib/appRating';
 
 type Screen =
   | 'splash'
@@ -129,12 +131,13 @@ export default function App() {
 
 function AppContent() {
   const { theme, isDark } = useTheme();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const [screen, setScreen] = useState<Screen>('splash');
   const [history, setHistory] = useState<Screen[]>([]);
   const [chatTarget, setChatTarget] = useState<{ id: string; name: string } | null>(null);
   const [userType, setUserType] = useState<'player' | 'team'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false);
   const [settingsFrom, setSettingsFrom] = useState<Screen>('profile');
   const sessionRef = useRef<Session | null>(null);
   const pushTokenRef = useRef<string | null>(null);
@@ -219,6 +222,17 @@ function AppContent() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const timer = setTimeout(async () => {
+      if (await shouldShowRatingPrompt()) {
+        await markRatingPromptShown();
+        setShowRatingPrompt(true);
+      }
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [currentUserId]);
 
   useEffect(() => {
     setupNotificationHandler();
@@ -356,6 +370,16 @@ function AppContent() {
             <View style={styles.edgeBackZone} />
           </GestureDetector>
         )}
+        <RatingPromptSheet
+          visible={showRatingPrompt}
+          onClose={() => setShowRatingPrompt(false)}
+          onAnswered={() => {
+            markRatingPromptResponded();
+          }}
+          theme={theme}
+          t={t}
+          userId={currentUserId}
+        />
       </View>
     </ErrorBoundary>
   );
