@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba, Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { hexToRgba, Theme, CARD_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 
@@ -131,11 +131,11 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
       <TouchableOpacity style={styles.centerBtn} activeOpacity={0.7} onPress={() => handlePress(centerTab)}>
         <Animated.View style={{ transform: [{ scale: scales[centerTab] }] }}>
           {isTeam ? (
-            <Ionicons name="shield-outline" size={24} color={Paper.ink} />
+            <Ionicons name="shield-outline" size={30} color={theme.gold} />
           ) : (
             <Image
               source={require('../assets/logo-icon.png')}
-              style={{ width: 36, height: 36, resizeMode: 'contain' }}
+              style={{ width: 52, height: 52, resizeMode: 'contain' }}
             />
           )}
         </Animated.View>
@@ -224,10 +224,8 @@ const createStyles = (theme: Theme) =>
       color: theme.gold,
     },
     centerBtn: {
-      width: 52,
-      height: 52,
-      borderRadius: CARD_RADIUS,
-      backgroundColor: theme.gold,
+      width: 60,
+      height: 60,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 0,
