@@ -131,11 +131,11 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
       <TouchableOpacity style={styles.centerBtn} activeOpacity={0.7} onPress={() => handlePress(centerTab)}>
         <Animated.View style={{ transform: [{ scale: scales[centerTab] }] }}>
           {isTeam ? (
-            <Ionicons name="shield-outline" size={30} color={theme.gold} />
+            <Ionicons name="shield-outline" size={32} color={theme.gold} />
           ) : (
             <Image
               source={require('../assets/logo-icon.png')}
-              style={{ width: 52, height: 52, resizeMode: 'contain' }}
+              style={{ width: 68, height: 68, resizeMode: 'contain' }}
             />
           )}
         </Animated.View>
@@ -224,8 +224,8 @@ const createStyles = (theme: Theme) =>
       color: theme.gold,
     },
     centerBtn: {
-      width: 60,
-      height: 60,
+      width: 76,
+      height: 76,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 0,
