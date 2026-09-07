@@ -94,7 +94,6 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const recordProfileView = (player: PlayerView) => {
     if (player.id === viewerId) return;
-    supabase.from('profile_views').insert({ viewer_id: viewerId, viewed_user_id: player.id, viewer_name: viewerName || t('scout_defaultViewerName') });
     notifyUser(player.id, 'eye-outline', `${viewerName || t('scout_defaultViewerName')} ${t('scout_viewedNotifBody')}`, 'profile', t('scout_viewedNotifTitle'), 'scout');
   };
 
