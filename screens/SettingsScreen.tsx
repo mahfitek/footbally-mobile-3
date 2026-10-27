@@ -323,8 +323,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
             <Switch
               value={isDark}
               onValueChange={toggleTheme}
-              trackColor={{ false: '#767577', true: 'rgba(255,179,71,0.4)' }}
-              thumbColor={isDark ? theme.gold : '#f4f3f4'}
+              trackColor={{ false: '#D1D5DB', true: 'rgba(7,150,103,0.35)' }}
+              thumbColor={isDark ? theme.gold : '#FFFFFF'}
             />
           </View>
         </View>
@@ -411,8 +411,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
                   item.setter(newValue);
                   updateNotifPref(item.column, newValue);
                 }}
-                trackColor={{ false: '#767577', true: 'rgba(255,179,71,0.4)' }}
-                thumbColor={item.value ? theme.gold : '#f4f3f4'}
+                trackColor={{ false: '#D1D5DB', true: 'rgba(7,150,103,0.35)' }}
+                thumbColor={item.value ? theme.gold : '#FFFFFF'}
               />
             </View>
           </View>

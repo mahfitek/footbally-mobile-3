@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import FadeInView from './FadeInView';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { hexToRgba, Theme, CARD_RADIUS, SOFT_SHADOW } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 
@@ -45,10 +45,11 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 14,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: CARD_RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
+      ...SOFT_SHADOW,
     },
     avatar: {
       width: 52,

@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba, Theme, CARD_RADIUS } from '../constants/theme';
+import { Theme, CARD_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 
@@ -177,7 +177,7 @@ const createStyles = (theme: Theme) =>
       height: 80,
       backgroundColor: theme.tabBar,
       borderTopWidth: 1,
-      borderTopColor: hexToRgba(theme.gold, 0.15),
+      borderTopColor: theme.border,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',

@@ -24,24 +24,27 @@ export const DarkTheme = {
 // Kararımız: bg/card açık tonlarda kalır (mobilin native light/dark seçimini bozmuyoruz),
 // ama accent (gold) aynı amber ailesinden, açık zeminde okunaklı koyu bir tona çekilir —
 // "aynı marka, farklı parlaklık". Detay için görev sonuç raporuna bakın.
+// 2026-10 "Modern Kartlar" görsel yenilemesi: beyaz zemin, zümrüt yeşili aksan,
+// hafif border ve neredeyse görünmez gölge. `gold` anahtarı geriye dönük uyum için
+// korunur; açık temada değeri artık birincil zümrüt yeşilidir.
 export const LightTheme = {
-  bg: '#F5F5F5',
-  bg2: '#FFFFFF',
+  bg: '#FFFFFF',
+  bg2: '#F6F8FA',
   card: '#FFFFFF',
-  card2: '#F0F0F0',
-  text: '#111111',
-  textMuted: '#444444',
-  textSecondary: '#888888',
-  border: '#E0E0E0',
-  gold: '#C97F1E',
-  goldLight: '#FFB347',
-  goldDark: '#8F5710',
-  purple: '#6C5CE0',
-  purpleLight: '#8B7CF6',
-  purpleDark: '#4B3FB0',
-  success: '#1E8F52',
-  error: '#dc2626',
-  tabBar: 'rgba(255,255,255,0.97)',
+  card2: '#F6F8FA',
+  text: '#101820',
+  textMuted: '#6B7280',
+  textSecondary: '#6B7280',
+  border: '#E6EBEF',
+  gold: '#079667',
+  goldLight: '#079667',
+  goldDark: '#067A54',
+  purple: '#079667',
+  purpleLight: '#E8F7F0',
+  purpleDark: '#067A54',
+  success: '#079667',
+  error: '#D92D20',
+  tabBar: 'rgba(255,255,255,0.98)',
 };
 
 export type Theme = typeof DarkTheme;
@@ -53,11 +56,21 @@ export type Theme = typeof DarkTheme;
 // için ayrı bir tam-yuvarlak sabit eklendi.
 export const CARD_RADIUS = 18;
 export const PILL_RADIUS = 999;
+// Butonlar için 12–16 px aralığında sabit radius (pill yerine yumuşak dikdörtgen).
+export const BUTTON_RADIUS = 14;
+// Kartlarda neredeyse görünmez gölge; asıl ayrım hafif border ile sağlanır.
+export const SOFT_SHADOW = {
+  shadowColor: '#101820',
+  shadowOpacity: 0.04,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 1,
+};
 export const Paper = {
-  bg: '#ECE6D8',
-  ink: '#171410',
-  muted: '#8B8578',
-  line: '#D9D2C0',
+  bg: '#FFFFFF',
+  ink: '#101820',
+  muted: '#6B7280',
+  line: '#E6EBEF',
 };
 
 export function hexToRgba(hex: string, alpha: number) {
