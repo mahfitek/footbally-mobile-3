@@ -210,7 +210,7 @@ export default function NotificationsScreen({ navigate }: Props) {
                           style={[styles.actionPill, { borderColor: catColor }]}
                           onPress={() => navigate(cat.actionTarget!)}
                         >
-                          <Text style={[styles.actionPillText, { color: catColor }]}>{cat.actionLabel}</Text>
+                          <Text style={[styles.actionPillText, { color: catColor === theme.error ? theme.error : theme.goldDark }]}>{cat.actionLabel}</Text>
                         </HapticTouchable>
                       )}
                     </View>
@@ -287,12 +287,12 @@ const createStyles = (theme: Theme) =>
       minWidth: 22,
       height: 22,
       borderRadius: RADIUS - 2,
-      backgroundColor: theme.gold,
+      backgroundColor: theme.goldDark,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    headerUnreadText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: theme.bg },
+    headerUnreadText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.bg },
     list: { paddingHorizontal: 24, gap: 10 },
     swipeHint: {
       textAlign: 'center',
@@ -308,7 +308,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    itemUnread: { borderColor: theme.gold },
+    // Okunmamış satır: ince yeşil çerçeve ve çok hafif zemin tonu.
+    itemUnread: { borderColor: theme.gold, backgroundColor: hexToRgba(theme.gold, 0.05) },
     itemMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     actionPill: {
       alignSelf: 'flex-start',
@@ -328,8 +329,8 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     text: { flex: 1 },
-    msg: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, lineHeight: 18 },
-    time: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 4 },
+    msg: { fontFamily: FontFamily.body, fontSize: 14, color: theme.text, lineHeight: 20 },
+    time: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, marginTop: 4 },
     unreadDot: {
       width: 6,
       height: 6,

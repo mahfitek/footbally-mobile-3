@@ -339,7 +339,7 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.mono,
       fontSize: 11,
       letterSpacing: 1,
-      color: theme.gold,
+      color: theme.goldDark,
       paddingBottom: 14,
       marginBottom: 18,
       borderBottomWidth: 1,
@@ -480,7 +480,7 @@ const createStyles = (theme: Theme) =>
     loginLink: {
       fontFamily: FontFamily.mono,
       fontSize: 12,
-      color: theme.gold,
+      color: theme.goldDark,
     },
     modalBackdrop: {
       flex: 1,
@@ -506,6 +506,6 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.border,
     },
     optionText: { fontFamily: FontFamily.mono, fontSize: 14, color: theme.textMuted },
-    optionTextActive: { color: theme.gold },
-    optionCheck: { fontSize: 16, color: theme.gold, fontWeight: '700' },
+    optionTextActive: { color: theme.goldDark },
+    optionCheck: { fontSize: 16, color: theme.goldDark, fontWeight: '700' },
   });

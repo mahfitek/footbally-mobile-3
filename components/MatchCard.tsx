@@ -103,7 +103,7 @@ const DANGER_TEXT = '#B42318';
 
 // Rozet renkleri: metin her zaman en az 4.5:1 kontrastlı kalacak şekilde seçildi.
 const STATUS_TONE = (theme: Theme): Record<MatchStatusTone, { bg: string; fg: string }> => ({
-  solid: { bg: theme.goldDark, fg: '#FFFFFF' },
+  solid: { bg: theme.goldDark, fg: theme.bg },
   soft: { bg: hexToRgba(theme.goldDark, 0.1), fg: theme.goldDark },
   muted: { bg: theme.card2, fg: theme.textMuted },
   danger: { bg: hexToRgba(theme.error, 0.1), fg: DANGER_TEXT },

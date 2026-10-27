@@ -305,7 +305,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.gold,
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
+    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.goldDark, letterSpacing: 1.5 },
     aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     miniRow: {
       flexDirection: 'row',
@@ -324,7 +324,7 @@ const createStyles = (theme: Theme) =>
       borderRightWidth: 1,
       borderRightColor: theme.border,
     },
-    miniVal: { fontFamily: FontFamily.display, fontSize: 20, color: theme.gold },
+    miniVal: { fontFamily: FontFamily.display, fontSize: 20, color: theme.goldDark },
     miniLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
@@ -342,7 +342,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       marginBottom: 20,
     },
-    chartAvg: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.gold },
+    chartAvg: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.goldDark },
     chartRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',

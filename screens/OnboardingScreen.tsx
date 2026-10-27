@@ -212,7 +212,7 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.mono,
       fontSize: 11,
       letterSpacing: 1,
-      color: theme.gold,
+      color: theme.goldDark,
       paddingBottom: 12,
       marginBottom: 14,
       borderBottomWidth: 1,
@@ -246,7 +246,7 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.border,
     },
     clubsCaption: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textMuted, letterSpacing: 0.5 },
-    successStatValue: { fontFamily: FontFamily.display, fontSize: 44, color: theme.gold, letterSpacing: 1 },
+    successStatValue: { fontFamily: FontFamily.display, fontSize: 44, color: theme.goldDark, letterSpacing: 1 },
     successStatLabel: {
       fontFamily: FontFamily.mono,
       fontSize: 12,
@@ -262,7 +262,7 @@ const createStyles = (theme: Theme) =>
       letterSpacing: 0.5,
     },
     titleGold: {
-      color: theme.gold,
+      color: theme.goldDark,
     },
     desc: {
       fontFamily: FontFamily.mono,
@@ -303,5 +303,5 @@ const createStyles = (theme: Theme) =>
       letterSpacing: 1,
     },
     loginLink: { marginTop: 16, padding: 8, alignItems: 'center' },
-    loginLinkText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    loginLinkText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
   });

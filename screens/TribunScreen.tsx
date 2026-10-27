@@ -430,7 +430,7 @@ const createStyles = (theme: Theme) =>
     },
     titleWrap: { flex: 1 },
     title: { fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
-    subtitle: { fontSize: 11, color: theme.gold, fontFamily: FontFamily.mono, marginTop: 1 },
+    subtitle: { fontSize: 11, color: theme.goldDark, fontFamily: FontFamily.mono, marginTop: 1 },
     messagesContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16, flexGrow: 1 },
     empty: {
       flex: 1,
@@ -469,7 +469,7 @@ const createStyles = (theme: Theme) =>
     tagChipTeam: { borderColor: theme.gold, backgroundColor: 'transparent' },
     tagChipPlayer: { borderColor: theme.border, backgroundColor: 'transparent' },
     tagChipText: { fontFamily: FontFamily.monoMedium, fontSize: 9, letterSpacing: 0.5 },
-    tagChipTextTeam: { color: theme.gold },
+    tagChipTextTeam: { color: theme.goldDark },
     tagChipTextPlayer: { color: theme.textSecondary },
     senderName: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted, flexShrink: 1 },
     bubble: {
@@ -577,5 +577,5 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sendBtnDisabled: { opacity: 0.4 },
+    sendBtnDisabled: { backgroundColor: theme.border },
   });

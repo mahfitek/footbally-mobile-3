@@ -290,7 +290,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     title: { color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 },
-    count: { color: theme.gold, fontSize: 12, marginLeft: 'auto', fontFamily: FontFamily.mono },
+    count: { color: theme.goldDark, fontSize: 12, marginLeft: 'auto', fontFamily: FontFamily.mono },
     addBtn: {
       width: 34,
       height: 34,
@@ -341,7 +341,7 @@ const createStyles = (theme: Theme) =>
     },
     dropdownRow: { padding: 14, borderBottomWidth: 1, borderBottomColor: theme.border },
     dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
-    dropdownAllText: { color: theme.gold, fontSize: 14, fontFamily: FontFamily.mono },
+    dropdownAllText: { color: theme.goldDark, fontSize: 14, fontFamily: FontFamily.mono },
     addConfirmBtn: {
       backgroundColor: theme.gold,
       borderRadius: PILL_RADIUS,

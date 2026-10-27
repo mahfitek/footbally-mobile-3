@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabase';
 import { notifyEvent } from '../lib/notify';
 import { joinTeam, extractTeamIdFromJoinUrl } from '../lib/teamJoin';
 import EmptyState from '../components/EmptyState';
+import StatCard from '../components/StatCard';
+import SectionHeader from '../components/SectionHeader';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import TournamentTeaser from '../components/TournamentTeaser';
@@ -101,24 +103,6 @@ const getActions = (t: (key: TranslationKey) => string): { icon: IoniconName; ti
     accent: 'gold',
   },
 ];
-
-function StatCard({ value, label }: { value: string; label: string }) {
-  const { theme } = useTheme();
-  return (
-    <View style={{
-      flex: 1,
-      backgroundColor: theme.card,
-      borderRadius: RADIUS,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-    }}>
-      <Text style={{ fontFamily: FontFamily.display, fontSize: 17, color: theme.gold }}>{value}</Text>
-      <Text style={{ fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 }}>{label}</Text>
-    </View>
-  );
-}
 
 function ActionCard({ item, theme, onPress }: { item: ReturnType<typeof getActions>[number]; theme: Theme; onPress: () => void }) {
   const accentColor = theme[item.accent];
@@ -457,9 +441,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
             {pendingChallenges.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{t('teamHome_pendingChallengesHeader')}</Text>
-                </View>
+                <SectionHeader title={t('teamHome_pendingChallengesHeader')} />
                 <View style={styles.activityList}>
                   {pendingChallenges.map((c) => (
                     <View key={c.id} style={styles.challengeCard}>
@@ -497,9 +479,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
               </>
             )}
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('teamHome_recentActivityHeader')}</Text>
-            </View>
+            <SectionHeader title={t('teamHome_recentActivityHeader')} />
             {activity.length === 0 ? (
               <EmptyState icon="flash-outline" title={t('teamHome_noActivityTitle')} subtitle={t('teamHome_noActivitySub')} />
             ) : (
@@ -575,7 +555,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 3,
       marginTop: 4,
     },
-    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold, letterSpacing: 0.5 },
+    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.goldDark, letterSpacing: 0.5 },
     notifBtn: {
       width: 42, height: 42,
       backgroundColor: theme.card,
@@ -596,7 +576,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     notifDotText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
-    statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 24 },
+    statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',

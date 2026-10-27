@@ -479,14 +479,14 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
               }}
             >
               <View style={{ width: 52, height: 52, borderRadius: RADIUS, backgroundColor: theme.card2, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.gold, fontSize: 20, fontFamily: FontFamily.display }}>{count}</Text>
+                <Text style={{ color: theme.goldDark, fontSize: 20, fontFamily: FontFamily.display }}>{count}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.bodySemiBold }}>{count}v{count}</Text>
                 <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.mono }}>
                   {count === 5 ? t('teamSquad_format5') : count === 7 ? t('teamSquad_format7') : count === 8 ? t('teamSquad_format8') : t('teamSquad_format11')}
                 </Text>
-                <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} {t('teamSquad_formationsCount')}</Text>
+                <Text style={{ color: theme.goldDark, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} {t('teamSquad_formationsCount')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -499,7 +499,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, paddingHorizontal: 16 }}
           >
             <Ionicons name="chevron-back" size={13} color={theme.gold} />
-            <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.mono }}>{playerCount}v{playerCount} {t('teamSquad_changeFormat')}</Text>
+            <Text style={{ color: theme.goldDark, fontSize: 13, fontFamily: FontFamily.mono }}>{playerCount}v{playerCount} {t('teamSquad_changeFormat')}</Text>
           </TouchableOpacity>
 
           <View style={{ marginBottom: 12 }}>
@@ -734,7 +734,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 2,
       marginTop: 2,
     },
-    playerNameText: { fontFamily: FontFamily.bodySemiBold, color: '#fff', fontSize: 9, textAlign: 'center' },
+    playerNameText: { fontFamily: FontFamily.bodySemiBold, color: '#fff', fontSize: 10, textAlign: 'center' },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -742,7 +742,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
+    sectionTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: theme.text, letterSpacing: 0.2 },
     sectionCount: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     squadList: { paddingHorizontal: 24, gap: 10, marginBottom: 24 },
     squadRow: {
@@ -762,9 +762,9 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    squadMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    squadScore: { fontFamily: FontFamily.display, fontSize: 15, color: theme.gold },
+    squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
+    squadMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, marginTop: 2 },
+    squadScore: { fontFamily: FontFamily.display, fontSize: 15, color: theme.goldDark },
     removeBtn: {
       width: 30, height: 30,
       borderRadius: RADIUS,

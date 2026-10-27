@@ -402,7 +402,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    inputDisabled: { opacity: 0.5 },
+    inputDisabled: { backgroundColor: theme.card2 },
     inputValueText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
     inputPlaceholderText: { color: theme.textSecondary, fontSize: 14, fontFamily: FontFamily.mono },
     typeRow: { flexDirection: 'row', gap: 10 },
@@ -426,7 +426,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       marginTop: 8,
     },
-    submitBtnDisabled: { opacity: 0.6 },
+    submitBtnDisabled: { backgroundColor: theme.border },
     submitBtnText: { fontSize: 15, fontFamily: FontFamily.display, color: Paper.ink, letterSpacing: 1 },
     modalBackdrop: {
       flex: 1,
@@ -469,7 +469,7 @@ const createStyles = (theme: Theme) =>
       width: 28,
       fontSize: 13,
       fontFamily: FontFamily.monoMedium,
-      color: theme.gold,
+      color: theme.goldDark,
     },
     listRowText: { fontSize: 14, fontFamily: FontFamily.mono, color: theme.text },
     modalCancelBtn: {

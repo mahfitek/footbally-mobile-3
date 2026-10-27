@@ -728,7 +728,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   borderColor: theme.gold,
                 }}
               >
-                <Text style={{ color: theme.gold, fontSize: 18, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>{t('home_congrats')}</Text>
+                <Text style={{ color: theme.goldDark, fontSize: 18, fontFamily: FontFamily.display, marginBottom: 4, letterSpacing: 0.5 }}>{t('home_congrats')}</Text>
                 <Text style={{ color: theme.textSecondary, textAlign: 'center', fontFamily: FontFamily.body }}>
                   {t('home_allTasksDone')}
                 </Text>
@@ -772,7 +772,7 @@ const createStyles = (theme: Theme) =>
     greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     greeting: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 2 },
     greetingName: { fontFamily: FontFamily.display, fontSize: 30, color: theme.text, marginTop: 2 },
-    gold: { color: theme.gold },
+    gold: { color: theme.goldDark },
     premiumBadge: {
       backgroundColor: 'transparent',
       borderWidth: 1,
@@ -835,7 +835,7 @@ const createStyles = (theme: Theme) =>
     },
     scoreInfo: { flex: 1 },
     scoreLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 2 },
-    scoreValue: { fontFamily: FontFamily.display, fontSize: 48, color: theme.gold, lineHeight: 54 },
+    scoreValue: { fontFamily: FontFamily.display, fontSize: 48, color: theme.goldDark, lineHeight: 54 },
     scoreSub: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 4 },
     scoreUp: { fontFamily: FontFamily.bodySemiBold, color: theme.success },
     scoreDivider: {
@@ -845,7 +845,7 @@ const createStyles = (theme: Theme) =>
       marginHorizontal: 18,
     },
     scorePercent: { alignItems: 'center' },
-    scoreRingText: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold },
+    scoreRingText: { fontFamily: FontFamily.display, fontSize: 22, color: theme.goldDark },
     scorePercentLabel: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.textSecondary, letterSpacing: 1, marginTop: 2 },
     discoverGrid: {
       flexDirection: 'row',

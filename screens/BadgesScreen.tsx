@@ -19,6 +19,7 @@ import {
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
+import SectionHeader from '../components/SectionHeader';
 
 const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -135,7 +136,7 @@ export default function BadgesScreen({ navigate, userId }: Props) {
         <View style={styles.rewardCard}>
           <View style={styles.levelTopRow}>
             <Text style={styles.levelLabel}>{t('badges_monthlyRewardLabel')}</Text>
-            <Text style={[styles.levelValue, { fontSize: 15, color: theme.gold }]}>{daysClaimedThisMonth}/{MAX_REWARD_PREMIUM_DAYS_PER_MONTH} {t('badges_daysSuffix')}</Text>
+            <Text style={[styles.levelValue, { fontSize: 15, color: theme.goldDark }]}>{daysClaimedThisMonth}/{MAX_REWARD_PREMIUM_DAYS_PER_MONTH} {t('badges_daysSuffix')}</Text>
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${(daysClaimedThisMonth / MAX_REWARD_PREMIUM_DAYS_PER_MONTH) * 100}%`, backgroundColor: theme.gold }]} />
@@ -147,7 +148,7 @@ export default function BadgesScreen({ navigate, userId }: Props) {
           </Text>
         </View>
 
-        <Text style={styles.sectionLabel}>{t('badges_badgesHeader')} ({badges.filter((b) => b.unlocked).length}/{badges.length})</Text>
+        <SectionHeader title={`${t('badges_badgesHeader')} (${badges.filter((b) => b.unlocked).length}/${badges.length})`} />
 
         <View style={styles.grid}>
           {badges.map((b) => {
@@ -252,7 +253,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.gold,
     },
-    badgeCardLocked: { borderColor: theme.border, opacity: 0.7 },
+    // Kilitli rozet: opacity yerine sakin çerçeve; metinler okunur kalır.
+    badgeCardLocked: { borderColor: theme.border },
     badgeIconWrap: {
       width: 40,
       height: 40,
@@ -262,8 +264,8 @@ const createStyles = (theme: Theme) =>
       marginBottom: 10,
     },
     badgeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 4 },
-    badgeDesc: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textSecondary, lineHeight: 15 },
-    badgeRewardText: { fontFamily: FontFamily.monoMedium, fontSize: 10, color: theme.gold, marginTop: 8 },
+    badgeDesc: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, lineHeight: 16 },
+    badgeRewardText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.goldDark, marginTop: 8 },
     claimBtn: {
       marginTop: 10,
       backgroundColor: theme.gold,
@@ -271,5 +273,5 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 8,
       alignItems: 'center',
     },
-    claimBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 10, color: Paper.ink, letterSpacing: 0.5 },
+    claimBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: Paper.ink },
   });

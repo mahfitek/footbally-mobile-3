@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
+import SectionHeader from '../components/SectionHeader';
 
 type PlanId = 'monthly' | 'yearly';
 
@@ -244,7 +245,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>{t('premium_sectionTestimonials')}</Text>
+        <SectionHeader title={t('premium_sectionTestimonials')} />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -336,7 +337,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 8,
       marginBottom: 20,
     },
-    badgeText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1.5 },
+    badgeText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark, letterSpacing: 1.5 },
     title: {
       fontFamily: FontFamily.display,
       fontSize: 28,
@@ -345,7 +346,7 @@ const createStyles = (theme: Theme) =>
       lineHeight: 34,
       letterSpacing: 0.5,
     },
-    titleGold: { color: theme.gold },
+    titleGold: { color: theme.goldDark },
     subtitle: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 10, textAlign: 'center' },
     statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 28 },
     statCard: {
@@ -357,7 +358,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    statValue: { fontFamily: FontFamily.display, color: theme.gold, fontSize: 22 },
+    statValue: { fontFamily: FontFamily.display, color: theme.goldDark, fontSize: 22 },
     statLabel: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 11, marginTop: 4 },
     launchBanner: {
       flexDirection: 'row',
@@ -373,7 +374,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 6,
       marginBottom: 14,
     },
-    launchBannerText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
+    launchBannerText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: theme.goldDark, letterSpacing: 0.5 },
     sectionTitle: {
       fontFamily: FontFamily.display,
       fontSize: 16,
@@ -402,11 +403,11 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 8,
       paddingVertical: 3,
     },
-    planBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: Paper.ink },
+    planBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Paper.ink },
     planLabel: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted, marginTop: 8 },
-    planLabelSelected: { color: theme.gold },
+    planLabelSelected: { color: theme.goldDark },
     planPrice: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, marginTop: 8 },
-    planPriceSelected: { color: theme.gold },
+    planPriceSelected: { color: theme.goldDark },
     planPeriod: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
     planOriginal: {
       fontFamily: FontFamily.mono,
@@ -453,7 +454,7 @@ const createStyles = (theme: Theme) =>
     },
     testimonialStars: { flexDirection: 'row', gap: 2, marginBottom: 8 },
     testimonialText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 13, lineHeight: 20, marginBottom: 12 },
-    testimonialName: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12 },
+    testimonialName: { fontFamily: FontFamily.bodySemiBold, color: theme.textMuted, fontSize: 12 },
     ctaBtn: {
       marginHorizontal: 24,
       height: 56,
@@ -463,8 +464,9 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     ctaText: { fontFamily: FontFamily.display, fontSize: 14, color: Paper.ink, letterSpacing: 0.5 },
-    ctaSub: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginTop: 14 },
-    btnDisabled: { opacity: 0.5 },
+    ctaSub: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, textAlign: 'center', marginTop: 14 },
+    // Pasif CTA: opacity yerine gri zemin, spinner/metin okunur kalır.
+    btnDisabled: { backgroundColor: theme.border },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -488,7 +490,7 @@ const createStyles = (theme: Theme) =>
     },
     modalSaveText: { fontFamily: FontFamily.display, fontSize: 13, color: Paper.ink, letterSpacing: 0.5 },
     successWrap: { alignItems: 'center', paddingVertical: 20 },
-    successTitle: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold, marginBottom: 8, letterSpacing: 0.5 },
+    successTitle: { fontFamily: FontFamily.display, fontSize: 22, color: theme.goldDark, marginBottom: 8, letterSpacing: 0.5 },
     successSub: {
       fontFamily: FontFamily.body,
       fontSize: 13,

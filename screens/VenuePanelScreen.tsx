@@ -315,7 +315,7 @@ const createStyles = (theme: Theme) =>
     },
     title: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
     saveBtn: { padding: 8, minWidth: 44, alignItems: 'flex-end' },
-    saveBtnText: { fontFamily: FontFamily.mono, fontSize: 13, color: theme.gold },
+    saveBtnText: { fontFamily: FontFamily.mono, fontSize: 13, color: theme.goldDark },
     content: { paddingHorizontal: 24, paddingBottom: 60 },
     notice: {
       flexDirection: 'row',

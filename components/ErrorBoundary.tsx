@@ -61,7 +61,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={[styles.title, { color: theme.gold }]}>{t('error_title', lang)}</Text>
+          <Text style={[styles.title, { color: theme.goldDark }]}>{t('error_title', lang)}</Text>
           <GoldButton title={t('error_restart', lang)} onPress={this.handleRetry} style={styles.button} />
           <GoldButton
             title={t('error_report', lang)}

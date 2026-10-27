@@ -82,7 +82,7 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.display,
       fontSize: 13,
       letterSpacing: 2,
-      color: theme.gold,
+      color: theme.goldDark,
       textTransform: 'uppercase',
     },
   });

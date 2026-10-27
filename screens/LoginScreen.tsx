@@ -259,7 +259,7 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.mono,
       fontSize: 11,
       letterSpacing: 1,
-      color: theme.gold,
+      color: theme.goldDark,
       paddingBottom: 14,
       marginBottom: 18,
       borderBottomWidth: 1,
@@ -391,7 +391,7 @@ const createStyles = (theme: Theme) =>
     registerLink: {
       fontFamily: FontFamily.mono,
       fontSize: 12,
-      color: theme.gold,
+      color: theme.goldDark,
     },
     legalText: {
       fontFamily: FontFamily.mono,
@@ -404,6 +404,6 @@ const createStyles = (theme: Theme) =>
       marginBottom: 30,
     },
     legalLink: {
-      color: theme.gold,
+      color: theme.goldDark,
     },
   });

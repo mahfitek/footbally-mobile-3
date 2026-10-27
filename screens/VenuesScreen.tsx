@@ -119,10 +119,15 @@ export default function VenuesScreen({ navigate, userType }: Props) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle}>{v.name}</Text>
-                    <Text style={styles.rowMeta}>{[v.city, v.district].filter(Boolean).join(' · ') || '-'}</Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons name="location-outline" size={13} color={theme.textMuted} />
+                      <Text style={styles.rowMeta} numberOfLines={1}>{[v.city, v.district].filter(Boolean).join(' · ') || '-'}</Text>
+                    </View>
                   </View>
                   {v.price_per_hour != null && (
-                    <Text style={styles.priceText}>{t('venues_pricePrefix')}{v.price_per_hour}{t('venues_priceSuffix')}</Text>
+                    <View style={styles.pricePill}>
+                      <Text style={styles.priceText}>{t('venues_pricePrefix')}{v.price_per_hour}{t('venues_priceSuffix')}</Text>
+                    </View>
                   )}
                   <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
                 </HapticTouchable>
@@ -202,7 +207,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
     },
     listRowText: { fontFamily: FontFamily.mono, fontSize: 14, color: theme.text },
-    checkmark: { fontSize: 15, color: theme.gold, fontWeight: '700' },
+    checkmark: { fontSize: 15, color: theme.goldDark, fontWeight: '700' },
     content: { paddingHorizontal: 24, paddingBottom: 60 },
     row: {
       flexDirection: 'row',
@@ -224,7 +229,9 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    rowMeta: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
-    priceText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.gold },
+    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+    rowMeta: { flexShrink: 1, fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted },
+    pricePill: { backgroundColor: theme.card2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+    priceText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.goldDark },
   });

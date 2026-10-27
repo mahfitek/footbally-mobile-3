@@ -621,7 +621,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    newMessageBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    newMessageBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
@@ -757,7 +757,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    messageBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    messageBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -829,5 +829,5 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    unreadBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: '#FFFFFF' },
+    unreadBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.bg },
   });

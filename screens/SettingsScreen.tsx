@@ -246,7 +246,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
             <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.mono }}>{email}</Text>
           </View>
           <View style={{ borderWidth: 1, borderColor: theme.gold, borderRadius: RADIUS, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: theme.gold, fontSize: 11, fontFamily: FontFamily.mono }}>{t('settings_free')}</Text>
+            <Text style={{ color: theme.goldDark, fontSize: 11, fontFamily: FontFamily.mono }}>{t('settings_free')}</Text>
           </View>
         </View>
 

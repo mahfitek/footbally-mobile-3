@@ -281,7 +281,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                         onPress={() => handleApplyOpportunity(op)}
                         disabled={applied}
                       >
-                        <Text style={styles.actionBtnText}>{applied ? t('activities_applied') : t('activities_apply')}</Text>
+                        <Text style={[styles.actionBtnText, applied && styles.actionBtnTextDone]}>{applied ? t('activities_applied') : t('activities_apply')}</Text>
                       </HapticTouchable>
                     </View>
                   );
@@ -365,19 +365,19 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    rowMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    scoreText: { fontFamily: FontFamily.display, fontSize: 16, color: theme.gold },
+    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
+    rowMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, marginTop: 3 },
+    scoreText: { fontFamily: FontFamily.display, fontSize: 16, color: theme.goldDark },
+    // Birincil aksiyon dolu zümrüt; uygulanmış durum sakin gri.
     actionBtn: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: theme.gold,
-      borderRadius: RADIUS,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
+      backgroundColor: theme.gold,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
     },
-    actionBtnDone: { backgroundColor: theme.card2, borderColor: theme.success },
-    actionBtnText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold },
+    actionBtnDone: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.border },
+    actionBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: Paper.ink },
+    actionBtnTextDone: { color: theme.textMuted },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
@@ -393,5 +393,5 @@ const createStyles = (theme: Theme) =>
     saveBtn: { height: 52, borderRadius: RADIUS, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
     saveBtnText: { fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 1, color: Paper.ink },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
+    cancelBtnText: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
   });

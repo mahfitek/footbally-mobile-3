@@ -225,7 +225,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 12,
     },
     venueName: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, textAlign: 'center' },
-    venueLocation: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, marginTop: 4 },
+    venueLocation: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark, marginTop: 4 },
     infoRow: {
       backgroundColor: theme.card,
       borderRadius: RADIUS,

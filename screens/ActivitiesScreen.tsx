@@ -304,7 +304,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 5,
     },
     pillBadgeActive: { backgroundColor: 'rgba(0,0,0,0.2)' },
-    pillBadgeText: { fontSize: 10, fontFamily: FontFamily.monoMedium, color: theme.gold },
+    pillBadgeText: { fontSize: 10, fontFamily: FontFamily.monoMedium, color: theme.goldDark },
     pillBadgeTextActive: { color: Paper.ink },
     list: { paddingHorizontal: 24, gap: 16 },
     card: {

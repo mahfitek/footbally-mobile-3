@@ -819,7 +819,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 14,
       alignItems: 'center',
     },
-    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.gold },
+    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.goldDark },
     joinBtn: {
       marginTop: 18,
       height: 52,
@@ -834,7 +834,7 @@ const createStyles = (theme: Theme) =>
     leaveBtn: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.error },
     leaveBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.error },
     shareBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-    shareBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.gold },
+    shareBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.goldDark },
     closeBtn: { alignItems: 'center', paddingVertical: 10 },
     closeBtnText: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
     resultOptionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
@@ -859,6 +859,6 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    goalsBtnText: { fontSize: 20, fontWeight: '700', color: theme.gold },
+    goalsBtnText: { fontSize: 20, fontWeight: '700', color: theme.goldDark },
     goalsValue: { fontSize: 22, fontFamily: FontFamily.display, color: theme.text, width: 40, textAlign: 'center' },
   });

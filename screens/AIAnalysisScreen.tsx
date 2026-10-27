@@ -616,7 +616,7 @@ const createStyles = (theme: Theme) =>
       opacity: 0.35,
     },
     sampleScoreLabel: { fontSize: 11, fontFamily: FontFamily.mono, color: theme.textSecondary, letterSpacing: 2 },
-    sampleScoreValue: { fontSize: 40, fontFamily: FontFamily.display, color: theme.gold, marginBottom: 8 },
+    sampleScoreValue: { fontSize: 40, fontFamily: FontFamily.display, color: theme.goldDark, marginBottom: 8 },
     sampleRow: { fontSize: 13, fontFamily: FontFamily.mono, color: theme.textMuted, marginTop: 4 },
     sampleLockOverlay: {
       position: 'absolute',
@@ -668,7 +668,7 @@ const createStyles = (theme: Theme) =>
       marginTop: 6,
       fontSize: 10,
       fontFamily: FontFamily.monoMedium,
-      color: theme.gold,
+      color: theme.goldDark,
       letterSpacing: 0.5,
     },
     hintBox: {
@@ -750,7 +750,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.gold,
     },
     scoreLabel: { fontSize: 11, fontFamily: FontFamily.mono, color: theme.textSecondary, letterSpacing: 2 },
-    scoreValue: { fontSize: 52, fontFamily: FontFamily.display, color: theme.gold, lineHeight: 60 },
+    scoreValue: { fontSize: 52, fontFamily: FontFamily.display, color: theme.goldDark, lineHeight: 60 },
     badge: {
       marginTop: 10,
       paddingHorizontal: 14,
@@ -759,7 +759,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.gold,
     },
-    badgeText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.gold },
+    badgeText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.goldDark },
     positionText: { marginTop: 8, fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
     confidenceText: { marginTop: 6, fontSize: 11, fontFamily: FontFamily.mono, color: theme.textMuted },
     insightText: { fontSize: 14, color: theme.textMuted, fontFamily: FontFamily.body, lineHeight: 21, fontStyle: 'italic' },
@@ -768,7 +768,7 @@ const createStyles = (theme: Theme) =>
     dotMark: { width: 6, height: 6, borderRadius: 3 },
     rowText: { fontSize: 14, color: theme.textMuted, fontFamily: FontFamily.body },
     retryBtn: { alignItems: 'center', paddingVertical: 14 },
-    retryText: { fontSize: 12, color: theme.gold, fontFamily: FontFamily.mono },
+    retryText: { fontSize: 12, color: theme.goldDark, fontFamily: FontFamily.mono },
     resultActionsRow: { flexDirection: 'row', gap: 12, marginHorizontal: 24, marginBottom: 8 },
     saveBtn: {
       flex: 1,
@@ -788,5 +788,5 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    shareBtnText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.gold },
+    shareBtnText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.goldDark },
   });

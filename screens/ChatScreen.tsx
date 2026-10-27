@@ -320,7 +320,7 @@ const createStyles = (theme: Theme) =>
     avatarImage: { width: 38, height: 38, borderRadius: RADIUS },
     titleWrap: { flex: 1 },
     title: { fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
-    subtitle: { fontSize: 11, color: theme.gold, fontFamily: FontFamily.mono, marginTop: 1 },
+    subtitle: { fontSize: 11, color: theme.goldDark, fontFamily: FontFamily.mono, marginTop: 1 },
     messagesContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16, flexGrow: 1 },
     empty: {
       flex: 1,

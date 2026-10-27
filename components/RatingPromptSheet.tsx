@@ -143,7 +143,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       marginBottom: 10,
     },
-    primaryBtnDisabled: { opacity: 0.4 },
+    primaryBtnDisabled: { backgroundColor: theme.border },
     primaryBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold, color: Paper.ink },
     secondaryBtn: {
       width: '100%',
