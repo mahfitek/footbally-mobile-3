@@ -309,7 +309,7 @@ function AppContent() {
   };
 
   useEffect(() => {
-    Linking.getInitialURL().then(handleJoinTeamUrl);
+    Linking.getInitialURL().then((url) => handleJoinTeamUrl(url ?? null));
     const subscription = Linking.addEventListener('url', ({ url }) => handleJoinTeamUrl(url));
     return () => subscription.remove();
   }, []);

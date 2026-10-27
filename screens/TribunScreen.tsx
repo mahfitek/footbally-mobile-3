@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Linking,
+  type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,7 +68,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const identitiesRef = useRef(identities);
   identitiesRef.current = identities;
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     load();

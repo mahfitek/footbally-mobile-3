@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Swipeable } from 'react-native-gesture-handler';
+import ReanimatedSwipeable, { SwipeDirection } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -179,7 +180,7 @@ export default function NotificationsScreen({ navigate }: Props) {
                 const cat = categorize(notif.msg, t);
                 const catColor = theme[cat.colorKey];
                 return (
-                  <Swipeable
+                  <ReanimatedSwipeable
                     key={notif.id}
                     overshootLeft={false}
                     overshootRight={false}
@@ -190,7 +191,7 @@ export default function NotificationsScreen({ navigate }: Props) {
                       <SwipeAction dragX={dragX} side="right" color={theme.error} icon="trash" label={t('notif_delete')} />
                     )}
                     onSwipeableOpen={(direction) => {
-                      if (direction === 'left') markAsRead(notif.id);
+                      if (direction === SwipeDirection.LEFT) markAsRead(notif.id);
                       else deleteNotification(notif.id);
                     }}
                   >
@@ -214,7 +215,7 @@ export default function NotificationsScreen({ navigate }: Props) {
                         </HapticTouchable>
                       )}
                     </View>
-                  </Swipeable>
+                  </ReanimatedSwipeable>
                 );
               })}
             </View>
@@ -233,20 +234,27 @@ function SwipeAction({
   icon,
   label,
 }: {
-  dragX: Animated.AnimatedInterpolation<number>;
+  dragX: SharedValue<number>;
   side: 'left' | 'right';
   color: string;
   icon: IoniconName;
   label: string;
 }) {
-  const scale = dragX.interpolate({
-    inputRange: side === 'left' ? [0, 80] : [-80, 0],
-    outputRange: side === 'left' ? [0.5, 1] : [1, 0.5],
-    extrapolate: 'clamp',
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: interpolate(
+          dragX.value,
+          side === 'left' ? [0, 80] : [-80, 0],
+          side === 'left' ? [0.5, 1] : [1, 0.5],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
   return (
     <View style={[swipeActionStyles.wrap, { backgroundColor: color, justifyContent: side === 'left' ? 'flex-start' : 'flex-end' }]}>
-      <Animated.View style={[swipeActionStyles.inner, { transform: [{ scale }] }]}>
+      <Animated.View style={[swipeActionStyles.inner, animatedStyle]}>
         <Ionicons name={icon} size={18} color="#FFFFFF" />
         <Text style={swipeActionStyles.text}>{label}</Text>
       </Animated.View>
