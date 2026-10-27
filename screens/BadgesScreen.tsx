@@ -8,6 +8,7 @@ import { Theme, CARD_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import {
   getLevel,
   getBadges,
@@ -54,9 +55,9 @@ export default function BadgesScreen({ navigate, userId }: Props) {
     if (!uid) uid = session?.user?.id ?? null;
     setResolvedUserId(uid ?? null);
 
-    if (session?.user) {
-      const premiumUntil = session.user.user_metadata?.premium_until ?? null;
-      setIsPremiumActive(!!session.user.user_metadata?.premium && (!premiumUntil || new Date(premiumUntil) > new Date()));
+    if (uid) {
+      const status = await fetchPremiumStatus(uid).catch(() => INACTIVE_PREMIUM);
+      setIsPremiumActive(status.active);
     }
 
     if (uid) {

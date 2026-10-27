@@ -47,7 +47,12 @@ import BadgesScreen from './screens/BadgesScreen';
 import VenuePanelScreen from './screens/VenuePanelScreen';
 import VenuesScreen from './screens/VenuesScreen';
 import VenueDetailScreen from './screens/VenueDetailScreen';
+import SocialFeedScreen from './screens/SocialFeedScreen';
+import CreatePostScreen from './screens/CreatePostScreen';
+import UserFollowListScreen from './screens/UserFollowListScreen';
+import MerchScreen from './screens/MerchScreen';
 import BottomNav from './components/BottomNav';
+import { useKeyboardOpen } from './lib/useKeyboardOpen';
 import ErrorBoundary from './components/ErrorBoundary';
 import RatingPromptSheet from './components/RatingPromptSheet';
 import { shouldShowRatingPrompt, markRatingPromptShown, markRatingPromptResponded } from './lib/appRating';
@@ -82,15 +87,19 @@ type Screen =
   | 'regions'
   | 'badges'
   | 'venues'
-  | 'venueDetail';
+  | 'venueDetail'
+  | 'socialFeed'
+  | 'createPost'
+  | 'userFollowList'
+  | 'merch';
 
-type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
+type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'tribun' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
 
 // Giriş öncesi akış — bu ekranlarda alt navbar ve kenardan geri kaydırma jesti gösterilmez.
-// 'chat' ve 'tribun' da buraya dahil: bu ekranların altta sabit bir mesaj
-// giriş çubuğu var ve navbar üzerine binmesin diye (mesajlaşma uygulamalarında
-// standart olduğu gibi) sohbet açıkken sekme çubuğu gizlenir.
-const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat', 'tribun'];
+// 'chat' buraya dahil: sohbet ekranında navbar üzerine binmesin diye sekme çubuğu gizlenir.
+// 'tribun' (Sahadan) bir navbar sekmesi olduğu için görünür kalır; klavye açıkken
+// gizlenmesi AppContent içinde ayrıca ele alınır.
+const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat'];
 const EDGE_BACK_WIDTH = 28;
 const EDGE_BACK_THRESHOLD = 80;
 
@@ -104,6 +113,7 @@ const TAB_ROOT_SCREENS: Screen[] = [
   'footbally',
   'messages',
   'profile',
+  'tribun',
   'teamHome',
   'findPlayer',
   'findOpponent',
@@ -142,6 +152,14 @@ function AppContent() {
   const [history, setHistory] = useState<Screen[]>([]);
   const [chatTarget, setChatTarget] = useState<{ id: string; name: string } | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  // Sosyal Saha: viewing another user's profile (from a post/like/comment/follow
+  // list) reuses the same 'profile' screen, just pointed at a different uid —
+  // null means "show my own profile" (the tab-bar default).
+  const [viewedProfileUserId, setViewedProfileUserId] = useState<string | null>(null);
+  // Same idea as viewedProfileUserId, for viewing another team's profile —
+  // null means "show my own team" (the tab-bar default).
+  const [viewedTeamOwnerId, setViewedTeamOwnerId] = useState<string | null>(null);
+  const [followListTarget, setFollowListTarget] = useState<{ userId: string; type: 'followers' | 'following' } | null>(null);
   const [userType, setUserType] = useState<'player' | 'team' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
@@ -157,10 +175,30 @@ function AppContent() {
     if (next === 'venueDetail' && params) {
       setSelectedVenueId(String(params.id ?? ''));
     }
+    if (next === 'profile') {
+      // Bottom nav'daki "Profil" sekmesi params göndermez (kendi profilin);
+      // bir gönderi/yorum/takip listesinden gelen navigasyon userId taşır.
+      setViewedProfileUserId(params?.userId ? String(params.userId) : null);
+    }
+    if (next === 'teamProfile') {
+      setViewedTeamOwnerId(params?.userId ? String(params.userId) : null);
+    }
+    if (next === 'userFollowList' && params) {
+      setFollowListTarget({
+        userId: String(params.userId ?? ''),
+        type: params.type === 'following' ? 'following' : 'followers',
+      });
+    }
     if (next === 'settings') {
       setSettingsFrom(screen);
     }
-    if (TAB_ROOT_SCREENS.includes(next as Screen)) {
+    // 'profile'/'teamProfile' birer sekme köküdür ama başka bir kullanıcının/
+    // takımın profiline (userId param'ıyla) gidilirken bunu tab-switch değil
+    // normal bir ileri-geçmiş adımı gibi ele alıyoruz — böylece geri kaydırma
+    // jesti geldiği gönderi/takip listesine dönebiliyor.
+    const isViewingOtherProfile =
+      (next === 'profile' || next === 'teamProfile') && !!params?.userId;
+    if (TAB_ROOT_SCREENS.includes(next as Screen) && !isViewingOtherProfile) {
       // Bir sekme köküne geçiş, geri geçmişini sıfırlar — sekmeler arası
       // "geri kaydırma" sızıntısını engeller.
       setHistory([]);
@@ -314,7 +352,10 @@ function AppContent() {
     return () => subscription.remove();
   }, []);
 
-  const showNav = !NO_NAV_SCREENS.includes(screen) && userType !== 'venue';
+  const keyboardOpen = useKeyboardOpen();
+  // Sahadan'da giriş alanı klavyenin altında kalmasın diye klavye açıkken navbar gizlenir.
+  const showNav =
+    !NO_NAV_SCREENS.includes(screen) && userType !== 'venue' && !(screen === 'tribun' && keyboardOpen);
 
   const renderScreen = () => {
     switch (screen) {
@@ -333,9 +374,32 @@ function AppContent() {
       case 'messages':
         return <MessagesScreen navigate={navigate} />;
       case 'profile':
-        return <ProfileScreen navigate={navigate} userId={currentUserId} />;
+        return (
+          <ProfileScreen
+            navigate={navigate}
+            userId={viewedProfileUserId ?? currentUserId}
+            currentUserId={currentUserId}
+            onBack={viewedProfileUserId ? goBack : undefined}
+          />
+        );
+      case 'socialFeed':
+        return <SocialFeedScreen navigate={navigate} userId={currentUserId} />;
+      case 'createPost':
+        return <CreatePostScreen navigate={navigate} userId={currentUserId} />;
+      case 'userFollowList':
+        return (
+          <UserFollowListScreen
+            navigate={navigate}
+            onBack={goBack}
+            userId={followListTarget?.userId ?? ''}
+            type={followListTarget?.type ?? 'followers'}
+            currentUserId={currentUserId}
+          />
+        );
       case 'premium':
         return <PremiumScreen navigate={navigate} previousScreen={previousScreen} />;
+      case 'merch':
+        return <MerchScreen onBack={goBack} />;
       case 'ai':
         return <AIAnalysisScreen navigate={navigate} />;
       case 'settings':
@@ -365,7 +429,14 @@ function AppContent() {
       case 'teamHome':
         return <TeamHomeScreen navigate={navigate} userId={currentUserId} />;
       case 'teamProfile':
-        return <TeamProfileScreen navigate={navigate} userId={currentUserId} />;
+        return (
+          <TeamProfileScreen
+            navigate={navigate}
+            userId={viewedTeamOwnerId ?? currentUserId}
+            currentUserId={currentUserId}
+            onBack={viewedTeamOwnerId ? goBack : undefined}
+          />
+        );
       case 'teamEdit':
         return <TeamEditScreen navigate={navigate} userId={currentUserId} />;
       case 'teamSquad':
@@ -405,7 +476,15 @@ function AppContent() {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         {renderScreen()}
         {showNav && (
-          <BottomNav active={screen as TabName} onPress={navigate} userType={userType} />
+          <BottomNav
+            active={
+              (screen === 'profile' && viewedProfileUserId) || (screen === 'teamProfile' && viewedTeamOwnerId)
+                ? null
+                : (screen as TabName)
+            }
+            onPress={navigate}
+            userType={userType}
+          />
         )}
         {history.length > 0 && (
           <GestureDetector gesture={edgeBackGesture}>

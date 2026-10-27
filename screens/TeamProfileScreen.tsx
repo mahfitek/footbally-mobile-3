@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,6 +31,7 @@ import StatCard from '../components/StatCard';
 
 type TeamData = {
   id: string;
+  owner_id: string;
   name: string;
   city: string | null;
   district: string | null;
@@ -77,10 +79,19 @@ const FAKE_APPLICATIONS: Application[] = [
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
+  /** Görüntülenen takım profilinin sahibi — kendi takımın için oturum
+   * kullanıcısı, başka bir takım için o takımın owner_id'si (bkz. App.tsx
+   * viewedTeamOwnerId). */
   userId?: string | null;
+  /** Oturum açmış (görüntüleyen) kullanıcı — userId'den farklıysa "başkasının
+   * takım profili" moduna geçilir (düzenleme/yükleme gizlenir, Takip Et gösterilir). */
+  currentUserId?: string | null;
+  /** Sadece başkasının takım profili görüntülenirken verilir — geri dönüş
+   * için kullanılır; kendi takımında (sekme kökü) gösterilmez. */
+  onBack?: () => void;
 }
 
-export default function TeamProfileScreen({ navigate, userId }: Props) {
+export default function TeamProfileScreen({ navigate, userId, currentUserId, onBack }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -96,6 +107,17 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   const [showApplications, setShowApplications] = useState(false);
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedPosition, setSelectedPosition] = useState('');
+
+  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20260912000000_add_social_saha.sql)
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
+  // Görüntülenen takım (team.owner_id) oturumdaki kullanıcıdan (currentUserId)
+  // farklıysa "başkasının takım profili" moduna geçilir: düzenleme/yükleme
+  // gizlenir, Takip Et butonu gösterilir — bkz. screens/ProfileScreen.tsx.
+  const isOwnProfile = !currentUserId || !team || team.owner_id === currentUserId;
 
   useEffect(() => {
     loadAll();
@@ -131,6 +153,47 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
 
     setTeam(data as TeamData);
     await loadSquad(data.id);
+    await loadFollowInfo(data.owner_id);
+  };
+
+  const loadFollowInfo = async (ownerId: string) => {
+    const { data } = await profiles.publicProfile(ownerId, 'followers_count, following_count');
+    setFollowersCount(data?.followers_count ?? 0);
+    setFollowingCount(data?.following_count ?? 0);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const viewerUid = currentUserId ?? session?.user?.id ?? null;
+    if (!viewerUid || viewerUid === ownerId) return;
+
+    const { data: followRow } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', viewerUid)
+      .eq('following_id', ownerId)
+      .maybeSingle();
+    setIsFollowing(!!followRow);
+  };
+
+  const toggleFollow = async () => {
+    if (!currentUserId || !team || isOwnProfile || followBusy) return;
+    const targetId = team.owner_id;
+    const wasFollowing = isFollowing;
+    setFollowBusy(true);
+    // Optimistic update — anında yansıt, hata olursa geri al.
+    setIsFollowing(!wasFollowing);
+    setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? -1 : 1)));
+
+    const { error } = wasFollowing
+      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('following_id', targetId)
+      : await supabase.from('follows').insert({ follower_id: currentUserId, following_id: targetId });
+
+    if (error) {
+      if (__DEV__) console.log('Takip işlemi başarısız:', error);
+      setIsFollowing(wasFollowing);
+      setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? 1 : -1)));
+      setToast({ message: t('social_followActionFailed'), type: 'error' });
+    }
+    setFollowBusy(false);
   };
 
   const loadSquad = async (teamId: string) => {
@@ -356,22 +419,40 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t('teamProfile_headerTitle')}</Text>
-          <TouchableOpacity onPress={() => navigate('settings')} style={styles.settingsBtn}>
-            <Ionicons name="settings-outline" size={18} color={theme.text} />
-          </TouchableOpacity>
+          {isOwnProfile ? (
+            <Text style={styles.headerTitle}>{t('teamProfile_headerTitle')}</Text>
+          ) : (
+            <HapticTouchable
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              onPress={() => (onBack ? onBack() : navigate('socialFeed'))}
+            >
+              <Ionicons name="chevron-back" size={19} color={theme.text} />
+              <Text style={styles.headerTitle}>{team.name}</Text>
+            </HapticTouchable>
+          )}
+          {isOwnProfile && (
+            <TouchableOpacity onPress={() => navigate('settings')} style={styles.settingsBtn}>
+              <Ionicons name="settings-outline" size={18} color={theme.text} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.heroSection}>
-          <HapticTouchable style={styles.logoWrap} onPress={pickTeamLogo} disabled={uploadingLogo}>
+          <HapticTouchable
+            style={styles.logoWrap}
+            onPress={isOwnProfile ? pickTeamLogo : undefined}
+            disabled={uploadingLogo || !isOwnProfile}
+          >
             {team.logo_url ? (
               <Image source={{ uri: team.logo_url }} style={styles.logoImage} />
             ) : (
               <Ionicons name="business-outline" size={36} color={theme.gold} />
             )}
-            <View style={styles.logoEditBadge}>
-              <Ionicons name="camera-outline" size={13} color={Paper.ink} />
-            </View>
+            {isOwnProfile && (
+              <View style={styles.logoEditBadge}>
+                <Ionicons name="camera-outline" size={13} color={Paper.ink} />
+              </View>
+            )}
           </HapticTouchable>
           <Text style={styles.name} numberOfLines={2}>{team.name}</Text>
           <View style={styles.leagueBadge}>
@@ -381,10 +462,46 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
             {team.city ?? t('teamProfile_cityUnspecified')}{team.district ? `, ${team.district}` : ''}
           </Text>
           {team.founded_year && <Text style={styles.founded}>{t('teamProfile_founded')} {team.founded_year}</Text>}
-          <HapticTouchable style={[styles.editBtn, { flexDirection: 'row', gap: 6 }]} onPress={() => navigate('teamEdit')}>
-            <Ionicons name="create-outline" size={13} color={theme.gold} />
-            <Text style={styles.editBtnText}>{t('teamProfile_editProfile')}</Text>
+          {isOwnProfile && (
+            <HapticTouchable style={[styles.editBtn, { flexDirection: 'row', gap: 6 }]} onPress={() => navigate('teamEdit')}>
+              <Ionicons name="create-outline" size={13} color={theme.gold} />
+              <Text style={styles.editBtnText}>{t('teamProfile_editProfile')}</Text>
+            </HapticTouchable>
+          )}
+        </View>
+
+        {/* Sosyal Saha — takipçi/takip edilen sayısı + Takip Et butonu */}
+        <View style={styles.followRow}>
+          <HapticTouchable
+            style={styles.followStat}
+            onPress={() => navigate('userFollowList', { userId: team.owner_id, type: 'followers' })}
+          >
+            <Text style={styles.followStatValue}>{followersCount}</Text>
+            <Text style={styles.followStatLabel}>{t('social_followers')}</Text>
           </HapticTouchable>
+          <View style={styles.followDivider} />
+          <HapticTouchable
+            style={styles.followStat}
+            onPress={() => navigate('userFollowList', { userId: team.owner_id, type: 'following' })}
+          >
+            <Text style={styles.followStatValue}>{followingCount}</Text>
+            <Text style={styles.followStatLabel}>{t('social_following')}</Text>
+          </HapticTouchable>
+          {!isOwnProfile && (
+            <HapticTouchable
+              style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+              onPress={toggleFollow}
+              disabled={followBusy}
+            >
+              {followBusy ? (
+                <ActivityIndicator size="small" color={isFollowing ? theme.gold : Paper.ink} />
+              ) : (
+                <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
+                  {isFollowing ? t('social_following_action') : t('social_follow')}
+                </Text>
+              )}
+            </HapticTouchable>
+          )}
         </View>
 
         <View style={styles.statsBar}>
@@ -421,19 +538,24 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
           </View>
         </View>
 
+        {(isOwnProfile || (team.photos ?? []).length > 0) && (
         <View style={styles.mediaSection}>
           <Text style={styles.mediaSectionTitle}>{t('teamProfile_teamPhotos')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
             {(team.photos ?? []).map((photo, i) => (
               <Image key={i} source={{ uri: photo }} style={styles.mediaThumb} />
             ))}
-            <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamPhoto} disabled={uploadingPhoto}>
-              <Ionicons name="add" size={22} color={theme.gold} />
-              <Text style={styles.mediaAddLabel}>{uploadingPhoto ? t('teamProfile_uploading') : t('teamProfile_photo')}</Text>
-            </HapticTouchable>
+            {isOwnProfile && (
+              <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamPhoto} disabled={uploadingPhoto}>
+                <Ionicons name="add" size={22} color={theme.gold} />
+                <Text style={styles.mediaAddLabel}>{uploadingPhoto ? t('teamProfile_uploading') : t('teamProfile_photo')}</Text>
+              </HapticTouchable>
+            )}
           </ScrollView>
         </View>
+        )}
 
+        {(isOwnProfile || (team.videos ?? []).length > 0) && (
         <View style={styles.mediaSection}>
           <Text style={styles.mediaSectionTitle}>{t('teamProfile_teamVideos')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
@@ -442,18 +564,23 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
                 <Ionicons name="play" size={20} color={theme.gold} />
               </View>
             ))}
-            <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamVideo} disabled={uploadingVideo}>
-              <Ionicons name="add" size={22} color={theme.gold} />
-              <Text style={styles.mediaAddLabel}>{uploadingVideo ? t('teamProfile_uploading') : t('teamProfile_video')}</Text>
-            </HapticTouchable>
+            {isOwnProfile && (
+              <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamVideo} disabled={uploadingVideo}>
+                <Ionicons name="add" size={22} color={theme.gold} />
+                <Text style={styles.mediaAddLabel}>{uploadingVideo ? t('teamProfile_uploading') : t('teamProfile_video')}</Text>
+              </HapticTouchable>
+            )}
           </ScrollView>
         </View>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('teamSquad_squadHeader')}</Text>
-          <HapticTouchable onPress={() => navigate('teamSquad')}>
-            <Text style={styles.sectionLink}>{t('teamProfile_manageSquad')}</Text>
-          </HapticTouchable>
+          {isOwnProfile && (
+            <HapticTouchable onPress={() => navigate('teamSquad')}>
+              <Text style={styles.sectionLink}>{t('teamProfile_manageSquad')}</Text>
+            </HapticTouchable>
+          )}
         </View>
         {squad.length === 0 ? (
           <EmptyState icon="people-outline" title={t('teamSquad_emptySquadTitle')} subtitle={t('teamProfile_emptySquadSub')} />
@@ -487,9 +614,11 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
                   <Text style={styles.positionRowTitle}>{pos}</Text>
                   <Text style={styles.positionRowSub}>{t('teamProfile_activeSearch')}</Text>
                 </View>
-                <HapticTouchable style={styles.viewApplicationsBtn} onPress={() => loadApplications(pos)}>
-                  <Text style={styles.viewApplicationsBtnText}>{t('teamProfile_viewApplications')}</Text>
-                </HapticTouchable>
+                {isOwnProfile && (
+                  <HapticTouchable style={styles.viewApplicationsBtn} onPress={() => loadApplications(pos)}>
+                    <Text style={styles.viewApplicationsBtnText}>{t('teamProfile_viewApplications')}</Text>
+                  </HapticTouchable>
+                )}
               </View>
             ))}
           </View>
@@ -615,6 +744,32 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 20,
     },
     editBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
+    followRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 24,
+      marginBottom: 20,
+      gap: 12,
+    },
+    followStat: { alignItems: 'center' },
+    followStatValue: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text },
+    followStatLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
+    followDivider: { width: 1, height: 28, backgroundColor: theme.border },
+    followBtn: {
+      flex: 1,
+      height: 40,
+      borderRadius: RADIUS,
+      backgroundColor: theme.gold,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    followBtnActive: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    followBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Paper.ink },
+    followBtnTextActive: { color: theme.goldDark },
     statsBar: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -653,17 +808,17 @@ const createStyles = (theme: Theme) =>
     bioLabel: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     bioValue: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
     mediaSection: { marginHorizontal: 24, marginBottom: 20 },
-    mediaSectionTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 15, marginBottom: 12, letterSpacing: 0.5 },
-    mediaThumb: { width: 120, height: 80, borderRadius: RADIUS, marginRight: 10 },
+    mediaSectionTitle: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 16, marginBottom: 12, letterSpacing: 0.2 },
+    mediaThumb: { width: 112, height: 112, borderRadius: 16, marginRight: 10, borderWidth: 1, borderColor: theme.border },
     videoThumb: {
-      width: 120, height: 80, borderRadius: RADIUS,
+      width: 112, height: 112, borderRadius: 16,
       backgroundColor: theme.card2,
       marginRight: 10,
       alignItems: 'center', justifyContent: 'center',
       borderWidth: 1, borderColor: theme.border,
     },
     mediaAddBtn: {
-      width: 120, height: 80, borderRadius: RADIUS,
+      width: 112, height: 112, borderRadius: 16,
       backgroundColor: theme.card,
       borderWidth: 1, borderColor: theme.border,
       alignItems: 'center', justifyContent: 'center',

@@ -56,6 +56,7 @@
       "expo-font",
       "expo-sharing",
       "expo-status-bar",
+      "expo-video",
       [
         "expo-splash-screen",
         {

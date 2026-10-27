@@ -25,6 +25,8 @@ import { resolveSenderIdentities, SenderIdentity } from '../lib/chatIdentity';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
+import { NAV_BAR_HEIGHT } from '../components/BottomNav';
+import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 
 const RADIUS = CARD_RADIUS;
 const MAX_LENGTH = 500;
@@ -69,6 +71,8 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   const identitiesRef = useRef(identities);
   identitiesRef.current = identities;
   const scrollRef = useRef<ScrollViewInstance>(null);
+  // Navbar Sahadan'da görünür; giriş çubuğu onun üstünde durur, klavye açılınca navbar gizlenir.
+  const keyboardOpen = useKeyboardOpen();
 
   useEffect(() => {
     load();
@@ -363,7 +367,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
           </View>
         )}
 
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { marginBottom: keyboardOpen ? 0 : NAV_BAR_HEIGHT }]}>
           <HapticTouchable style={styles.attachBtn} onPress={handleAttachPress} disabled={sending}>
             <Ionicons name="image-outline" size={19} color={theme.gold} />
           </HapticTouchable>

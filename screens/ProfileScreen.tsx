@@ -33,6 +33,7 @@ import { FontFamily } from '../constants/fonts';
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -122,13 +123,21 @@ const calculateScore = (profile: {
 };
 
 interface Props {
-  navigate: (screen: string) => void;
+  navigate: (screen: string, params?: any) => void;
+  /** Görüntülenen profilin sahibi — kendi profilin için oturum kullanıcısı, başka
+   * birinin profili için o kullanıcının id'si (bkz. App.tsx viewedProfileUserId). */
   userId?: string | null;
+  /** Oturum açmış (görüntüleyen) kullanıcı — userId'den farklıysa "başkasının
+   * profili" moduna geçilir (düzenleme/avatar yükleme gizlenir, Takip Et gösterilir). */
+  currentUserId?: string | null;
+  /** Sadece başkasının profili görüntülenirken verilir (bkz. App.tsx) — geri
+   * dönüş için kullanılır; kendi profilinde (sekme kökü) gösterilmez. */
+  onBack?: () => void;
 }
 
 type PickerType = 'position' | 'age' | 'height' | 'weight' | 'city' | 'district' | null;
 
-export default function ProfileScreen({ navigate, userId }: Props) {
+export default function ProfileScreen({ navigate, userId, currentUserId, onBack }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -157,6 +166,12 @@ export default function ProfileScreen({ navigate, userId }: Props) {
   const [isPremium, setIsPremium] = useState(false);
   const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
 
+  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20260912000000_add_social_saha.sql)
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
   const [editMode, setEditMode] = useState(false);
   const [openPicker, setOpenPicker] = useState<PickerType>(null);
 
@@ -167,6 +182,11 @@ export default function ProfileScreen({ navigate, userId }: Props) {
   const [aiOverall, setAiOverall] = useState<number | null>(null);
   const cardRef = useRef<ElementRef<typeof ViewShot>>(null);
 
+  // Görüntülenen profil (userId) oturumdaki kullanıcıdan (currentUserId)
+  // farklıysa "başkasının profili" moduna geçilir: düzenleme/avatar
+  // yükleme gizlenir, Takip Et butonu gösterilir.
+  const isOwnProfile = !currentUserId || !userId || userId === currentUserId;
+
   useEffect(() => {
     loadProfile();
   }, [userId]);
@@ -175,18 +195,25 @@ export default function ProfileScreen({ navigate, userId }: Props) {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
-    const uid = userId ?? user?.id ?? null;
+    const viewerUid = currentUserId ?? user?.id ?? null;
+    const uid = userId ?? viewerUid;
     if (!uid) {
       setLoading(false);
       return;
     }
 
-    setIsPremium(!!user?.user_metadata?.premium);
-    setPremiumUntil(user?.user_metadata?.premium_until ?? null);
+    // isPremiumActive öncelikle profiles.is_premium'dan okunur (bkz. aşağıdaki
+    // hesaplama). Kolon yoksa yedek yol sunucudaki abonelik kaydıdır; user_metadata
+    // istemci tarafından yazılabildiği için buradan Premium kararı verilmez.
+    if (isOwnProfile && user) {
+      const status = await fetchPremiumStatus(user.id).catch(() => INACTIVE_PREMIUM);
+      setIsPremium(status.active);
+      setPremiumUntil(status.until);
+    }
 
     loadGallery(uid);
+    if (!isOwnProfile && viewerUid) loadFollowStatus(uid, viewerUid);
 
-    const isOwnProfile = !userId || userId === user?.id;
     // Ekranın kullandığı alanlar. Kendi profilinde get_my_profile, başkasınınkinde herkese açık görünüm.
     const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
     const { data, error } = isOwnProfile
@@ -194,6 +221,8 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       : await profiles.publicProfile(uid, profileFields);
 
     if (data) {
+      setFollowersCount(data.followers_count ?? 0);
+      setFollowingCount(data.following_count ?? 0);
       setFullName(data.full_name || '');
       setPosition(data.position || '');
       setAge(String(data.age || 18));
@@ -224,7 +253,10 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         setCardStats(defaultCardStats(calculatedScore));
       }
 
-      if (calculatedScore !== (data.score ?? 0)) {
+      // Sadece kendi profilin için otomatik skor senkronizasyonu — başkasının
+      // profilini görüntülerken onun satırına yazma denemesi yapılmamalı
+      // (RLS zaten engeller ama client tarafında da denememek daha doğru).
+      if (isOwnProfile && calculatedScore !== (data.score ?? 0)) {
         profiles.updateOwn(uid, { score: calculatedScore });
       }
     } else if (error) {
@@ -236,6 +268,37 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       }
     }
     setLoading(false);
+  };
+
+  const loadFollowStatus = async (targetUid: string, viewerUid: string) => {
+    const { data } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', viewerUid)
+      .eq('following_id', targetUid)
+      .maybeSingle();
+    setIsFollowing(!!data);
+  };
+
+  const toggleFollow = async () => {
+    if (!currentUserId || !userId || isOwnProfile || followBusy) return;
+    const wasFollowing = isFollowing;
+    setFollowBusy(true);
+    // Optimistic update — anında yansıt, hata olursa geri al.
+    setIsFollowing(!wasFollowing);
+    setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? -1 : 1)));
+
+    const { error } = wasFollowing
+      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('following_id', userId)
+      : await supabase.from('follows').insert({ follower_id: currentUserId, following_id: userId });
+
+    if (error) {
+      if (__DEV__) console.log('Takip işlemi başarısız:', error);
+      setIsFollowing(wasFollowing);
+      setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? 1 : -1)));
+      setToast({ message: t('social_followActionFailed'), type: 'error' });
+    }
+    setFollowBusy(false);
   };
 
   const loadGallery = async (uid: string) => {
@@ -609,7 +672,14 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
   const stats = [{ val: String(score), label: t('profile_scoreLabel') }, ...getExtraStats(t)];
 
-  const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
+  // profiles.is_premium (migration ile eklendi) artık tek doğru kaynak —
+  // hem kendi hem başkasının profili için geçerli. Kolon henüz yoksa
+  // (migration uygulanmadıysa) rawProfile.is_premium undefined kalır ve eski
+  // session-metadata yoluna (yalnızca kendi profilin için) düşülür.
+  const isPremiumActive =
+    rawProfile && rawProfile.is_premium !== undefined && rawProfile.is_premium !== null
+      ? !!rawProfile.is_premium
+      : isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
 
   const hasProfileBasics = !!(position && city && age);
   const rewardLevel = getLevel(score, t);
@@ -847,30 +917,32 @@ export default function ProfileScreen({ navigate, userId }: Props) {
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <View style={styles.headerSpacer} />
+          {isOwnProfile ? (
+            <View style={styles.headerSpacer} />
+          ) : (
+            <HapticTouchable
+              onPress={() => (onBack ? onBack() : navigate('socialFeed'))}
+              style={styles.headerIconBtn}
+            >
+              <Ionicons name="chevron-back" size={19} color={theme.text} />
+            </HapticTouchable>
+          )}
           <Image source={require('../assets/logo-text.png')} style={styles.logo} resizeMode="contain" />
-          <TouchableOpacity
-            onPress={() => navigate('settings')}
-            style={{
-              width: 42,
-              height: 42,
-              backgroundColor: theme.card,
-              borderRadius: RADIUS,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: theme.border,
-            }}>
-            <Ionicons name="settings-outline" size={19} color={theme.text} />
-          </TouchableOpacity>
+          {isOwnProfile ? (
+            <TouchableOpacity onPress={() => navigate('settings')} style={styles.headerIconBtn}>
+              <Ionicons name="settings-outline" size={19} color={theme.text} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
         </View>
 
         {/* Avatar */}
         <FadeInView style={styles.heroSection} translateY={16} duration={260}>
           <HapticTouchable
             style={[styles.avatarWrap, isPremiumActive && styles.avatarWrapPremium]}
-            onPress={handleAvatarPress}
-            disabled={uploadingAvatar}
+            onPress={isOwnProfile ? handleAvatarPress : undefined}
+            disabled={uploadingAvatar || !isOwnProfile}
           >
             <View style={[styles.avatar, isPremiumActive && styles.avatarPremium]}>
               {uploadingAvatar ? (
@@ -886,9 +958,11 @@ export default function ProfileScreen({ navigate, userId }: Props) {
                 <Ionicons name="star" size={14} color={theme.gold} />
               </View>
             )}
-            <TouchableOpacity onPress={handleAvatarPress} style={styles.cameraBadge} disabled={uploadingAvatar}>
-              <Ionicons name="camera-outline" size={14} color={Paper.ink} />
-            </TouchableOpacity>
+            {isOwnProfile && (
+              <TouchableOpacity onPress={handleAvatarPress} style={styles.cameraBadge} disabled={uploadingAvatar}>
+                <Ionicons name="camera-outline" size={14} color={Paper.ink} />
+              </TouchableOpacity>
+            )}
           </HapticTouchable>
           <Text style={styles.name} numberOfLines={2}>{fullName || t('profile_enterNamePlaceholder')}</Text>
           <Text style={styles.position} numberOfLines={1}>{position || t('profile_enterPositionPlaceholder')}</Text>
@@ -899,6 +973,40 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             </View>
           )}
         </FadeInView>
+
+        {/* Sosyal Saha — takipçi/takip edilen sayısı + Takip Et butonu */}
+        <View style={styles.followRow}>
+          <HapticTouchable
+            style={styles.followStat}
+            onPress={() => navigate('userFollowList', { userId, type: 'followers' })}
+          >
+            <Text style={styles.followStatValue}>{followersCount}</Text>
+            <Text style={styles.followStatLabel}>{t('social_followers')}</Text>
+          </HapticTouchable>
+          <View style={styles.followDivider} />
+          <HapticTouchable
+            style={styles.followStat}
+            onPress={() => navigate('userFollowList', { userId, type: 'following' })}
+          >
+            <Text style={styles.followStatValue}>{followingCount}</Text>
+            <Text style={styles.followStatLabel}>{t('social_following')}</Text>
+          </HapticTouchable>
+          {!isOwnProfile && (
+            <HapticTouchable
+              style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+              onPress={toggleFollow}
+              disabled={followBusy}
+            >
+              {followBusy ? (
+                <ActivityIndicator size="small" color={isFollowing ? theme.gold : Paper.ink} />
+              ) : (
+                <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
+                  {isFollowing ? t('social_following_action') : t('social_follow')}
+                </Text>
+              )}
+            </HapticTouchable>
+          )}
+        </View>
 
         {/* Stats: yan yana modern kartlar */}
         <View style={styles.statsRow}>
@@ -917,7 +1025,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             <View style={[styles.completionFill, { width: `${score}%` }]} />
           </View>
 
-          {score < 100 && scoreSuggestions.length > 0 && (
+          {isOwnProfile && score < 100 && scoreSuggestions.length > 0 && (
             <>
               <Text style={styles.scoreHint}>{t('profile_scoreHintPrefix')}</Text>
               {scoreSuggestions.map((s) => (
@@ -936,15 +1044,17 @@ export default function ProfileScreen({ navigate, userId }: Props) {
             </>
           )}
 
-          {score >= 100 && (
+          {isOwnProfile && score >= 100 && (
             <View style={styles.scoreCompleteBanner}>
               <Text style={styles.scoreCompleteText}>{t('profile_completeBannerText')}</Text>
             </View>
           )}
         </View>
 
-        {/* Ödüller & Tecrübe */}
-        <HapticTouchable style={styles.card} onPress={() => navigate('badges')}>
+        {/* Ödüller & Tecrübe — sadece kendi profilinde tıklanabilir; BadgesScreen
+            her zaman oturumdaki kullanıcıyı baz alır, başkasının profiline
+            özel bir görünümü yok. */}
+        <HapticTouchable style={styles.card} onPress={isOwnProfile ? () => navigate('badges') : undefined}>
           <View style={styles.scoreCardHeader}>
             <Text style={styles.cardTitle}>{t('profile_rewardsTitle')}</Text>
             <Text style={[styles.scoreCardValue, { color: theme[rewardLevel.colorKey] }]}>{rewardLevel.label}</Text>
@@ -978,10 +1088,12 @@ export default function ProfileScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.actionRow}>
-          <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setEditMode(true)}>
-            <Ionicons name="create-outline" size={14} color={theme.gold} />
-            <Text style={styles.editBtnText}>{t('profile_editBtn')}</Text>
-          </HapticTouchable>
+          {isOwnProfile && (
+            <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setEditMode(true)}>
+              <Ionicons name="create-outline" size={14} color={theme.gold} />
+              <Text style={styles.editBtnText}>{t('profile_editBtn')}</Text>
+            </HapticTouchable>
+          )}
           <HapticTouchable style={[styles.editBtn, styles.actionBtnFlex, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => setShowShareCard(true)}>
             <Ionicons name="share-outline" size={14} color={theme.gold} />
             <Text style={styles.editBtnText}>{t('profile_shareProfile')}</Text>
@@ -1004,6 +1116,8 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           ))}
         </View>
 
+        {(isOwnProfile || galleryItems.length > 0) && (
+          <>
         {/* Photo Gallery */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('profile_photoGalleryTitle')}</Text>
@@ -1024,21 +1138,25 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <Image source={{ uri: item.url }} style={styles.galleryImage} />
             </HapticTouchable>
           ))}
-          <HapticTouchable
-            style={[styles.galleryItem, styles.galleryAdd]}
-            onPress={handleGalleryAddPress}
-            disabled={uploadingGalleryPhoto}
-          >
-            {uploadingGalleryPhoto ? (
-              <ActivityIndicator size="small" color={theme.gold} />
-            ) : (
-              <>
-                <Ionicons name="add" size={20} color={theme.gold} />
-                <Text style={styles.galleryAddText}>{t('profile_addLabel')}</Text>
-              </>
-            )}
-          </HapticTouchable>
+          {isOwnProfile && (
+            <HapticTouchable
+              style={[styles.galleryItem, styles.galleryAdd]}
+              onPress={handleGalleryAddPress}
+              disabled={uploadingGalleryPhoto}
+            >
+              {uploadingGalleryPhoto ? (
+                <ActivityIndicator size="small" color={theme.gold} />
+              ) : (
+                <>
+                  <Ionicons name="add" size={20} color={theme.gold} />
+                  <Text style={styles.galleryAddText}>{t('profile_addLabel')}</Text>
+                </>
+              )}
+            </HapticTouchable>
+          )}
         </ScrollView>
+          </>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -1200,6 +1318,42 @@ const createStyles = (theme: Theme) =>
       marginTop: 16,
     },
     headerSpacer: { width: 42 },
+    headerIconBtn: {
+      width: 42,
+      height: 42,
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    followRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 24,
+      marginBottom: 20,
+      gap: 12,
+    },
+    followStat: { alignItems: 'center' },
+    followStatValue: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text },
+    followStatLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
+    followDivider: { width: 1, height: 28, backgroundColor: theme.border },
+    followBtn: {
+      flex: 1,
+      height: 40,
+      borderRadius: RADIUS,
+      backgroundColor: theme.gold,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    followBtnActive: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    followBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Paper.ink },
+    followBtnTextActive: { color: theme.goldDark },
     heroSection: { alignItems: 'center', paddingVertical: 24 },
     avatarWrap: { position: 'relative', marginBottom: 16 },
     avatarWrapPremium: {},
@@ -1361,11 +1515,11 @@ const createStyles = (theme: Theme) =>
     sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     gallery: { paddingLeft: 24, marginBottom: 20 },
     galleryItem: {
-      width: 120,
-      height: 80,
+      width: 112,
+      height: 112,
       backgroundColor: theme.card,
-      borderRadius: RADIUS,
-      marginRight: 12,
+      borderRadius: 16,
+      marginRight: 10,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,

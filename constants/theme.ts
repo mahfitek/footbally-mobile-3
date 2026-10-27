@@ -73,6 +73,12 @@ export const Paper = {
   line: '#E6EBEF',
 };
 
+// getfootbally.com web'deki premium vurgu renkleriyle birebir eşleşsin diye
+// tema bağımsız (light/dark'tan etkilenmeyen) sabit tutuluyor — bkz. Sosyal
+// Saha "kimler beğendi" listesi (screens/SocialFeedScreen.tsx).
+export const PREMIUM_HEART_COLOR = '#FFD700';
+export const PREMIUM_NAME_GRADIENT: [string, string] = ['#f5d36b', '#b48a2f'];
+
 export function hexToRgba(hex: string, alpha: number) {
   const clean = hex.replace('#', '');
   const bigint = parseInt(clean, 16);

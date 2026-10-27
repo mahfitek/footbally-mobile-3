@@ -15,6 +15,7 @@ import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
@@ -78,11 +79,12 @@ export default function ScoutScreen({ navigate }: Props) {
 
   useEffect(() => {
     loadPlayers();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
       setViewerId(session.user.id);
-      setIsPremium(!!session.user.user_metadata?.premium);
-      setPremiumUntil(session.user.user_metadata?.premium_until ?? null);
+      const status = await fetchPremiumStatus(session.user.id).catch(() => INACTIVE_PREMIUM);
+      setIsPremium(status.active);
+      setPremiumUntil(status.until);
     });
   }, []);
 

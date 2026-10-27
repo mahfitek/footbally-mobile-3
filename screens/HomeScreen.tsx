@@ -19,6 +19,7 @@ import { FontFamily } from '../constants/fonts';
 import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SectionHeader from '../components/SectionHeader';
@@ -203,17 +204,17 @@ export default function HomeScreen({ navigate, userId }: Props) {
     const user = session?.user;
     const uid = userId ?? user?.id ?? null;
     if (uid) {
-      const premiumUntilValue = user?.user_metadata?.premium_until ?? null;
-      const premiumActive = !!user?.user_metadata?.premium && (!premiumUntilValue || new Date(premiumUntilValue) > new Date());
-      setIsPremium(!!user?.user_metadata?.premium);
-      setPremiumUntil(premiumUntilValue);
+      // Premium durumu sunucudan (subscriptions) okunur; user_metadata istemci tarafından yazılabilir.
+      const status = await fetchPremiumStatus(uid).catch(() => INACTIVE_PREMIUM);
+      setIsPremium(status.active);
+      setPremiumUntil(status.until);
 
       const { data } = await profiles.ownProfile('full_name, score, position, age, height, weight, city, district, foot, avatar_url');
 
       if (data) {
         setName(data.full_name ?? '');
         setScore(data.score ?? 0);
-        calculateTasks(data, premiumActive);
+        calculateTasks(data, status.active);
       }
     }
     setLoading(false);

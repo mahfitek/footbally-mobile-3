@@ -5,10 +5,8 @@ import {
   Image,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import HapticTouchable from '../components/HapticTouchable';
-import BottomSheet from '../components/BottomSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -18,10 +16,11 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
-import { sendLocalNotification } from '../lib/notifications';
+import { profiles } from '../lib/profiles';
+import { fetchPremiumStatus, INACTIVE_PREMIUM, PremiumStatus } from '../lib/premium';
 import LoadingScreen from '../components/LoadingScreen';
-import Toast from '../components/Toast';
 import SectionHeader from '../components/SectionHeader';
+import PremiumEftSection from '../components/PremiumEftSection';
 
 type PlanId = 'monthly' | 'yearly';
 
@@ -46,12 +45,6 @@ const getPlans = (t: (key: any) => string): {
   },
 ];
 
-const getStats = (t: (key: any) => string) => [
-  { value: '2.4K+', label: t('premium_activePlayers') },
-  { value: '180+', label: 'Scout' },
-  { value: '%94', label: t('premium_satisfaction') },
-];
-
 const getBenefits = (t: (key: any) => string) => [
   t('premium_benefit1'),
   t('premium_benefit2'),
@@ -61,12 +54,6 @@ const getBenefits = (t: (key: any) => string) => [
   t('premium_benefit6'),
   t('premium_benefit7'),
   t('premium_benefit8'),
-];
-
-const getTestimonials = (t: (key: any) => string) => [
-  { name: 'Ahmet K.', age: 19, text: t('premium_testimonial1Text'), rating: 5 },
-  { name: 'Mehmet Y.', age: 22, text: t('premium_testimonial2Text'), rating: 5 },
-  { name: 'Emre S.', age: 17, text: t('premium_testimonial3Text'), rating: 5 },
 ];
 
 const formatDate = (iso: string, lang: 'tr' | 'en') =>
@@ -80,69 +67,43 @@ interface Props {
 export default function PremiumScreen({ navigate, previousScreen }: Props) {
   const { theme } = useTheme();
   const { t, lang } = useLanguage();
-  const PLANS = getPlans(t);
-  const STATS = getStats(t);
+  // Yalnızca aylık plan satılır (99 TL/ay). Yıllık fiyat ve deneme süresi kaldırıldı:
+  // ödeme altyapısı yalnızca aylık dönemi destekliyor.
+  const PLANS = getPlans(t).filter((p) => p.id === 'monthly');
   const BENEFITS = getBenefits(t);
-  const TESTIMONIALS = getTestimonials(t);
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
-  const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>('yearly');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [memberNo, setMemberNo] = useState<number | null>(null);
+  const [premium, setPremium] = useState<PremiumStatus>(INACTIVE_PREMIUM);
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>('monthly');
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Premium durumu ve üye numarası sunucudan okunur. Kullanıcı metadata'sındaki
+  // premium alanı istemci tarafından yazılabildiği için hiçbir karar ona dayanmaz.
   const loadData = async () => {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) {
-        setLoading(false);
-        return;
+      if (user) {
+        const [status, profileRes] = await Promise.all([
+          fetchPremiumStatus(user.id),
+          profiles.ownProfile('member_no'),
+        ]);
+        setPremium(status);
+        setMemberNo(profileRes.data?.member_no ?? null);
       }
-      setUserId(user.id);
-      setIsPremium(!!user.user_metadata?.premium);
-      setPremiumUntil(user.user_metadata?.premium_until ?? null);
     } catch (err) {
       if (__DEV__) console.log('Premium durumu yüklenirken beklenmeyen hata:', err);
     }
     setLoading(false);
   };
 
-  const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
-
-  const handleStartTrial = async () => {
-    if (!userId) return;
-    setSubmitting(true);
-    try {
-      const until = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const { error } = await supabase.auth.updateUser({
-        data: { premium: true, premium_until: until.toISOString() },
-      });
-      if (error) throw error;
-
-      setIsPremium(true);
-      setPremiumUntil(until.toISOString());
-      setModalVisible(true);
-      sendLocalNotification(t('premium_activatedNotifTitle'), t('premium_activatedNotifBody'));
-    } catch (err) {
-      if (__DEV__) console.log('Premium aktifleştirilemedi:', err);
-      setToast({ message: t('premium_trialFailed'), type: 'error' });
-    }
-    setSubmitting(false);
-  };
-
-  const handleCloseSuccess = () => {
-    setModalVisible(false);
-    navigate('profile');
-  };
+  const isPremiumActive = premium.active;
+  const premiumUntil = premium.until;
 
   if (loading) {
     return <LoadingScreen message={t('premium_loading')} />;
@@ -190,21 +151,8 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
           </Text>
         </View>
 
-        <View style={styles.statsRow}>
-          {STATS.map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-
         {!isPremiumActive && (
           <>
-            <View style={styles.launchBanner}>
-              <Ionicons name="flash" size={13} color={theme.gold} />
-              <Text style={styles.launchBannerText}>{t('premium_specialPricingBanner')}</Text>
-            </View>
             <Text style={styles.sectionTitle}>{t('premium_sectionPlan')}</Text>
             <View style={styles.plansRow}>
               {PLANS.map((p) => {
@@ -245,65 +193,14 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
           ))}
         </View>
 
-        <SectionHeader title={t('premium_sectionTestimonials')} />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, flexShrink: 0 }}
-          contentContainerStyle={styles.testimonialsRow}
-        >
-          {TESTIMONIALS.map((item, i) => (
-            <View key={i} style={styles.testimonialCard}>
-              <View style={styles.testimonialStars}>
-                {Array.from({ length: item.rating }).map((_, si) => (
-                  <Ionicons key={si} name="star" size={12} color={theme.gold} />
-                ))}
-              </View>
-              <Text style={styles.testimonialText}>"{item.text}"</Text>
-              <Text style={styles.testimonialName}>
-                {item.name}, {item.age} {t('teamProfile_ageSuffix')}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        {!isPremiumActive && (
-          <>
-            <HapticTouchable
-              style={[styles.ctaBtn, submitting && styles.btnDisabled]}
-              onPress={handleStartTrial}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color={Paper.ink} />
-              ) : (
-                <Text style={styles.ctaText}>{t('premium_ctaText')}</Text>
-              )}
-            </HapticTouchable>
-            <Text style={styles.ctaSub}>{t('premium_ctaSub')}</Text>
-          </>
-        )}
+        {/* Havale/EFT akışı yalnızca geliştirme önizlemesinde açılır. Mağaza
+            sürümlerinde IBAN talimatı yayımlanmaz; uygun ödeme sistemi ayrıca belirlenir. */}
+        {!isPremiumActive && (__DEV__ ? (
+          <PremiumEftSection memberNo={memberNo} />
+        ) : (
+          <Text style={styles.ctaSub}>{t('premium_productionNote')}</Text>
+        ))}
       </ScrollView>
-
-      <BottomSheet visible={modalVisible} onClose={handleCloseSuccess} theme={theme}>
-        <View style={styles.successWrap}>
-          <Ionicons name="trophy-outline" size={44} color={theme.gold} style={{ marginBottom: 16 }} />
-          <Text style={styles.successTitle}>{t('premium_successTitle')}</Text>
-          <Text style={styles.successSub}>
-            {t('premium_successSub')}
-          </Text>
-          <HapticTouchable style={styles.modalSaveBtn} onPress={handleCloseSuccess}>
-            <Text style={styles.modalSaveText}>{t('premium_goToProfile')}</Text>
-          </HapticTouchable>
-        </View>
-      </BottomSheet>
-
-      <Toast
-        visible={!!toast}
-        message={toast?.message ?? ''}
-        type={toast?.type ?? 'info'}
-        onHide={() => setToast(null)}
-      />
     </SafeAreaView>
   );
 }

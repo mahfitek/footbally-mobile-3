@@ -297,6 +297,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         <SettingRow icon="card-outline" title={t('settings_paymentsTitle')} subtitle={t('settings_paymentsSub')} onPress={() => navigate('premium')} />
 
+        <SettingRow icon="shirt-outline" title={t('merch_settingsTitle')} subtitle={t('merch_settingsSub')} onPress={() => navigate('merch')} />
+
         <SettingRow
           icon="download-outline"
           title={t('settings_downloadDataTitle')}

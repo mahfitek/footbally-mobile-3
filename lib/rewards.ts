@@ -1,4 +1,3 @@
-import { supabase } from './supabase';
 import { profiles } from './profiles';
 import { TranslationKey } from './i18n';
 
@@ -76,33 +75,8 @@ export const claimBadgeReward = async (userId: string, badge: Badge, t: T): Prom
     return { ok: false, grantedDays: 0, message: t('rewards_alreadyClaimed') };
   }
 
-  const remaining = Math.max(0, MAX_REWARD_PREMIUM_DAYS_PER_MONTH - progress.daysClaimedThisMonth);
-  if (remaining <= 0) {
-    return { ok: false, grantedDays: 0, message: t('rewards_monthlyCapReached') };
-  }
-
-  const grantedDays = Math.min(badge.rewardDays, remaining);
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const currentUntil = user?.user_metadata?.premium_until ? new Date(user.user_metadata.premium_until) : null;
-  const base = currentUntil && currentUntil > new Date() ? currentUntil : new Date();
-  const newUntil = new Date(base.getTime() + grantedDays * 24 * 60 * 60 * 1000);
-
-  const { error: authError } = await supabase.auth.updateUser({
-    data: { premium: true, premium_until: newUntil.toISOString() },
-  });
-  if (authError) return { ok: false, grantedDays: 0, message: t('rewards_claimFailed') };
-
-  const monthKey = currentMonthKey();
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({
-      claimed_badge_keys: [...progress.claimedBadgeKeys, badge.key],
-      reward_premium_days_this_month: progress.daysClaimedThisMonth + grantedDays,
-      reward_premium_month_key: monthKey,
-    })
-    .eq('user_id', userId);
-  if (profileError) return { ok: false, grantedDays: 0, message: t('rewards_saveFailed') };
-
-  return { ok: true, grantedDays, message: `${t('rewards_claimedDaysPrefix')}${grantedDays}${t('rewards_claimedDaysSuffix')}` };
+  // Ödül günleri istemci tarafından YAZILMAZ: auth user_metadata ve profiles üzerinden
+  // Premium süresi uzatmak, kullanıcının kendine Premium vermesine yol açardı.
+  // Ödül talebi sunucu tarafı bir RPC'ye taşınana kadar kapalı kalır.
+  return { ok: false, grantedDays: 0, message: t('rewards_claimFailed') };
 };

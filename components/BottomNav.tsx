@@ -11,12 +11,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
+// Navbar'ın alt safe-area dışındaki yüksekliği; Sahadan giriş çubuğu bunu boşluk olarak kullanır.
+export const NAV_BAR_HEIGHT = 64;
+
 export type TabName =
   | 'home'
   | 'activities'
   | 'footbally'
   | 'messages'
   | 'profile'
+  | 'tribun'
   | 'findPlayer'
   | 'findOpponent'
   | 'teamSquad'
@@ -24,14 +28,19 @@ export type TabName =
   | 'teamHome';
 
 interface Props {
-  active: TabName;
+  active: TabName | null;
   onPress: (tab: TabName) => void;
   userType?: 'player' | 'team' | 'venue';
 }
 
+// Sahadan sekmesi, Mesajlar'daki Sahadan bölümünün ile aynı ekrana ('tribun') gider;
+// ayrı bir sosyal akış ekranı açmaz.
+// Merkez logo, sol ve sağ yarılar eşit genişlikte olduğu için tam ortada durur;
+// 5 sekmede 3 sol + merkez + 2 sağ düzeni kullanılır (bkz. render'daki sideGroup'lar).
 const PLAYER_ITEMS: { tab: TabName; icon: IoniconName; label: string }[] = [
   { tab: 'home', icon: 'home-outline', label: 'Ana Sayfa' },
   { tab: 'activities', icon: 'flag-outline', label: 'Aktiviteler' },
+  { tab: 'tribun', icon: 'megaphone-outline', label: 'Sahadan' },
   { tab: 'messages', icon: 'chatbubble-outline', label: 'Mesajlar' },
   { tab: 'profile', icon: 'person-outline', label: 'Profil' },
 ];
@@ -39,12 +48,13 @@ const PLAYER_ITEMS: { tab: TabName; icon: IoniconName; label: string }[] = [
 const TEAM_ITEMS: { tab: TabName; icon: IoniconName; label: string }[] = [
   { tab: 'teamHome', icon: 'home-outline', label: 'Ana Sayfa' },
   { tab: 'findPlayer', icon: 'search-outline', label: 'Oyuncu Bul' },
+  { tab: 'tribun', icon: 'megaphone-outline', label: 'Sahadan' },
   { tab: 'teamSquad', icon: 'list-outline', label: 'Kadro' },
   { tab: 'teamProfile', icon: 'business-outline', label: 'Takım' },
 ];
 
-const PLAYER_TABS: TabName[] = ['home', 'activities', 'footbally', 'messages', 'profile'];
-const TEAM_TABS: TabName[] = ['teamHome', 'findPlayer', 'findOpponent', 'teamSquad', 'teamProfile'];
+const PLAYER_TABS: TabName[] = ['home', 'activities', 'tribun', 'footbally', 'messages', 'profile'];
+const TEAM_TABS: TabName[] = ['teamHome', 'findPlayer', 'tribun', 'findOpponent', 'teamSquad', 'teamProfile'];
 
 export default function BottomNav({ active, onPress, userType = 'player' }: Props) {
   const { theme } = useTheme();
@@ -56,12 +66,14 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
   const PLAYER_LABELS: Record<string, string> = {
     home: t('home'),
     activities: t('activities'),
+    tribun: t('nav_sahadan'),
     messages: t('messages'),
     profile: t('profile'),
   };
   const TEAM_LABELS: Record<string, string> = {
     teamHome: t('nav_teamHome'),
     findPlayer: t('nav_findPlayer'),
+    tribun: t('nav_sahadan'),
     teamSquad: t('nav_teamSquad'),
     teamProfile: t('nav_teamProfile'),
   };
@@ -105,66 +117,53 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
     onPress(tab);
   };
 
-  return (
-    <View style={[styles.container, { height: 64 + insets.bottom, paddingBottom: insets.bottom + 4 }]}>
-      {items.slice(0, 2).map((item) => (
-        <TouchableOpacity key={item.tab} style={styles.item} activeOpacity={0.7} onPress={() => handlePress(item.tab)}>
-          <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
-            <View style={styles.dotSlot}>
-              {active === item.tab && <View style={styles.activeDot} />}
+  const renderItem = (item: { tab: TabName; icon: IoniconName; label: string }) => (
+    <TouchableOpacity key={item.tab} style={styles.item} activeOpacity={0.7} onPress={() => handlePress(item.tab)}>
+      <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
+        <View style={styles.dotSlot}>
+          {active === item.tab && <View style={styles.activeDot} />}
+        </View>
+        <View style={styles.iconWrap}>
+          <Ionicons
+            name={item.icon}
+            size={active === item.tab ? 24 : 21}
+            color={active === item.tab ? theme.gold : theme.textSecondary}
+          />
+          {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
             </View>
-            <View style={styles.iconWrap}>
-              <Ionicons
-                name={item.icon}
-                size={active === item.tab ? 24 : 21}
-                color={active === item.tab ? theme.gold : theme.textSecondary}
-              />
-              {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.label, active === item.tab && styles.labelActive]}>{item.label}</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      ))}
-
-      <TouchableOpacity style={styles.centerBtn} activeOpacity={0.7} onPress={() => handlePress(centerTab)}>
-        <Animated.View style={{ transform: [{ scale: scales[centerTab] }] }}>
-          {isTeam ? (
-            <Ionicons name="shield-outline" size={32} color={theme.gold} />
-          ) : (
-            <Image
-              source={require('../assets/logo-icon.png')}
-              style={{ width: 68, height: 68, resizeMode: 'contain' }}
-            />
           )}
-        </Animated.View>
-      </TouchableOpacity>
+        </View>
+        <Text style={[styles.label, active === item.tab && styles.labelActive]}>{item.label}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
 
-      {items.slice(2).map((item) => (
-        <TouchableOpacity key={item.tab} style={styles.item} activeOpacity={0.7} onPress={() => handlePress(item.tab)}>
-          <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
-            <View style={styles.dotSlot}>
-              {active === item.tab && <View style={styles.activeDot} />}
-            </View>
-            <View style={styles.iconWrap}>
-              <Ionicons
-                name={item.icon}
-                size={active === item.tab ? 24 : 21}
-                color={active === item.tab ? theme.gold : theme.textSecondary}
+  return (
+    <View style={[styles.container, { height: NAV_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom + 4 }]}>
+      <View style={styles.sideGroup}>
+        {items.slice(0, 3).map((item) => renderItem(item))}
+      </View>
+
+      <View style={styles.centerSlot}>
+        <TouchableOpacity style={styles.centerBtn} activeOpacity={0.7} onPress={() => handlePress(centerTab)}>
+          <Animated.View style={{ transform: [{ scale: scales[centerTab] }] }}>
+            {isTeam ? (
+              <Ionicons name="shield-outline" size={32} color={theme.gold} />
+            ) : (
+              <Image
+                source={require('../assets/logo-icon.png')}
+                style={{ width: 68, height: 68, resizeMode: 'contain' }}
               />
-              {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.label, active === item.tab && styles.labelActive]}>{item.label}</Text>
+            )}
           </Animated.View>
         </TouchableOpacity>
-      ))}
+      </View>
+
+      <View style={styles.sideGroup}>
+        {items.slice(3).map((item) => renderItem(item))}
+      </View>
     </View>
   );
 }
@@ -182,9 +181,20 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.border,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-around',
       paddingBottom: 16,
       paddingHorizontal: 8,
+    },
+    // Sol ve sağ yarılar eşit genişlikte (flex: 1); ortadaki sabit 76px slot
+    // ekranın tam ortasına oturur. Yarılar içindeki sekmeler kendi aralarında paylaşılır.
+    sideGroup: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    centerSlot: {
+      width: 76,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     item: {
       flex: 1,
@@ -231,7 +241,5 @@ const createStyles = (theme: Theme) =>
       height: 76,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 0,
-      alignSelf: 'center',
     },
   });
