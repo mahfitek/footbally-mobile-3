@@ -83,7 +83,7 @@ export default function MatchCard({
         </View>
         {urgentLabel ? (
           <View style={styles.urgent}>
-            <Ionicons name="flame" size={12} color={theme.error} />
+            <Ionicons name="flame" size={12} color={DANGER_TEXT} />
             <Text style={styles.urgentText}>{urgentLabel}</Text>
           </View>
         ) : null}
@@ -98,12 +98,15 @@ export default function MatchCard({
   );
 }
 
+// Açık kırmızı zemin üzerinde küçük metin için koyu kırmızı (4.5:1 üzerinde).
+const DANGER_TEXT = '#B42318';
+
 // Rozet renkleri: metin her zaman en az 4.5:1 kontrastlı kalacak şekilde seçildi.
 const STATUS_TONE = (theme: Theme): Record<MatchStatusTone, { bg: string; fg: string }> => ({
   solid: { bg: theme.goldDark, fg: '#FFFFFF' },
   soft: { bg: hexToRgba(theme.goldDark, 0.1), fg: theme.goldDark },
   muted: { bg: theme.card2, fg: theme.textMuted },
-  danger: { bg: hexToRgba(theme.error, 0.1), fg: theme.error },
+  danger: { bg: hexToRgba(theme.error, 0.1), fg: DANGER_TEXT },
 });
 
 const createStyles = (theme: Theme) =>
@@ -159,7 +162,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 5,
       alignSelf: 'flex-start',
     },
-    urgentText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.error },
+    urgentText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: DANGER_TEXT },
     resultBtn: {
       height: 44,
       borderRadius: 12,
