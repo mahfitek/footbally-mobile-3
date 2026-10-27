@@ -67,13 +67,13 @@ const createStyles = (theme: Theme) =>
     meta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
     contactBtn: {
       alignSelf: 'flex-start',
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: hexToRgba(theme.goldDark, 0.1),
       borderWidth: 1,
       borderColor: theme.gold,
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
-    score: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
+    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.goldDark },
+    score: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.goldDark },
   });

@@ -52,7 +52,8 @@ const createStyles = (theme: Theme) =>
     textFilled: {
       color: Paper.ink,
     },
+    // Beyaz zeminde küçük metin için 4.5:1 kontrastı sağlayan koyu yeşil ton.
     textOutline: {
-      color: theme.gold,
+      color: theme.goldDark,
     },
   });

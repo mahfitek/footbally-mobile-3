@@ -268,7 +268,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
             onPress={handleSend}
             disabled={!text.trim()}
           >
-            <Ionicons name="send" size={16} color={Paper.ink} />
+            <Ionicons name="send" size={16} color={text.trim() ? Paper.ink : theme.textMuted} />
           </HapticTouchable>
         </View>
       </KeyboardAvoidingView>
@@ -357,7 +357,7 @@ const createStyles = (theme: Theme) =>
     },
     bubbleText: { fontSize: 14, fontFamily: FontFamily.body, color: theme.text, lineHeight: 19 },
     bubbleTextMine: { color: Paper.ink },
-    bubbleTime: { fontSize: 10, fontFamily: FontFamily.mono, color: theme.textSecondary, marginTop: 4, marginHorizontal: 4 },
+    bubbleTime: { fontSize: 11, fontFamily: FontFamily.body, color: theme.textMuted, marginTop: 4, marginHorizontal: 4 },
     inputBar: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -377,17 +377,18 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 10,
       color: theme.text,
       fontSize: 14,
-      fontFamily: FontFamily.mono,
+      fontFamily: FontFamily.body,
       borderWidth: 1,
       borderColor: theme.border,
     },
     sendBtn: {
       width: 44,
       height: 44,
-      borderRadius: RADIUS,
+      borderRadius: 22,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sendBtnDisabled: { opacity: 0.4 },
+    // Pasif gönderme: opacity yerine gri zemin; ikon da okunur gri tonda kalır.
+    sendBtnDisabled: { backgroundColor: theme.border },
   });

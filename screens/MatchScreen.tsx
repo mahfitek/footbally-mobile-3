@@ -27,6 +27,7 @@ import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import BottomSheet from '../components/BottomSheet';
+import MatchCard from '../components/MatchCard';
 
 type MatchView = {
   id: number;
@@ -479,54 +480,27 @@ export default function MatchScreen({ navigate }: Props) {
           <View style={styles.list}>
             {filtered.map((m) => {
               const isUpcoming = m.date >= today;
-              const statusColor = m.applied ? theme.success : isUpcoming ? theme.gold : theme.textSecondary;
               const statusLabel = m.applied ? t('match_statusApplied') : isUpcoming ? t('match_statusUpcoming') : t('match_statusPast');
               const needsResult = m.applied && !isUpcoming && !m.myResult;
               const remainingSlots = m.required_players - m.participantsCount;
               const isUrgent = isUpcoming && !m.applied && remainingSlots > 0 && remainingSlots <= 2;
+              const statusTone = m.applied ? 'solid' : isUpcoming ? 'soft' : 'muted';
               return (
-                <HapticTouchable key={m.id} style={styles.card} onPress={() => openMatch(m)}>
-                  <View style={styles.cardTop}>
-                    <View style={styles.cardLeft}>
-                      <View style={styles.badgeIcon}>
-                        <Ionicons name="football-outline" size={19} color={theme.gold} />
-                      </View>
-                      <View style={styles.cardTopText}>
-                        <Text style={styles.cardTitle}>{m.title}</Text>
-                        <Text style={styles.cardMeta}>
-                          {m.date} · {m.time} · {m.location}
-                        </Text>
-                      </View>
-                    </View>
-                    <View
-                      style={[styles.statusBadge, { borderColor: statusColor }]}
-                    >
-                      <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-                        {statusLabel}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardBottom}>
-                    <Text style={styles.typeTag}>{m.type}</Text>
-                    <Text style={styles.typeTag}>{m.category}</Text>
-                    <Text style={styles.participants}>
-                      {m.participantsCount}/{m.required_players}
-                    </Text>
-                    {isUrgent && (
-                      <View style={styles.urgentBadge}>
-                        <Ionicons name="flame" size={11} color={theme.error} />
-                        <Text style={styles.urgentBadgeText}>
-                          {t('match_urgentLast')} {remainingSlots} {t('match_urgentSpotsLeft')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  {needsResult && (
-                    <HapticTouchable style={styles.resultPromptBtn} onPress={() => openResultEntry(m)}>
-                      <Text style={styles.resultPromptText}>{t('match_enterResult')}</Text>
-                    </HapticTouchable>
-                  )}
-                </HapticTouchable>
+                <MatchCard
+                  key={m.id}
+                  title={m.title}
+                  date={m.date}
+                  time={m.time}
+                  location={m.location}
+                  typeLabel={m.type}
+                  categoryLabel={m.category}
+                  participantsText={`${m.participantsCount}/${m.required_players}`}
+                  status={{ label: statusLabel, tone: statusTone }}
+                  urgentLabel={isUrgent ? `${t('match_urgentLast')} ${remainingSlots} ${t('match_urgentSpotsLeft')}` : undefined}
+                  resultLabel={needsResult ? t('match_enterResult') : undefined}
+                  onPress={() => openMatch(m)}
+                  onResultPress={needsResult ? () => openResultEntry(m) : undefined}
+                />
               );
             })}
           </View>
@@ -784,67 +758,6 @@ const createStyles = (theme: Theme) =>
     nearbyChipText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.textSecondary },
     nearbyChipTextActive: { color: Paper.ink },
     list: { paddingHorizontal: 24, gap: 14 },
-    card: {
-      backgroundColor: theme.card,
-      borderRadius: RADIUS,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    cardTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 14,
-    },
-    cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-    badgeIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: RADIUS,
-      backgroundColor: theme.card2,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cardTopText: { flex: 1 },
-    cardTitle: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.text },
-    cardMeta: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary, marginTop: 3 },
-    statusBadge: { borderRadius: RADIUS, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
-    statusBadgeText: { fontSize: 11, fontFamily: FontFamily.monoMedium },
-    cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-    typeTag: {
-      fontSize: 12,
-      fontFamily: FontFamily.monoMedium,
-      color: theme.text,
-      backgroundColor: theme.card2,
-      borderRadius: RADIUS,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    participants: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
-    urgentBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginLeft: 'auto',
-      backgroundColor: hexToRgba(theme.error, 0.14),
-      borderWidth: 1,
-      borderColor: theme.error,
-      borderRadius: PILL_RADIUS,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    urgentBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: theme.error },
-    resultPromptBtn: {
-      marginTop: 12,
-      backgroundColor: theme.card2,
-      borderWidth: 1,
-      borderColor: theme.gold,
-      borderRadius: RADIUS,
-      paddingVertical: 10,
-      alignItems: 'center',
-    },
-    resultPromptText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.gold },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -915,7 +828,8 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    joinBtnDisabled: { opacity: 0.5 },
+    // Dolu maç: opacity yerine gri zemin; metin koyu kaldığı için okunabilirlik korunur.
+    joinBtnDisabled: { backgroundColor: theme.border },
     joinBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: Paper.ink },
     leaveBtn: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.error },
     leaveBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.error },

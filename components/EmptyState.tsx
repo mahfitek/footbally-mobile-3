@@ -89,7 +89,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    outlineBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.gold },
+    outlineBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.goldDark },
     accentBtn: { borderColor: theme.purple },
-    accentBtnText: { color: theme.purple },
+    accentBtnText: { color: theme.goldDark },
   });

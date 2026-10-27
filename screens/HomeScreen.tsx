@@ -14,13 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba, Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { hexToRgba, Theme, CARD_RADIUS, PILL_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
+import SectionHeader from '../components/SectionHeader';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import TournamentTeaser from '../components/TournamentTeaser';
@@ -46,7 +47,6 @@ type MatchItem = {
   time: string;
   location: string;
   tag: string;
-  tagColor: string;
 };
 
 type NotificationItem = {
@@ -107,9 +107,9 @@ const getGreeting = (t: (key: TranslationKey) => string) => {
 };
 
 const getScoreLevel = (score: number, theme: Theme, t: (key: TranslationKey) => string) => {
-  if (score >= 100) return { label: t('level_perfect'), color: theme.gold };
+  if (score >= 100) return { label: t('level_perfect'), color: theme.goldDark };
   if (score >= 81) return { label: t('level_elite'), color: theme.goldLight };
-  if (score >= 61) return { label: t('level_good'), color: theme.gold };
+  if (score >= 61) return { label: t('level_good'), color: theme.goldDark };
   if (score >= 31) return { label: t('level_developing'), color: '#f59e0b' };
   return { label: t('level_beginner'), color: theme.error };
 };
@@ -261,7 +261,6 @@ export default function HomeScreen({ navigate, userId }: Props) {
           time: m.time,
           location: m.location,
           tag: t('home_upcomingTag'),
-          tagColor: theme.gold,
         }))
       );
     } catch (err) {
@@ -385,9 +384,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         {/* Keşfet — uygulamanın asıl akışını belirleyen 4 temel taşı: oyuncu bul,
             takım bul, maç arayanlar, oyuncu arayanlar. Diğer kısayollardan daha
             belirgin olması için en üstte, büyük kartlarla gösteriliyor. */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('discover_title')}</Text>
-        </View>
+        <SectionHeader title={t('discover_title')} />
         <View style={styles.discoverGrid}>
           {getDiscoverItems(t).map((item) => (
             <HapticTouchable
@@ -444,7 +441,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ color: theme.text, fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_completeScore')}</Text>
-              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints} puan</Text>
+              <Text style={{ color: theme.goldDark, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{completedPoints}/{totalPoints} puan</Text>
             </View>
 
             <View style={{ height: 4, backgroundColor: theme.border, marginBottom: 16 }}>
@@ -463,7 +460,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   marginBottom: 8,
                 }}
               >
-                <Text style={{ color: theme.gold, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_allTasksCompleted')}</Text>
+                <Text style={{ color: theme.goldDark, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_allTasksCompleted')}</Text>
               </View>
             ) : (
               pendingTasks.map((task) => (
@@ -499,7 +496,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                     <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>{task.desc}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <Text style={{ color: theme.gold, fontSize: 12, fontFamily: FontFamily.monoMedium }}>+{task.points}</Text>
+                    <Text style={{ color: theme.goldDark, fontSize: 12, fontFamily: FontFamily.monoMedium }}>+{task.points}</Text>
                     <Text style={{ color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.body }}>{t('home_point')}</Text>
                   </View>
                 </HapticTouchable>
@@ -519,16 +516,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 borderColor: theme.border,
               }}
             >
-              <Text style={{ color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{t('home_seeAllTasks')}</Text>
+              <Text style={{ color: theme.goldDark, fontSize: 13, fontFamily: FontFamily.monoMedium }}>{t('home_seeAllTasks')}</Text>
               <Ionicons name="chevron-forward" size={14} color={theme.gold} />
             </HapticTouchable>
           </View>
         )}
 
         {/* Grid */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('quickAccess')}</Text>
-        </View>
+        <SectionHeader title={t('quickAccess')} />
         <View style={styles.grid}>
           {gridItems.map((item, i) => (
             <Animated.View
@@ -558,9 +553,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
         </View>
 
         {/* Activity Feed */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('home_platformActivity')}</Text>
-        </View>
+        <SectionHeader title={t('home_platformActivity')} />
         <View style={styles.activityList}>
           {platformActivity.map((a, i) => (
             <View key={i} style={styles.activityItem}>
@@ -574,12 +567,11 @@ export default function HomeScreen({ navigate, userId }: Props) {
         </View>
 
         {/* Matches */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('upcomingMatches')}</Text>
-          <HapticTouchable onPress={() => navigate('match')}>
-            <Text style={styles.sectionLink}>{t('common_all')}</Text>
-          </HapticTouchable>
-        </View>
+        <SectionHeader
+          title={t('upcomingMatches')}
+          actionLabel={t('common_all')}
+          onAction={() => navigate('match')}
+        />
         {matches.length === 0 && (
           <EmptyState
             icon="football-outline"
@@ -587,36 +579,41 @@ export default function HomeScreen({ navigate, userId }: Props) {
             subtitle={t('home_noMatchesSub')}
           />
         )}
-        {matches.map((match) => (
-          <HapticTouchable
-            key={match.id}
-            style={styles.matchItem}
-            onPress={() => navigate('match')}
-          >
-            <View style={styles.matchLeft}>
-              <View style={styles.matchBadge}>
-                <Ionicons name={match.icon} size={19} color={theme.gold} />
+        {matches.map((match) => {
+          // Tarih "YYYY-MM-DD" biçiminde geliyor; gün/ay karosu için parçalara ayrılır.
+          const [, month = '', day = ''] = (match.date ?? '').split('-');
+          return (
+            <HapticTouchable
+              key={match.id}
+              style={styles.matchItem}
+              onPress={() => navigate('match')}
+            >
+              <View style={styles.dateTile}>
+                <Text style={styles.dateDay}>{day}</Text>
+                <Text style={styles.dateMonth}>{month}</Text>
               </View>
-              <View>
-                <Text style={styles.matchName}>{match.name}</Text>
-                <Text style={styles.matchDate}>
-                  {match.date} · {match.time} · {match.location}
-                </Text>
+              <View style={styles.matchBody}>
+                <Text style={styles.matchName} numberOfLines={1}>{match.name}</Text>
+                <View style={styles.metaRow}>
+                  <Ionicons name="time-outline" size={13} color={theme.textMuted} />
+                  <Text style={styles.matchDate} numberOfLines={1}>{match.time}</Text>
+                  <Ionicons name="location-outline" size={13} color={theme.textMuted} />
+                  <Text style={styles.matchDate} numberOfLines={1}>{match.location}</Text>
+                </View>
               </View>
-            </View>
-            <View style={[styles.matchTag, { borderColor: match.tagColor }]}>
-              <Text style={[styles.matchTagText, { color: match.tagColor }]}>{match.tag}</Text>
-            </View>
-          </HapticTouchable>
-        ))}
+              <View style={styles.matchTag}>
+                <Text style={styles.matchTagText}>{match.tag}</Text>
+              </View>
+            </HapticTouchable>
+          );
+        })}
 
         {/* Notifications */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('recentNotifications')}</Text>
-          <HapticTouchable onPress={() => navigate('notifications')}>
-            <Text style={styles.sectionLink}>{t('common_all')}</Text>
-          </HapticTouchable>
-        </View>
+        <SectionHeader
+          title={t('recentNotifications')}
+          actionLabel={t('common_all')}
+          onAction={() => navigate('notifications')}
+        />
         {notifications.length === 0 && (
           <EmptyState
             icon="notifications-outline"
@@ -650,16 +647,16 @@ export default function HomeScreen({ navigate, userId }: Props) {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.border }}>
             <HapticTouchable style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => setShowAllTasks(false)}>
               <Ionicons name="chevron-back" size={16} color={theme.gold} />
-              <Text style={{ color: theme.gold, fontFamily: FontFamily.mono, fontSize: 13 }}>{t('common_back')}</Text>
+              <Text style={{ color: theme.goldDark, fontFamily: FontFamily.mono, fontSize: 13 }}>{t('common_back')}</Text>
             </HapticTouchable>
             <Text style={{ color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 }}>{t('home_tasks')}</Text>
-            <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{completedPoints}/{totalPoints}</Text>
+            <Text style={{ color: theme.goldDark, fontFamily: FontFamily.monoMedium, fontSize: 13 }}>{completedPoints}/{totalPoints}</Text>
           </View>
 
           <View style={{ margin: 16, backgroundColor: theme.card2, borderRadius: RADIUS, padding: 16, borderWidth: 1, borderColor: theme.border }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={{ color: theme.text, fontFamily: FontFamily.mono, fontSize: 12 }}>{t('home_overallProgress')}</Text>
-              <Text style={{ color: theme.gold, fontFamily: FontFamily.monoMedium, fontSize: 12 }}>{Math.round(taskProgress)}%</Text>
+              <Text style={{ color: theme.goldDark, fontFamily: FontFamily.monoMedium, fontSize: 12 }}>{Math.round(taskProgress)}%</Text>
             </View>
             <View style={{ height: 4, backgroundColor: theme.border }}>
               <View style={{ height: 4, backgroundColor: theme.gold, width: `${taskProgress}%` }} />
@@ -713,7 +710,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
                   <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body }}>{task.desc}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: task.done ? theme.success : theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium }}>
+                  <Text style={{ color: task.done ? theme.success : theme.goldDark, fontSize: 13, fontFamily: FontFamily.monoMedium }}>
                     {task.done ? '✓' : `+${task.points}`}
                   </Text>
                 </View>
@@ -784,7 +781,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 8,
       paddingVertical: 2,
     },
-    premiumBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.gold, letterSpacing: 0.5 },
+    premiumBadgeText: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.goldDark, letterSpacing: 0.5 },
     tipCard: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -850,15 +847,6 @@ const createStyles = (theme: Theme) =>
     scorePercent: { alignItems: 'center' },
     scoreRingText: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold },
     scorePercentLabel: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.textSecondary, letterSpacing: 1, marginTop: 2 },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 24,
-      marginBottom: 14,
-    },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
-    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
     discoverGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -933,27 +921,36 @@ const createStyles = (theme: Theme) =>
     matchItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      gap: 14,
       backgroundColor: theme.card,
       borderRadius: RADIUS,
-      padding: 16,
+      padding: 14,
       marginHorizontal: 24,
-      marginBottom: 12,
+      marginBottom: 10,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    matchLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    matchBadge: {
-      width: 42, height: 42,
-      backgroundColor: theme.card2,
-      borderRadius: RADIUS,
+    dateTile: {
+      width: 52,
+      height: 56,
+      borderRadius: 14,
+      backgroundColor: hexToRgba(theme.goldDark, 0.1),
       alignItems: 'center',
       justifyContent: 'center',
     },
-    matchName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    matchDate: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    matchTag: { borderRadius: RADIUS, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
-    matchTagText: { fontFamily: FontFamily.mono, fontSize: 11 },
+    dateDay: { fontFamily: FontFamily.bodySemiBold, fontSize: 20, color: theme.goldDark, lineHeight: 24 },
+    dateMonth: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textMuted },
+    matchBody: { flex: 1, gap: 4 },
+    matchName: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    matchDate: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, marginRight: 6, flexShrink: 1 },
+    matchTag: {
+      borderRadius: PILL_RADIUS,
+      backgroundColor: hexToRgba(theme.goldDark, 0.1),
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    matchTagText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.goldDark },
     notifItem: {
       flexDirection: 'row',
       alignItems: 'flex-start',

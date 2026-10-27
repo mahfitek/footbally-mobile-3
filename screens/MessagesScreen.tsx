@@ -784,7 +784,7 @@ const createStyles = (theme: Theme) =>
     chatAvatar: {
       width: 48,
       height: 48,
-      borderRadius: RADIUS,
+      borderRadius: 24,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
@@ -809,8 +809,8 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       marginBottom: 4,
     },
-    chatName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    chatTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
+    chatName: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
+    chatTime: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted },
     chatBottomRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -818,15 +818,16 @@ const createStyles = (theme: Theme) =>
       gap: 10,
     },
     chatPreview: { flex: 1, fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary },
-    chatPreviewUnread: { color: theme.textMuted, fontFamily: FontFamily.bodySemiBold },
+    chatPreviewUnread: { color: theme.text, fontFamily: FontFamily.bodySemiBold },
+    // Okunmamış sayısı: sade koyu yeşil zemin + beyaz metin (kontrast 5.36:1).
     unreadBadge: {
       minWidth: 20,
       height: 20,
-      borderRadius: RADIUS - 2,
-      backgroundColor: theme.gold,
+      borderRadius: 10,
+      backgroundColor: theme.goldDark,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 6,
     },
-    unreadBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 11, color: Paper.ink },
+    unreadBadgeText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: '#FFFFFF' },
   });
