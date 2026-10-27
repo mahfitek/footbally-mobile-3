@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -48,6 +49,7 @@ const TEAM_TABS: TabName[] = ['teamHome', 'findPlayer', 'findOpponent', 'teamSqu
 export default function BottomNav({ active, onPress, userType = 'player' }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const isTeam = userType === 'team';
@@ -104,7 +106,7 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: 64 + insets.bottom, paddingBottom: insets.bottom + 4 }]}>
       {items.slice(0, 2).map((item) => (
         <TouchableOpacity key={item.tab} style={styles.item} activeOpacity={0.7} onPress={() => handlePress(item.tab)}>
           <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
@@ -215,13 +217,14 @@ const createStyles = (theme: Theme) =>
     },
     badgeText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
     label: {
-      fontFamily: FontFamily.mono,
-      fontSize: 10,
-      color: theme.textSecondary,
+      fontFamily: FontFamily.body,
+      fontSize: 11,
+      color: theme.textMuted,
     },
+    // Seçili sekme: zümrüt vurgu; küçük metin olduğu için koyu ton (4.5:1 üzeri).
     labelActive: {
-      fontFamily: FontFamily.monoMedium,
-      color: theme.gold,
+      fontFamily: FontFamily.bodySemiBold,
+      color: theme.goldDark,
     },
     centerBtn: {
       width: 76,

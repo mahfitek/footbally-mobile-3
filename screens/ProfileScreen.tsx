@@ -40,6 +40,7 @@ import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 import PlayerShareCard from '../components/PlayerShareCard';
 import FadeInView from '../components/FadeInView';
+import StatCard from '../components/StatCard';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
 import { FOOTBALL_POSITIONS } from '../constants/footballPositions';
 
@@ -889,9 +890,9 @@ export default function ProfileScreen({ navigate, userId }: Props) {
               <Ionicons name="camera-outline" size={14} color={Paper.ink} />
             </TouchableOpacity>
           </HapticTouchable>
-          <Text style={styles.name}>{fullName || t('profile_enterNamePlaceholder')}</Text>
-          <Text style={styles.position}>{position || t('profile_enterPositionPlaceholder')}</Text>
-          <Text style={styles.club}>{club || t('profile_enterClubPlaceholder')}</Text>
+          <Text style={styles.name} numberOfLines={2}>{fullName || t('profile_enterNamePlaceholder')}</Text>
+          <Text style={styles.position} numberOfLines={1}>{position || t('profile_enterPositionPlaceholder')}</Text>
+          <Text style={styles.club} numberOfLines={1}>{club || t('profile_enterClubPlaceholder')}</Text>
           {isPremiumActive && (
             <View style={styles.premiumMemberBadge}>
               <Text style={styles.premiumMemberText}>{t('profile_premiumMemberBadge')}</Text>
@@ -899,13 +900,10 @@ export default function ProfileScreen({ navigate, userId }: Props) {
           )}
         </FadeInView>
 
-        {/* Stats Row */}
+        {/* Stats: yan yana modern kartlar */}
         <View style={styles.statsRow}>
           {stats.map((s, i) => (
-            <View key={i} style={styles.statItem}>
-              <Text style={styles.statVal}>{s.val}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
+            <StatCard key={i} label={s.label} value={s.val} />
           ))}
         </View>
 
@@ -1254,30 +1252,18 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 4,
     },
-    premiumMemberText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
+    premiumMemberText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.goldDark, letterSpacing: 0.5 },
     avatarImage: { width: 96, height: 96, borderRadius: RADIUS },
-    name: { fontFamily: FontFamily.display, fontSize: 28, color: theme.text, marginBottom: 2 },
-    position: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold, letterSpacing: 1 },
-    club: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 4 },
+    name: { fontFamily: FontFamily.display, fontSize: 26, color: theme.text, marginBottom: 4, textAlign: 'center', paddingHorizontal: 24 },
+    position: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.goldDark, textAlign: 'center' },
+    club: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, marginTop: 4, textAlign: 'center', paddingHorizontal: 24 },
     statsRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
       marginHorizontal: 24,
       marginBottom: 20,
-      backgroundColor: theme.card,
-      borderRadius: RADIUS,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    statItem: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 16,
-      borderRightWidth: 1,
-      borderRightColor: theme.border,
-    },
-    statVal: { fontFamily: FontFamily.display, fontSize: 22, color: theme.gold },
-    statLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -1289,7 +1275,7 @@ const createStyles = (theme: Theme) =>
     },
     cardTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 14, letterSpacing: 0.5 },
     scoreCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    scoreCardValue: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.gold },
+    scoreCardValue: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.goldDark },
     completionTrack: { height: 4, backgroundColor: theme.border, marginBottom: 4 },
     completionFill: { height: 4, backgroundColor: theme.gold },
     scoreHint: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 10 },
@@ -1314,7 +1300,7 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.gold,
     },
-    scoreCompleteText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, flex: 1 },
+    scoreCompleteText: { fontFamily: FontFamily.bodySemiBold, color: theme.goldDark, flex: 1 },
     rewardStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 8 },
     rewardsCta: {
       flexDirection: 'row',
@@ -1353,7 +1339,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 12,
       alignItems: 'center',
     },
-    editBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
+    editBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.goldDark },
     skillItem: { marginBottom: 14 },
     skillTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
     skillName: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
@@ -1372,7 +1358,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 14,
     },
     sectionTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
-    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     gallery: { paddingLeft: 24, marginBottom: 20 },
     galleryItem: {
       width: 120,
@@ -1388,7 +1374,7 @@ const createStyles = (theme: Theme) =>
     },
     galleryImage: { width: '100%', height: '100%' },
     galleryAdd: { borderColor: theme.goldDark },
-    galleryAddText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold, marginTop: 4 },
+    galleryAddText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.goldDark, marginTop: 4 },
 
     // Photo gallery lightbox / grid modals (always dark, matches share card modal)
     galleryPreviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
@@ -1428,8 +1414,8 @@ const createStyles = (theme: Theme) =>
     },
     editHeaderBtn: { padding: 8 },
     editHeaderTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    editHeaderCancel: { fontFamily: FontFamily.body, fontSize: 15, color: theme.gold },
-    editHeaderSave: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.gold },
+    editHeaderCancel: { fontFamily: FontFamily.body, fontSize: 15, color: theme.goldDark },
+    editHeaderSave: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.goldDark },
     editContent: { padding: 16, paddingBottom: 60 },
     inputGroup: { marginBottom: 16 },
     inputLabel: {
@@ -1488,7 +1474,7 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
     },
     listRowText: { fontFamily: FontFamily.body, fontSize: 15, color: theme.text },
-    checkmark: { fontSize: 15, color: theme.gold, fontWeight: '700' },
+    checkmark: { fontSize: 15, color: theme.goldDark, fontWeight: '700' },
     pickerSectionHeader: {
       fontFamily: FontFamily.mono,
       fontSize: 12,

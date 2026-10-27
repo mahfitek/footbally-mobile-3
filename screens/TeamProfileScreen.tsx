@@ -26,6 +26,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
+import StatCard from '../components/StatCard';
 
 type TeamData = {
   id: string;
@@ -372,7 +373,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
               <Ionicons name="camera-outline" size={13} color={Paper.ink} />
             </View>
           </HapticTouchable>
-          <Text style={styles.name}>{team.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>{team.name}</Text>
           <View style={styles.leagueBadge}>
             <Text style={styles.leagueBadgeText}>{team.league ?? t('teamProfile_leagueDefault')}</Text>
           </View>
@@ -388,10 +389,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
 
         <View style={styles.statsBar}>
           {statsRow.map((s, i) => (
-            <View key={i} style={[styles.statItem, i === statsRow.length - 1 && { borderRightWidth: 0 }]}>
-              <Text style={styles.statVal}>{s.val}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
+            <StatCard key={i} label={s.label} value={s.val} />
           ))}
         </View>
 
@@ -606,7 +604,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 4,
       marginBottom: 10,
     },
-    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
+    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.goldDark, letterSpacing: 0.5 },
     location: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 2 },
     founded: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 16 },
     editBtn: {
@@ -616,26 +614,14 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 10,
       paddingHorizontal: 20,
     },
-    editBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    editBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     statsBar: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
       marginHorizontal: 24,
       marginBottom: 20,
-      backgroundColor: theme.card,
-      borderRadius: RADIUS,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    statItem: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 14,
-      borderRightWidth: 1,
-      borderRightColor: theme.border,
-    },
-    statVal: { fontFamily: FontFamily.display, fontSize: 15, color: theme.gold },
-    statLabel: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.textSecondary, marginTop: 2, textAlign: 'center' },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
@@ -683,7 +669,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center', justifyContent: 'center',
       marginRight: 10,
     },
-    mediaAddLabel: { fontFamily: FontFamily.mono, color: theme.gold, fontSize: 11, marginTop: 4 },
+    mediaAddLabel: { fontFamily: FontFamily.mono, color: theme.goldDark, fontSize: 11, marginTop: 4 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -692,7 +678,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: 14,
     },
     sectionTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
-    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     squadList: { paddingHorizontal: 24, gap: 10, marginBottom: 28 },
     squadRow: {
       flexDirection: 'row',
@@ -713,7 +699,7 @@ const createStyles = (theme: Theme) =>
     },
     squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
     squadMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    squadScore: { fontFamily: FontFamily.display, fontSize: 17, color: theme.gold },
+    squadScore: { fontFamily: FontFamily.display, fontSize: 17, color: theme.goldDark },
     openPositions: {
       marginHorizontal: 24,
       marginBottom: 28,
@@ -744,7 +730,7 @@ const createStyles = (theme: Theme) =>
     },
     viewApplicationsBtnText: { fontFamily: FontFamily.monoMedium, color: Paper.ink, fontSize: 12 },
     appHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-    appBackText: { color: theme.gold, fontSize: 13, fontFamily: FontFamily.mono },
+    appBackText: { color: theme.goldDark, fontSize: 13, fontFamily: FontFamily.mono },
     appTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 17, letterSpacing: 0.5 },
     appSubtitle: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12 },
     appCard: {
@@ -762,7 +748,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center', justifyContent: 'center',
     },
     appName: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 15 },
-    appPosition: { fontFamily: FontFamily.mono, color: theme.gold, fontSize: 12 },
+    appPosition: { fontFamily: FontFamily.mono, color: theme.goldDark, fontSize: 12 },
     appMeta: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 11 },
     appScore: { fontFamily: FontFamily.display, color: theme.gold, fontSize: 20 },
     acceptBtn: {
@@ -794,5 +780,5 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.gold,
     },
-    msgBtnText: { fontFamily: FontFamily.monoMedium, color: theme.gold, fontSize: 12 },
+    msgBtnText: { fontFamily: FontFamily.monoMedium, color: theme.goldDark, fontSize: 12 },
   });
