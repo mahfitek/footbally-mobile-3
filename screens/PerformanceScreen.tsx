@@ -13,6 +13,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
@@ -100,11 +101,7 @@ export default function PerformanceScreen({ navigate }: Props) {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('score')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: profile } = await profiles.ownProfile('score');
       if (profile) setScore(profile.score ?? 0);
 
       const today = new Date().toISOString().slice(0, 10);

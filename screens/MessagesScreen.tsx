@@ -16,7 +16,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { profiles } from '../lib/profiles';
+import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -99,8 +100,8 @@ export default function MessagesScreen({ navigate }: Props) {
     setSearchingUsers(true);
 
     const timer = setTimeout(async () => {
-      let request = supabase
-        .from('profiles')
+      let request = profiles
+        .publicTable()
         .select('user_id, full_name, position, city')
         .limit(10);
       if (query) {
@@ -190,11 +191,8 @@ export default function MessagesScreen({ navigate }: Props) {
     }
 
     const otherIds = Array.from(groups.keys()).map((convId) => otherIdByConv.get(convId)!);
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name')
-      .in('user_id', otherIds);
-    const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
+    const { data: otherProfiles } = await profiles.publicProfiles(otherIds, 'user_id, full_name');
+    const nameMap = new Map((otherProfiles ?? []).map((p: any) => [p.user_id, p.full_name]));
 
     const conversations: ChatView[] = Array.from(groups.keys()).map((convId) => {
       const otherId = otherIdByConv.get(convId)!;
@@ -257,11 +255,8 @@ export default function MessagesScreen({ navigate }: Props) {
       return;
     }
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name, position')
-      .in('user_id', otherIds);
-    const profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
+    const { data: requesterProfiles } = await profiles.publicProfiles(otherIds, 'user_id, full_name, position');
+    const profileMap = new Map((requesterProfiles ?? []).map((p: any) => [p.user_id, p]));
 
     setPendingRequests(
       pending.map((c: any) => ({
@@ -294,14 +289,7 @@ export default function MessagesScreen({ navigate }: Props) {
       setToast({ message: t('messages_acceptFailed'), type: 'error' });
       return;
     }
-    notifyUser(
-      req.userId,
-      'people-outline',
-      t('messages_acceptedNotifBody'),
-      'messages',
-      t('messages_acceptedNotifTitle'),
-      'scout'
-    );
+    notifyEvent({ kind: 'connection_accepted', requesterUserId: req.userId });
     setToast({ message: t('messages_acceptedToast'), type: 'success' });
     loadConnections();
   };

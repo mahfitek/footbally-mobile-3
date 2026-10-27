@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { sendMatchChallenge } from '../lib/challenges';
 import { sanitizeSearchTerm } from '../lib/security';
 import { sendLocalNotification } from '../lib/notifications';
@@ -80,7 +81,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
     const q = sanitizeSearchTerm(query.trim());
     try {
       if (activeTab === 'players') {
-        let req = supabase.from('profiles').select('user_id, full_name, position, city, score').order('score', { ascending: false }).limit(20);
+        let req = profiles.publicTable().select('user_id, full_name, position, city, score').order('score', { ascending: false }).limit(20);
         if (q) req = req.or(`full_name.ilike.%${q}%,position.ilike.%${q}%,city.ilike.%${q}%`);
         const { data } = await req;
         setPlayers((data ?? []) as PlayerResult[]);

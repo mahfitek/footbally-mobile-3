@@ -18,7 +18,8 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { profiles } from '../lib/profiles';
+import { notifyEvent } from '../lib/notify';
 import { moderateMessage } from '../lib/security';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
@@ -69,11 +70,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
 
   const loadOtherProfile = async () => {
     if (!otherUserId) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, position, avatar_url')
-      .eq('user_id', otherUserId)
-      .single();
+    const { data, error } = await profiles.publicProfile(otherUserId, 'full_name, position, avatar_url');
     if (error) {
       if (__DEV__) console.log('Kullanıcı profili yüklenemedi:', error);
       return;
@@ -113,11 +110,8 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       return;
     }
     setUserId(user.id);
-    supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    profiles
+      .ownProfile('full_name')
       .then(({ data }) => setMyName(data?.full_name ?? ''));
 
     const { data: existingConv } = await supabase
@@ -191,7 +185,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     } else if (data) {
       setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
       supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
-      notifyUser(otherUserId, 'chatbubble-outline', `${myName || t('chat_someone')} ${t('chat_notifBody')}`, 'chat', t('chat_notifTitle'), 'message');
+      notifyEvent({ kind: 'chat_message', messageId: data.id });
     }
   };
 

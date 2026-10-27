@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -74,7 +75,7 @@ export default function RegionsScreen({ navigate, userId }: Props) {
 
     const withCounts = await Promise.all(
       data.map(async (r) => {
-        let playerQuery = supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('city', r.city);
+        let playerQuery = profiles.publicTable().select('user_id', { count: 'exact', head: true }).eq('city', r.city);
         let teamQuery = supabase.from('teams').select('id', { count: 'exact', head: true }).eq('city', r.city);
         const [{ count: playerCount }, { count: teamCount }] = await Promise.all([playerQuery, teamQuery]);
         return {

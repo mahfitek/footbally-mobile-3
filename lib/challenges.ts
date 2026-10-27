@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { notifyUser } from './notify';
+import { notifyEvent } from './notify';
 
 export async function sendMatchChallenge(
   myTeamId: string,
@@ -26,17 +26,7 @@ export async function sendMatchChallenge(
     return { error: error.message };
   }
 
-  const { data: opponentTeam } = await supabase.from('teams').select('owner_id').eq('id', opponentTeamId).maybeSingle();
-  if (opponentTeam?.owner_id) {
-    notifyUser(
-      opponentTeam.owner_id,
-      '⚔️',
-      `${myTeamName} takımı ${opponentTeamName} takımına maç daveti gönderdi`,
-      'teamHome',
-      'Yeni Maç Daveti',
-      'match'
-    );
-  }
+  notifyEvent({ kind: 'team_challenge_created', challengerTeamId: myTeamId, opponentTeamId });
 
   return { error: null };
 }

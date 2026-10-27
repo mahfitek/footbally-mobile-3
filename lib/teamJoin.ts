@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { notifyUser } from './notify';
+import { notifyEvent } from './notify';
 
 export function extractTeamIdFromJoinUrl(url: string): string | null {
   const match = url.match(/join-team\/([a-zA-Z0-9-]+)/);
@@ -27,20 +27,7 @@ export async function joinTeam(teamId: string, userId: string): Promise<{ error:
     return { error: error.message, alreadyMember: false };
   }
 
-  const [{ data: team }, { data: joiner }] = await Promise.all([
-    supabase.from('teams').select('owner_id, name').eq('id', teamId).maybeSingle(),
-    supabase.from('profiles').select('full_name').eq('user_id', userId).maybeSingle(),
-  ]);
-  if (team?.owner_id) {
-    notifyUser(
-      team.owner_id,
-      '🏟️',
-      `${joiner?.full_name || 'Yeni bir oyuncu'} ${team.name} takımına katıldı`,
-      'teamSquad',
-      'Takıma Katılım',
-      'match'
-    );
-  }
+  notifyEvent({ kind: 'team_joined', teamId });
 
   return { error: null, alreadyMember: false };
 }

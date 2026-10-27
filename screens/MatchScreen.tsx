@@ -19,8 +19,9 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { sendLocalNotification } from '../lib/notifications';
-import { notifyUser } from '../lib/notify';
+import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -175,11 +176,7 @@ export default function MatchScreen({ navigate }: Props) {
       setUserId(user?.id ?? null);
 
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, city')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data: profile } = await profiles.ownProfile('full_name, city');
         setMyName(profile?.full_name ?? '');
         setMyCity(profile?.city ?? '');
       }
@@ -210,11 +207,8 @@ export default function MatchScreen({ navigate }: Props) {
       setLoadingParticipants(false);
       return;
     }
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name, avatar_url')
-      .in('user_id', userIds);
-    setParticipants((profiles ?? []) as Participant[]);
+    const { data: participantProfiles } = await profiles.publicProfiles(userIds, 'user_id, full_name, avatar_url');
+    setParticipants((participantProfiles ?? []) as Participant[]);
     setLoadingParticipants(false);
 
     if (userId) {
@@ -281,17 +275,7 @@ export default function MatchScreen({ navigate }: Props) {
         );
         setToast({ message: t('match_joinSuccess'), type: 'success' });
         sendLocalNotification(t('match_joinedNotifTitle'), `${match.title} ${t('match_joinedNotifBody')}`);
-        notifyUser(userId, 'checkmark-circle-outline', `${match.title} ${t('match_joinConfirmedNotifBody')}`, 'match', t('match_joinConfirmedNotifTitle'), 'match');
-        if (match.creator_id && match.creator_id !== userId) {
-          notifyUser(
-            match.creator_id,
-            'person-outline',
-            `${myName || t('match_somePlayer')} "${match.title}" ${t('match_newParticipantNotifBody')}`,
-            'match',
-            t('match_newParticipantNotifTitle'),
-            'match'
-          );
-        }
+        notifyEvent({ kind: 'match_join', matchId: match.id });
       }
     } catch (err) {
       if (__DEV__) console.log('Maça katılırken beklenmeyen hata:', err);

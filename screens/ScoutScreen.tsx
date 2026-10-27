@@ -14,7 +14,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { profiles } from '../lib/profiles';
+import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -69,7 +70,6 @@ export default function ScoutScreen({ navigate }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
-  const [viewerName, setViewerName] = useState('');
   const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
   const [isPremium, setIsPremium] = useState(false);
   const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
@@ -83,19 +83,8 @@ export default function ScoutScreen({ navigate }: Props) {
       setViewerId(session.user.id);
       setIsPremium(!!session.user.user_metadata?.premium);
       setPremiumUntil(session.user.user_metadata?.premium_until ?? null);
-      supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
-        .then(({ data }) => setViewerName(data?.full_name ?? ''));
     });
   }, []);
-
-  const recordProfileView = (player: PlayerView) => {
-    if (player.id === viewerId) return;
-    notifyUser(player.id, 'eye-outline', `${viewerName || t('scout_defaultViewerName')} ${t('scout_viewedNotifBody')}`, 'profile', t('scout_viewedNotifTitle'), 'scout');
-  };
 
   const requestConnection = async (player: PlayerView) => {
     if (!viewerId || player.id === viewerId || requestedIds.has(player.id)) return;
@@ -115,14 +104,7 @@ export default function ScoutScreen({ navigate }: Props) {
     }
 
     setRequestedIds((prev) => new Set(prev).add(player.id));
-    notifyUser(
-      player.id,
-      'person-add-outline',
-      `${viewerName || t('common_defaultUser')} ${t('scout_connectionRequestNotifBody')}`,
-      'messages',
-      t('scout_connectionRequestNotifTitle'),
-      'scout'
-    );
+    notifyEvent({ kind: 'connection_request', targetUserId: player.id });
     setToast({ message: t('scout_requestSent'), type: 'success' });
   };
 
@@ -133,8 +115,8 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const loadPlayers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
+      const { data, error } = await profiles
+        .publicTable()
         .select('user_id, full_name, position, age, city, score')
         .order('score', { ascending: false });
 
@@ -346,7 +328,7 @@ export default function ScoutScreen({ navigate }: Props) {
         ) : (
           <View style={styles.list}>
             {(isPremiumActive ? filteredPlayers : filteredPlayers.slice(0, FREE_PREVIEW_COUNT)).map((p) => (
-              <HapticTouchable key={p.id} style={styles.playerCard} onPress={() => recordProfileView(p)}>
+              <HapticTouchable key={p.id} style={styles.playerCard}>
                 <View style={styles.avatar}>
                   <Ionicons name="person-outline" size={22} color={theme.gold} />
                 </View>

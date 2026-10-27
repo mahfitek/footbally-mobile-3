@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { profiles } from './profiles';
 
 export type SenderKind = 'player' | 'team';
 
@@ -18,11 +19,8 @@ export async function resolveSenderIdentities(userIds: string[]): Promise<Map<st
   const uniqueIds = Array.from(new Set(userIds)).filter(Boolean);
   if (uniqueIds.length === 0) return map;
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('user_id, full_name')
-    .in('user_id', uniqueIds);
-  for (const p of profiles ?? []) {
+  const { data: playerProfiles } = await profiles.publicProfiles(uniqueIds, 'user_id, full_name');
+  for (const p of playerProfiles ?? []) {
     map.set(p.user_id, { name: p.full_name || 'Oyuncu', kind: 'player' });
   }
 

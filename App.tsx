@@ -11,6 +11,7 @@ import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { supabase } from './lib/supabase';
+import { profiles } from './lib/profiles';
 import { registerForPushNotificationsAsync, setupNotificationHandler } from './lib/notifications';
 import { extractTeamIdFromJoinUrl, joinTeam } from './lib/teamJoin';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -194,7 +195,7 @@ function AppContent() {
 
   const savePushToken = async (userId: string) => {
     if (!pushTokenRef.current) return;
-    await supabase.from('profiles').update({ push_token: pushTokenRef.current }).eq('user_id', userId);
+    await profiles.updateOwn(userId, { push_token: pushTokenRef.current });
   };
 
   // Saha sahibi hesaplari kendi kaydiyla degil, panelimizden manuel olusturuluyor

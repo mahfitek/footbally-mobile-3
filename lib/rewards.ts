@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { profiles } from './profiles';
 import { TranslationKey } from './i18n';
 
 type T = (key: TranslationKey) => string;
@@ -52,11 +53,7 @@ export type RewardProgress = {
 };
 
 export const loadRewardProgress = async (userId: string): Promise<RewardProgress> => {
-  const { data } = await supabase
-    .from('profiles')
-    .select('claimed_badge_keys, reward_premium_days_this_month, reward_premium_month_key')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const { data } = await profiles.ownProfile('claimed_badge_keys, reward_premium_days_this_month, reward_premium_month_key');
 
   const monthKey = currentMonthKey();
   const sameMonth = data?.reward_premium_month_key === monthKey;

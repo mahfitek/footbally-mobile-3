@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import {
   getLevel,
   getBadges,
@@ -58,11 +59,7 @@ export default function BadgesScreen({ navigate, userId }: Props) {
     }
 
     if (uid) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('score, position, city, age')
-        .eq('user_id', uid)
-        .maybeSingle();
+      const { data } = await profiles.ownProfile('score, position, city, age');
       setScore(data?.score ?? 0);
       setHasProfileBasics(!!(data?.position && data?.city && data?.age));
 

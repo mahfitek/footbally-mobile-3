@@ -9,6 +9,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
@@ -162,11 +163,8 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       return;
     }
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name')
-      .in('user_id', members.map((m: any) => m.user_id));
-    const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
+    const { data: memberProfiles } = await profiles.publicProfiles(members.map((m: any) => m.user_id), 'user_id, full_name');
+    const nameMap = new Map((memberProfiles ?? []).map((p: any) => [p.user_id, p.full_name]));
 
     setScorers(members.map((m: any) => ({ user_id: m.user_id, full_name: nameMap.get(m.user_id) ?? t('match_defaultPlayerName'), goals: m.goals ?? 0 })));
   };

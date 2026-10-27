@@ -8,7 +8,7 @@ import { TranslationKey } from '../lib/i18n';
 import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { notifyEvent } from '../lib/notify';
 import { joinTeam, extractTeamIdFromJoinUrl } from '../lib/teamJoin';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -276,23 +276,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
         });
       }
 
-      const { data: challengerTeam } = await supabase
-        .from('teams')
-        .select('owner_id')
-        .eq('id', challenge.challenger_team_id)
-        .maybeSingle();
-      if (challengerTeam?.owner_id) {
-        notifyUser(
-          challengerTeam.owner_id,
-          accept ? 'checkmark-circle-outline' : 'close-circle-outline',
-          accept
-            ? `${team.name}${t('teamHome_challengeAcceptedSuffix')}`
-            : `${team.name}${t('teamHome_challengeDeclinedSuffix')}`,
-          'teamHome',
-          t('teamHome_challengeRespondedNotifTitle'),
-          'match'
-        );
-      }
+      notifyEvent({ kind: 'team_challenge_responded', challengeId: challenge.id });
 
       setPendingChallenges((prev) => prev.filter((c) => c.id !== challenge.id));
       if (accept) loadActivity(team.id);

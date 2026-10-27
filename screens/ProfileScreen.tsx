@@ -32,6 +32,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -184,11 +185,12 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
     loadGallery(uid);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', uid)
-      .maybeSingle();
+    const isOwnProfile = !userId || userId === user?.id;
+    // Ekranın kullandığı alanlar. Kendi profilinde get_my_profile, başkasınınkinde herkese açık görünüm.
+    const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
+    const { data, error } = isOwnProfile
+      ? await profiles.ownProfile(profileFields)
+      : await profiles.publicProfile(uid, profileFields);
 
     if (data) {
       setFullName(data.full_name || '');
@@ -222,7 +224,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       }
 
       if (calculatedScore !== (data.score ?? 0)) {
-        supabase.from('profiles').update({ score: calculatedScore }).eq('user_id', uid);
+        profiles.updateOwn(uid, { score: calculatedScore });
       }
     } else if (error) {
       if (__DEV__) console.log('Profil yüklenemedi:', error);
@@ -382,11 +384,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
 
       // profiles.id is an auto-generated identity column; the link to the
       // signed-in user is profiles.user_id, so update/insert by that instead.
-      const { data: updated, error: updateError } = await supabase
-        .from('profiles')
-        .update(payload)
-        .eq('user_id', uid)
-        .select();
+      const { data: updated, error: updateError } = await profiles.updateOwn(uid, payload);
 
       if (updateError) {
         if (__DEV__) console.log('Profil güncellenemedi:', updateError);
@@ -396,9 +394,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       }
 
       if (!updated || updated.length === 0) {
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({ user_id: uid, ...payload, score: 0 });
+        const { error: insertError } = await profiles.insertOwn(uid, { ...payload, score: 0 });
         if (insertError) {
           if (__DEV__) console.log('Profil oluşturulamadı:', insertError);
           setToast({ message: t('profile_createFailed'), type: 'error' });
@@ -482,10 +478,7 @@ export default function ProfileScreen({ navigate, userId }: Props) {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('user_id', user.id);
+      const { error: updateError } = await profiles.updateOwn(user.id, { avatar_url: publicUrl });
       if (updateError) throw updateError;
 
       setAvatarUrl(publicUrl);

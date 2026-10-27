@@ -21,6 +21,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
@@ -147,10 +148,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
     const profilesById = new Map<string, { full_name: string | null; score: number | null }>();
 
     if (userIds.length > 0) {
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, score')
-        .in('user_id', userIds);
+      const { data: profilesData, error: profilesError } = await profiles.publicProfiles(userIds, 'user_id, full_name, score');
 
       if (profilesError) {
         if (__DEV__) console.log('Kadro oyuncu profilleri yüklenemedi:', profilesError);

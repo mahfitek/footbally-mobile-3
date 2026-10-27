@@ -9,6 +9,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import BottomSheet from '../components/BottomSheet';
 import LoadingScreen from '../components/LoadingScreen';
@@ -327,15 +328,12 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     const profilesById = new Map<string, { full_name: string | null; position: string | null; score: number | null }>();
 
     if (userIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, position, score')
-        .in('user_id', userIds);
+      const { data: squadProfiles, error: profilesError } = await profiles.publicProfiles(userIds, 'user_id, full_name, position, score');
 
       if (profilesError) {
         if (__DEV__) console.log('Kadro oyuncu profilleri yüklenemedi:', profilesError);
       } else {
-        (profiles ?? []).forEach((p: any) => profilesById.set(p.user_id, p));
+        (squadProfiles ?? []).forEach((p: any) => profilesById.set(p.user_id, p));
       }
     }
 

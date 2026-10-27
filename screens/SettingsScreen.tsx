@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { fetchAccountBanRow, evaluateAccountAccess } from '../lib/accountAccess';
 import BottomSheet from '../components/BottomSheet';
 
@@ -52,11 +53,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
   useEffect(() => {
     if (!userId) return;
-    supabase
-      .from('profiles')
-      .select('notify_all, notify_match, notify_message, notify_scout')
-      .eq('user_id', userId)
-      .maybeSingle()
+    profiles
+      .ownProfile('notify_all, notify_match, notify_message, notify_scout')
       .then(({ data, error }) => {
         if (error) {
           if (__DEV__) console.log('Bildirim tercihleri yüklenemedi:', error);
@@ -73,10 +71,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
   const updateNotifPref = (column: 'notify_all' | 'notify_match' | 'notify_message' | 'notify_scout', value: boolean) => {
     if (!userId) return;
-    supabase
-      .from('profiles')
-      .update({ [column]: value })
-      .eq('user_id', userId)
+    profiles
+      .updateOwn(userId, { [column]: value })
       .then(({ error }) => {
         if (error && __DEV__) console.log('Bildirim tercihi kaydedilemedi:', error);
       });

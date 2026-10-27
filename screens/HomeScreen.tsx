@@ -18,6 +18,7 @@ import { hexToRgba, Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -207,11 +208,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
       setIsPremium(!!user?.user_metadata?.premium);
       setPremiumUntil(premiumUntilValue);
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name, score, position, age, height, weight, city, district, foot, avatar_url')
-        .eq('user_id', uid)
-        .single();
+      const { data } = await profiles.ownProfile('full_name, score, position, age, height, weight, city, district, foot, avatar_url');
 
       if (data) {
         setName(data.full_name ?? '');

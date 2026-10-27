@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { profiles } from './profiles';
 
 export interface AccountBanFields {
   account_status: string;
@@ -54,13 +55,12 @@ export function evaluateAccountAccess(row: AccountBanFields | null | undefined):
   return { allowed: true, expiredBan: false };
 }
 
-/** Looks up ban/status fields for a user's profile row, falling back to their team row (owner_id). */
+/**
+ * Looks up ban/status fields for the signed-in user's profile row, falling back to their team row (owner_id).
+ * `userId` must be the signed-in user: ban fields of other users are not readable from the client.
+ */
 export async function fetchAccountBanRow(userId: string): Promise<AccountBanLookup | null> {
-  const { data: profileRow } = await supabase
-    .from('profiles')
-    .select('account_status,banned_until,ban_is_permanent,ban_reason')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const { data: profileRow } = await profiles.ownProfile('account_status, banned_until, ban_is_permanent, ban_reason');
   if (profileRow) return { ...(profileRow as AccountBanFields), table: 'profiles' };
 
   const { data: teamRow } = await supabase
@@ -75,7 +75,11 @@ export async function fetchAccountBanRow(userId: string): Promise<AccountBanLook
 
 /** Self-heals a lapsed temporary ban back to active status. */
 export async function clearExpiredBan(userId: string, table: 'profiles' | 'teams'): Promise<void> {
-  const column = table === 'profiles' ? 'user_id' : 'owner_id';
+  if (table === 'profiles') {
+    // Ban alanlarını istemci doğrudan yazmaz; sunucu fonksiyonu yalnızca süresi dolmuş yasağı temizler.
+    await profiles.clearExpiredBan();
+    return;
+  }
   await supabase
     .from(table)
     .update({
@@ -86,5 +90,5 @@ export async function clearExpiredBan(userId: string, table: 'profiles' | 'teams
       banned_by: null,
       banned_at: null,
     })
-    .eq(column, userId);
+    .eq('owner_id', userId);
 }
