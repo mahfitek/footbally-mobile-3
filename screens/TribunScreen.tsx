@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
+import { Theme, CARD_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { moderateMessage } from '../lib/security';
@@ -466,9 +466,9 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 6,
       paddingVertical: 2,
     },
-    tagChipTeam: { borderColor: theme.gold, backgroundColor: 'transparent' },
+    tagChipTeam: { borderColor: theme.gold, backgroundColor: hexToRgba(theme.goldDark, 0.08) },
     tagChipPlayer: { borderColor: theme.border, backgroundColor: 'transparent' },
-    tagChipText: { fontFamily: FontFamily.monoMedium, fontSize: 9, letterSpacing: 0.5 },
+    tagChipText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, letterSpacing: 0.3 },
     tagChipTextTeam: { color: theme.goldDark },
     tagChipTextPlayer: { color: theme.textSecondary },
     senderName: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted, flexShrink: 1 },

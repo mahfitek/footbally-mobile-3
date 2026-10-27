@@ -190,7 +190,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </HapticTouchable>
           <Text style={styles.title}>{t('teamEdit_title')}</Text>
           <HapticTouchable onPress={handleSave} disabled={saving} style={styles.saveBtn}>
-            {saving ? <ActivityIndicator color={theme.gold} /> : <Text style={styles.saveBtnText}>{t('match_save')}</Text>}
+            {saving ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.saveBtnText}>{t('match_save')}</Text>}
           </HapticTouchable>
         </View>
 
@@ -444,13 +444,21 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
-    saveBtn: { padding: 8, minWidth: 44, alignItems: 'flex-end' },
-    saveBtnText: { fontFamily: FontFamily.mono, fontSize: 13, color: theme.goldDark },
+    saveBtn: {
+      height: 36,
+      minWidth: 72,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: theme.gold,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Paper.ink },
     content: { paddingHorizontal: 16, paddingBottom: 60 },
     row: { flexDirection: 'row', gap: 12 },
     half: { flex: 1 },
     inputGroup: { marginBottom: 16 },
-    inputLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 1, marginBottom: 8 },
+    inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 8 },
     input: {
       height: 48,
       backgroundColor: theme.card2,

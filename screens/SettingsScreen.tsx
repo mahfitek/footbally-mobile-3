@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { fetchAccountBanRow, evaluateAccountAccess } from '../lib/accountAccess';
 import BottomSheet from '../components/BottomSheet';
+import SectionHeader from '../components/SectionHeader';
 
 const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -258,9 +259,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         />
 
         {/* HESAP AYARLARI */}
-        <Text style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, paddingHorizontal: 4 }}>
-          {t('settings_accountSectionHeader')}
-        </Text>
+        <SectionHeader title={t('settings_accountSectionHeader')} horizontalPadding={4} />
 
         <SettingRow
           icon={accountStatus.ok ? 'checkmark-circle-outline' : 'alert-circle-outline'}
@@ -306,10 +305,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         />
 
         {/* GÖRÜNÜM */}
-        <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
-          {t('settings_appearanceHeader')}
-        </Text>
+        <SectionHeader title={t('settings_appearanceHeader')} horizontalPadding={4} />
 
         <View style={{ backgroundColor: theme.card, borderRadius: RADIUS, marginBottom: 8, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 }}>
@@ -375,10 +371,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         />
 
         {/* İLERLEME */}
-        <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
-          {t('settings_progressHeader')}
-        </Text>
+        <SectionHeader title={t('settings_progressHeader')} horizontalPadding={4} />
 
         <SettingRow
           icon="ribbon-outline"
@@ -388,10 +381,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         />
 
         {/* BİLDİRİMLER */}
-        <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
-          {t('settings_notificationsHeader')}
-        </Text>
+        <SectionHeader title={t('settings_notificationsHeader')} horizontalPadding={4} />
 
         {([
           { key: 'all', column: 'notify_all' as const, label: t('settings_notifAll'), icon: 'notifications-outline' as IoniconName, value: notifications, setter: setNotifications },
@@ -419,10 +409,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         ))}
 
         {/* GİZLİLİK & DESTEK */}
-        <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
-          {t('settings_privacyHeader')}
-        </Text>
+        <SectionHeader title={t('settings_privacyHeader')} horizontalPadding={4} />
 
         <SettingRow
           icon="document-text-outline"
@@ -443,10 +430,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         />
 
         {/* UYGULAMA BİLGİSİ */}
-        <Text
-          style={{ color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono, letterSpacing: 1.5, marginBottom: 10, marginTop: 16, paddingHorizontal: 4 }}>
-          {t('settings_appInfoHeader')}
-        </Text>
+        <SectionHeader title={t('settings_appInfoHeader')} horizontalPadding={4} />
 
         <View style={{ backgroundColor: theme.card, borderRadius: RADIUS, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
           <Text style={{ color: theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold, marginBottom: 4 }}>Footbally</Text>
