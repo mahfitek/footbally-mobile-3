@@ -169,7 +169,7 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
       .from('follows')
       .select('follower_id')
       .eq('follower_id', viewerUid)
-      .eq('following_id', ownerId)
+      .eq('followed_id', ownerId)
       .maybeSingle();
     setIsFollowing(!!followRow);
   };
@@ -184,8 +184,8 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
     setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? -1 : 1)));
 
     const { error } = wasFollowing
-      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('following_id', targetId)
-      : await supabase.from('follows').insert({ follower_id: currentUserId, following_id: targetId });
+      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('followed_id', targetId)
+      : await supabase.from('follows').insert({ follower_id: currentUserId, followed_id: targetId });
 
     if (error) {
       if (__DEV__) console.log('Takip işlemi başarısız:', error);

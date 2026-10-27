@@ -96,9 +96,9 @@ export default function SocialFeedScreen({ navigate, userId }: Props) {
       if (reset || followingIdsRef.current === null) {
         const { data: followRows } = await supabase
           .from('follows')
-          .select('following_id')
+          .select('followed_id')
           .eq('follower_id', currentUserId);
-        followingIdsRef.current = (followRows ?? []).map((r: any) => r.following_id);
+        followingIdsRef.current = (followRows ?? []).map((r: any) => r.followed_id);
       }
       const followingIds = followingIdsRef.current ?? [];
 

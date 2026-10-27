@@ -275,7 +275,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       .from('follows')
       .select('follower_id')
       .eq('follower_id', viewerUid)
-      .eq('following_id', targetUid)
+      .eq('followed_id', targetUid)
       .maybeSingle();
     setIsFollowing(!!data);
   };
@@ -289,8 +289,8 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? -1 : 1)));
 
     const { error } = wasFollowing
-      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('following_id', userId)
-      : await supabase.from('follows').insert({ follower_id: currentUserId, following_id: userId });
+      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('followed_id', userId)
+      : await supabase.from('follows').insert({ follower_id: currentUserId, followed_id: userId });
 
     if (error) {
       if (__DEV__) console.log('Takip işlemi başarısız:', error);

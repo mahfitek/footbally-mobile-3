@@ -40,8 +40,8 @@ export default function UserFollowListScreen({ navigate, onBack, userId, type }:
       return;
     }
 
-    const column = type === 'followers' ? 'following_id' : 'follower_id';
-    const targetColumn = type === 'followers' ? 'follower_id' : 'following_id';
+    const column = type === 'followers' ? 'followed_id' : 'follower_id';
+    const targetColumn = type === 'followers' ? 'follower_id' : 'followed_id';
     const { data, error } = await supabase
       .from('follows')
       .select(targetColumn)

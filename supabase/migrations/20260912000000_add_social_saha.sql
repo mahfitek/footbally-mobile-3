@@ -46,13 +46,13 @@ create policy "Users can delete own posts" on public.posts for delete using (aut
 -- ---------------------------------------------------------------------------
 create table if not exists public.follows (
   follower_id uuid not null references auth.users(id) on delete cascade,
-  following_id uuid not null references auth.users(id) on delete cascade,
+  followed_id uuid not null references auth.users(id) on delete cascade,
   created_at timestamptz not null default now(),
-  primary key (follower_id, following_id),
-  constraint follows_no_self_follow check (follower_id <> following_id)
+  primary key (follower_id, followed_id),
+  constraint follows_no_self_follow check (follower_id <> followed_id)
 );
 
-create index if not exists follows_following_id_idx on public.follows (following_id);
+create index if not exists follows_followed_id_idx on public.follows (followed_id);
 
 alter table public.follows enable row level security;
 
@@ -162,60 +162,42 @@ returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'INSERT' then
     update public.profiles set following_count = following_count + 1 where user_id = new.follower_id;
-    update public.profiles set followers_count = followers_count + 1 where user_id = new.following_id;
+    update public.profiles set followers_count = followers_count + 1 where user_id = new.followed_id;
     return new;
   elsif tg_op = 'DELETE' then
     update public.profiles set following_count = greatest(following_count - 1, 0) where user_id = old.follower_id;
-    update public.profiles set followers_count = greatest(followers_count - 1, 0) where user_id = old.following_id;
+    update public.profiles set followers_count = greatest(followers_count - 1, 0) where user_id = old.followed_id;
     return old;
   end if;
   return null;
 end;
 $$;
 
-drop trigger if exists follows_count_trigger on public.follows;
-create trigger follows_count_trigger
-  after insert or delete on public.follows
-  for each row execute function public.social_saha_adjust_follow_counts();
-
--- ---------------------------------------------------------------------------
--- profiles.is_premium sync from auth.users.raw_user_meta_data
--- (app writes { premium: true, premium_until } via supabase.auth.updateUser,
---  e.g. screens/PremiumScreen.tsx — this trigger mirrors that into profiles
---  so other users' premium status can be read client-side for the feed.
---  Note: this only re-evaluates on a metadata write, so a premium period
---  that lapses with no further auth.users update won't flip is_premium
---  back to false until the next metadata change.)
--- ---------------------------------------------------------------------------
-create or replace function public.social_saha_sync_profile_premium()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare
-  is_prem boolean;
+-- Sayaç trigger'ı YALNIZCA web tarafındaki handle_follow_insert/handle_follow_delete trigger'ları yoksa
+-- oluşturulur. Canlıda bu trigger'lar zaten sayaçları tutar; ikisi birden çalışırsa sayılar çift artar.
+do $$
 begin
-  is_prem := coalesce((new.raw_user_meta_data->>'premium')::boolean, false)
-    and (
-      new.raw_user_meta_data->>'premium_until' is null
-      or (new.raw_user_meta_data->>'premium_until')::timestamptz > now()
-    );
-  update public.profiles set is_premium = is_prem where user_id = new.id;
-  return new;
-end;
-$$;
+  if not exists (select 1 from pg_trigger where tgrelid = 'public.follows'::regclass and not tgisinternal) then
+    create trigger follows_count_trigger
+      after insert or delete on public.follows
+      for each row execute function public.social_saha_adjust_follow_counts();
+  end if;
+end $$;
 
-drop trigger if exists on_auth_user_premium_updated on auth.users;
-create trigger on_auth_user_premium_updated
-  after update of raw_user_meta_data on auth.users
-  for each row execute function public.social_saha_sync_profile_premium();
-
--- Backfill is_premium for existing users from their current metadata.
+-- ---------------------------------------------------------------------------
+-- profiles.is_premium: KAYNAK subscriptions'tır (sunucu fonksiyonu sync_profile_is_premium).
+-- Eskiden burada auth.users.raw_user_meta_data.premium okunup profiles.is_premium yazılıyordu;
+-- kullanıcılar auth.updateUser ile kendi metadata'sını yazabildiği için bu, Premium'un
+-- istemciden açılmasına izin veren bir açıktı. Metadata tabanlı trigger ve backfill KALDIRILDI.
+-- Mevcut değer (varsayılan false) yalnızca abonelik tablosundan yeniden hesaplanır.
+-- ---------------------------------------------------------------------------
 update public.profiles p
-set is_premium = coalesce((u.raw_user_meta_data->>'premium')::boolean, false)
-  and (
-    u.raw_user_meta_data->>'premium_until' is null
-    or (u.raw_user_meta_data->>'premium_until')::timestamptz > now()
-  )
-from auth.users u
-where u.id = p.user_id;
+set is_premium = exists (
+  select 1 from public.subscriptions s
+  where s.user_id = p.user_id
+    and lower(btrim(s.status)) = 'active'
+    and (s.expires_at is null or s.expires_at > now())
+);
 
 -- ---------------------------------------------------------------------------
 -- Storage bucket for post media
