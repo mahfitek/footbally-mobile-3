@@ -166,7 +166,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const [isPremium, setIsPremium] = useState(false);
   const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
 
-  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20260912000000_add_social_saha.sql)
+  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20261026101200_add_social_saha.sql)
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);

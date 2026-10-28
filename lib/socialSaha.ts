@@ -1,5 +1,5 @@
 // Sosyal Saha (social feed) — shared types + helpers.
-// Schema lives in supabase/migrations/20260912000000_add_social_saha.sql:
+// Schema lives in supabase/migrations/20261026101200_add_social_saha.sql:
 // posts / follows / post_likes / post_comments + profiles.is_premium/
 // followers_count/following_count. RLS already enforces who can write/delete;
 // client-side checks here are only for UX (hiding buttons the user has no

@@ -1,1 +1,3 @@
-ALTER TABLE ai_video_jobs ADD COLUMN IF NOT EXISTS confidence int;
+-- TAŞINDI: bu migration artık tek resmî migration klasöründe: web repo supabase/migrations/20260720101600_add_confidence_to_ai_video_jobs.sql
+-- Mobil repodan migration çalıştırılmaz. Bu dosya yalnızca geçmiş ve referans içindir (aynı SQL iki kez uygulanmasın diye bırakıldı).
+-- Eski içerik git geçmişinde korunur.

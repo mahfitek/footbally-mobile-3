@@ -1,5 +1,3 @@
-alter table public.profiles
-  add column if not exists notify_all boolean not null default true,
-  add column if not exists notify_match boolean not null default true,
-  add column if not exists notify_message boolean not null default true,
-  add column if not exists notify_scout boolean not null default true;
+-- TAŞINDI: bu migration artık tek resmî migration klasöründe: web repo supabase/migrations/20260720101800_add_notification_prefs.sql
+-- Mobil repodan migration çalıştırılmaz. Bu dosya yalnızca geçmiş ve referans içindir (aynı SQL iki kez uygulanmasın diye bırakıldı).
+-- Eski içerik git geçmişinde korunur.

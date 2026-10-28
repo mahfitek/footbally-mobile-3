@@ -108,7 +108,7 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedPosition, setSelectedPosition] = useState('');
 
-  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20260912000000_add_social_saha.sql)
+  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20261026101200_add_social_saha.sql)
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
