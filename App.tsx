@@ -51,6 +51,7 @@ import SocialFeedScreen from './screens/SocialFeedScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import UserFollowListScreen from './screens/UserFollowListScreen';
 import MerchScreen from './screens/MerchScreen';
+import MerchCartScreen from './screens/MerchCartScreen';
 import BottomNav from './components/BottomNav';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -91,7 +92,8 @@ type Screen =
   | 'socialFeed'
   | 'createPost'
   | 'userFollowList'
-  | 'merch';
+  | 'merch'
+  | 'merchCart';
 
 type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'tribun' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
 
@@ -355,7 +357,9 @@ function AppContent() {
   const keyboardOpen = useKeyboardOpen();
   // Sahadan'da giriş alanı klavyenin altında kalmasın diye klavye açıkken navbar gizlenir.
   const showNav =
-    !NO_NAV_SCREENS.includes(screen) && userType !== 'venue' && !(screen === 'tribun' && keyboardOpen);
+    !NO_NAV_SCREENS.includes(screen) &&
+    userType !== 'venue' &&
+    !((screen === 'tribun' || screen === 'merchCart') && keyboardOpen);
 
   const renderScreen = () => {
     switch (screen) {
@@ -399,7 +403,9 @@ function AppContent() {
       case 'premium':
         return <PremiumScreen navigate={navigate} previousScreen={previousScreen} />;
       case 'merch':
-        return <MerchScreen onBack={goBack} />;
+        return <MerchScreen onBack={goBack} onOpenCart={() => navigate('merchCart')} />;
+      case 'merchCart':
+        return <MerchCartScreen onBack={goBack} />;
       case 'ai':
         return <AIAnalysisScreen navigate={navigate} />;
       case 'settings':

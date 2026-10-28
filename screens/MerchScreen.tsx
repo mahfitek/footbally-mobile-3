@@ -43,12 +43,13 @@ const unique = (values: string[]) => Array.from(new Set(values));
 
 interface Props {
   onBack: () => void;
+  onOpenCart: () => void;
 }
 
 // Salt okunur Merch kataloğu. Satın alma (sepet/checkout) bu sürümde kapalıdır:
 // canlıda merch çekirdek tabloları ve FP checkout'u henüz etkin değil. Katalogda
 // hiç aktif ürün yoksa sahte ürün gösterilmez.
-export default function MerchScreen({ onBack }: Props) {
+export default function MerchScreen({ onBack, onOpenCart }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -96,7 +97,7 @@ export default function MerchScreen({ onBack }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Header title={t('merch_title')} onBack={onBack} styles={styles} />
+      <Header title={t('merch_title')} onBack={onBack} onCart={onOpenCart} styles={styles} />
       {products.length === 0 ? (
         <EmptyState
           icon="shirt-outline"
@@ -126,14 +127,30 @@ export default function MerchScreen({ onBack }: Props) {
   );
 }
 
-function Header({ title, onBack, styles }: { title: string; onBack: () => void; styles: ReturnType<typeof createStyles> }) {
+function Header({
+  title,
+  onBack,
+  onCart,
+  styles,
+}: {
+  title: string;
+  onBack: () => void;
+  onCart?: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   return (
     <View style={styles.header}>
       <HapticTouchable style={styles.backBtn} onPress={onBack}>
         <Ionicons name="chevron-back" size={17} color={theme.text} />
       </HapticTouchable>
       <Text style={styles.title}>{title.toUpperCase()}</Text>
+      {onCart && (
+        <HapticTouchable style={[styles.backBtn, styles.cartBtn]} onPress={onCart} accessibilityLabel={t('merch_cartTitle')}>
+          <Ionicons name="cart-outline" size={18} color={theme.text} />
+        </HapticTouchable>
+      )}
     </View>
   );
 }
@@ -241,7 +258,8 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 1 },
+    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 1, flex: 1 },
+    cartBtn: { marginLeft: 'auto' },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 24, paddingBottom: 100 },
     card: {
       width: '47%',
