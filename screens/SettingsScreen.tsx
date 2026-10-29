@@ -9,6 +9,7 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { fetchAccountBanRow, evaluateAccountAccess } from '../lib/accountAccess';
+import { requestAccountDeletion } from '../lib/accountDeletion';
 import BottomSheet from '../components/BottomSheet';
 import SectionHeader from '../components/SectionHeader';
 
@@ -37,6 +38,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
   const [newEmail, setNewEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [accountStatus, setAccountStatus] = useState<{ ok: boolean; detail?: string }>({ ok: true });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -142,22 +144,41 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     );
   };
 
-  // Sunucu tarafı silme (delete-account) henüz yok; sahte silme yerine destek e-postasına yönlendirir.
+  const openDeletionEmail = () => {
+    const subject = encodeURIComponent(t('settings_deleteRequestSubject'));
+    Linking.openURL(`mailto:info@getfootbally.com?subject=${subject}`);
+  };
+
+  // Gerçek silme: sunucu { deleted: true } dönmeden başarı gösterilmez (bkz. lib/accountDeletion.ts).
+  const runAccountDeletion = async () => {
+    setDeleting(true);
+    try {
+      const outcome = await requestAccountDeletion(supabase);
+      if (outcome.status === 'deleted') {
+        await supabase.auth.signOut();
+        Alert.alert(t('account_deleteDone'));
+        navigate('onboarding');
+        return;
+      }
+      if (outcome.status === 'unavailable') {
+        Alert.alert(t('settings_deleteAccount'), t('account_deleteUnavailable'), [
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('account_deleteEmail'), onPress: openDeletionEmail },
+        ]);
+        return;
+      }
+      Alert.alert(t('settings_deleteAccount'), t('account_deleteFailed'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleDeleteAccount = () => {
-    Alert.alert(
-      t('settings_deleteAccount'),
-      t('settings_deleteRequestConfirm'),
-      [
-        { text: t('common_cancel'), style: 'cancel' },
-        {
-          text: t('settings_deleteRequestAction'),
-          onPress: () => {
-            const subject = encodeURIComponent(t('settings_deleteRequestSubject'));
-            Linking.openURL(`mailto:info@getfootbally.com?subject=${subject}`);
-          },
-        },
-      ]
-    );
+    if (deleting) return;
+    Alert.alert(t('settings_deleteAccount'), t('account_deleteConfirm'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: t('account_deleteAction'), style: 'destructive', onPress: runAccountDeletion },
+    ]);
   };
 
   const SettingRow = ({ icon, title, subtitle, onPress, right, danger = false }: {

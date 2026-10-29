@@ -52,6 +52,7 @@ import CreatePostScreen from './screens/CreatePostScreen';
 import UserFollowListScreen from './screens/UserFollowListScreen';
 import MerchScreen from './screens/MerchScreen';
 import MerchCartScreen from './screens/MerchCartScreen';
+import ReportScreen, { ReportTarget } from './screens/ReportScreen';
 import BottomNav from './components/BottomNav';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -93,7 +94,8 @@ type Screen =
   | 'createPost'
   | 'userFollowList'
   | 'merch'
-  | 'merchCart';
+  | 'merchCart'
+  | 'report';
 
 type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'tribun' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
 
@@ -101,7 +103,7 @@ type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 't
 // 'chat' buraya dahil: sohbet ekranında navbar üzerine binmesin diye sekme çubuğu gizlenir.
 // 'tribun' (Sahadan) bir navbar sekmesi olduğu için görünür kalır; klavye açıkken
 // gizlenmesi AppContent içinde ayrıca ele alınır.
-const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat'];
+const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat', 'report'];
 const EDGE_BACK_WIDTH = 28;
 const EDGE_BACK_THRESHOLD = 80;
 
@@ -162,6 +164,7 @@ function AppContent() {
   // null means "show my own team" (the tab-bar default).
   const [viewedTeamOwnerId, setViewedTeamOwnerId] = useState<string | null>(null);
   const [followListTarget, setFollowListTarget] = useState<{ userId: string; type: 'followers' | 'following' } | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [userType, setUserType] = useState<'player' | 'team' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
@@ -190,6 +193,13 @@ function AppContent() {
         userId: String(params.userId ?? ''),
         type: params.type === 'following' ? 'following' : 'followers',
       });
+    }
+    if (next === 'report') {
+      setReportTarget(
+        params?.id
+          ? { type: params.type, id: String(params.id), name: String(params.name ?? '') }
+          : null,
+      );
     }
     if (next === 'settings') {
       setSettingsFrom(screen);
@@ -406,6 +416,8 @@ function AppContent() {
         return <MerchScreen onBack={goBack} onOpenCart={() => navigate('merchCart')} />;
       case 'merchCart':
         return <MerchCartScreen onBack={goBack} />;
+      case 'report':
+        return <ReportScreen onBack={goBack} target={reportTarget} />;
       case 'ai':
         return <AIAnalysisScreen navigate={navigate} />;
       case 'settings':

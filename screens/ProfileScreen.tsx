@@ -983,6 +983,15 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
               )}
             </HapticTouchable>
           )}
+          {!isOwnProfile && userId && (
+            <HapticTouchable
+              style={styles.reportBtn}
+              onPress={() => navigate('report', { type: 'profile', id: userId, name: fullName })}
+              accessibilityLabel={t('report_entryAction')}
+            >
+              <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+            </HapticTouchable>
+          )}
         </View>
 
         {/* Stats: yan yana modern kartlar */}
@@ -1316,6 +1325,16 @@ const createStyles = (theme: Theme) =>
     followStatValue: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text },
     followStatLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     followDivider: { width: 1, height: 28, backgroundColor: theme.border },
+    reportBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.card,
+    },
     followBtn: {
       flex: 1,
       height: 40,

@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { notifyEvent } from '../lib/notify';
 import { moderateMessage } from '../lib/security';
+import { MESSAGE_COLUMNS } from '../lib/columns';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
@@ -41,7 +42,7 @@ const formatTime = (iso: string) => {
 };
 
 interface Props {
-  navigate: (screen: string) => void;
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
   otherUserId: string;
   otherUserName: string;
 }
@@ -142,7 +143,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
 
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select(MESSAGE_COLUMNS)
       .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
 
@@ -219,6 +220,13 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
               <Text style={styles.subtitle} numberOfLines={1}>{otherProfile.position}</Text>
             )}
           </View>
+          <HapticTouchable
+            style={styles.reportBtn}
+            accessibilityLabel={t('report_entryAction')}
+            onPress={() => navigate('report', { type: 'profile', id: otherUserId, name: otherProfile?.full_name || otherUserName })}
+          >
+            <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+          </HapticTouchable>
         </View>
 
         <ScrollView
@@ -288,6 +296,16 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.bg },
     container: { flex: 1 },
+    reportBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.card,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
