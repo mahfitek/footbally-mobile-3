@@ -14,6 +14,7 @@ import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { activityFiltersData } from '../api/mockData';
 import { supabase } from '../lib/supabase';
+import { OPPORTUNITY_COLUMNS } from '../lib/columns';
 import { sendLocalNotification } from '../lib/notifications';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
@@ -57,7 +58,7 @@ export default function ActivitiesScreen() {
     try {
       const { data, error } = await supabase
         .from('opportunities')
-        .select('*')
+        .select(OPPORTUNITY_COLUMNS)
         .order('created_at', { ascending: false });
 
       if (error) {

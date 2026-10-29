@@ -10,6 +10,7 @@ import { TranslationKey } from '../lib/i18n';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { VENUE_COLUMNS } from '../lib/columns';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
@@ -73,7 +74,7 @@ export default function VenuePanelScreen({ navigate, userId }: Props) {
       return;
     }
 
-    const { data: venue } = await supabase.from('venues').select('*').eq('owner_user_id', uid).maybeSingle();
+    const { data: venue } = await supabase.from('venues').select(VENUE_COLUMNS).eq('owner_user_id', uid).maybeSingle();
     if (!venue) {
       setNotFound(true);
       setLoading(false);

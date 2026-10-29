@@ -28,8 +28,8 @@ export interface SocialPost {
   venue_name: string | null;
   match_date: string | null;
   caption: string | null;
-  highlight_start_sec: number | null;
-  highlight_end_sec: number | null;
+  highlight_start_seconds: number | null;
+  highlight_end_seconds: number | null;
   likes_count: number;
   comments_count: number;
   created_at: string;

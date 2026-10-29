@@ -12,6 +12,7 @@ import { TranslationKey } from '../lib/i18n';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { NOTIFICATION_COLUMNS } from '../lib/columns';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
@@ -83,7 +84,7 @@ export default function NotificationsScreen({ navigate }: Props) {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select(NOTIFICATION_COLUMNS)
         .order('created_at', { ascending: false });
 
       if (error || !data) {

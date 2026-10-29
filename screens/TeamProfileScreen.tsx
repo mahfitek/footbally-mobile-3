@@ -22,6 +22,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { TEAM_COLUMNS } from '../lib/columns';
 import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
@@ -141,7 +142,7 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
 
     const { data, error } = await supabase
       .from('teams')
-      .select('*')
+      .select(TEAM_COLUMNS)
       .eq('owner_id', uid)
       .maybeSingle();
 

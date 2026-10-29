@@ -159,8 +159,8 @@ export default function CreatePostScreen({ navigate, userId }: Props) {
         venue_name: venueName.trim() || null,
         match_date: formatDateForSupabase(matchDate),
         caption: caption.trim() || null,
-        highlight_start_sec: Number.isFinite(startSec) ? startSec : null,
-        highlight_end_sec: Number.isFinite(endSec) ? endSec : null,
+        highlight_start_seconds: Number.isFinite(startSec) ? startSec : null,
+        highlight_end_seconds: Number.isFinite(endSec) ? endSec : null,
       });
       if (error) throw error;
 

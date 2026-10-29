@@ -19,6 +19,7 @@ import { FontFamily } from '../constants/fonts';
 import { TranslationKey } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { NOTIFICATION_COLUMNS } from '../lib/columns';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
@@ -274,7 +275,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select(NOTIFICATION_COLUMNS)
         .order('created_at', { ascending: false })
         .limit(5);
 

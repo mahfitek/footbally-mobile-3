@@ -99,10 +99,11 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
     if (!user) return;
+    // messages tablosunda alıcı kolonu yok; karşı tarafın gönderdiği okunmamış mesajlar sayılır.
     const { count } = await supabase
       .from('messages')
-      .select('id', { count: 'exact' })
-      .eq('receiver_id', user.id)
+      .select('id', { count: 'exact', head: true })
+      .neq('sender_user_id', user.id)
       .eq('read', false);
     setUnreadMessages(count ?? 0);
   };

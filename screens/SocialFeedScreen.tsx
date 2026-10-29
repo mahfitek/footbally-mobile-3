@@ -29,6 +29,7 @@ import {
   fetchAuthorsMap,
   formatRelativeTime,
 } from '../lib/socialSaha';
+import { POST_COLUMNS, POST_COMMENT_COLUMNS } from '../lib/columns';
 import YouTubePlayer from '../components/YouTubePlayer';
 import GradientText from '../components/GradientText';
 import EmptyState from '../components/EmptyState';
@@ -108,7 +109,7 @@ export default function SocialFeedScreen({ navigate, userId }: Props) {
 
       let query = supabase
         .from('posts')
-        .select('*')
+        .select(POST_COLUMNS)
         .order('created_at', { ascending: false })
         .range(from, to);
       if (followingIds.length > 0) {
@@ -381,7 +382,7 @@ function PostCard({ post, theme, t, viewerIsPremium, onToggleLike, onOpenComment
 
       <View style={styles.mediaWrap}>
         {post.post_type === 'match_video' && post.youtube_video_id ? (
-          <YouTubePlayer videoId={post.youtube_video_id} startSeconds={post.highlight_start_sec ?? 0} />
+          <YouTubePlayer videoId={post.youtube_video_id} startSeconds={post.highlight_start_seconds ?? 0} />
         ) : post.post_type === 'video' && post.media_url ? (
           <UploadedVideoPlayer uri={post.media_url} height={220} />
         ) : post.post_type === 'photo' && post.media_url ? (
@@ -448,7 +449,7 @@ function CommentsModal({ post, visible, onClose, currentUserId, theme, t, onComm
     setLoading(true);
     const { data, error } = await supabase
       .from('post_comments')
-      .select('*')
+      .select(POST_COMMENT_COLUMNS)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 

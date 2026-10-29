@@ -18,6 +18,7 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { notifyEvent } from '../lib/notify';
+import { MESSAGE_COLUMNS } from '../lib/columns';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -171,7 +172,7 @@ export default function MessagesScreen({ navigate }: Props) {
 
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select(MESSAGE_COLUMNS)
       .in('conversation_id', convIds)
       .order('created_at', { ascending: false });
 

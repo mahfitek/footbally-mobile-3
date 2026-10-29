@@ -9,6 +9,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { TEAM_COLUMNS } from '../lib/columns';
 import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -194,10 +195,13 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       const [{ data: challengerTeam }, { data: opponentTeam }] = await Promise.all([
-        supabase.from('teams').select('*').eq('id', scoreTarget.challenger_team_id).maybeSingle(),
-        supabase.from('teams').select('*').eq('id', scoreTarget.opponent_team_id).maybeSingle(),
+        supabase.from('teams').select(TEAM_COLUMNS).eq('id', scoreTarget.challenger_team_id).maybeSingle(),
+        supabase.from('teams').select(TEAM_COLUMNS).eq('id', scoreTarget.opponent_team_id).maybeSingle(),
       ]);
 
+      // teams.clean_sheets canlı şemada yok (bkz. pending missing columns; kullanıcı ertelemiş).
+      // Sorguya eklenmez: eklenirse takım yüklemesi tümden kırılır. Yalnızca tip açıklanır.
+      type CleanSheetsRow = { clean_sheets?: number | null };
       const updates: { id: string; wins: number; losses: number; draws: number; goals_scored: number; goals_conceded: number; clean_sheets: number }[] = [];
       if (challengerTeam) {
         const won = challengerGoals > opponentGoals;
@@ -209,7 +213,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
           draws: (challengerTeam.draws ?? 0) + (drew ? 1 : 0),
           goals_scored: (challengerTeam.goals_scored ?? 0) + challengerGoals,
           goals_conceded: (challengerTeam.goals_conceded ?? 0) + opponentGoals,
-          clean_sheets: (challengerTeam.clean_sheets ?? 0) + (opponentGoals === 0 ? 1 : 0),
+          clean_sheets: ((challengerTeam as CleanSheetsRow).clean_sheets ?? 0) + (opponentGoals === 0 ? 1 : 0),
         });
       }
       if (opponentTeam) {
@@ -222,7 +226,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
           draws: (opponentTeam.draws ?? 0) + (drew ? 1 : 0),
           goals_scored: (opponentTeam.goals_scored ?? 0) + opponentGoals,
           goals_conceded: (opponentTeam.goals_conceded ?? 0) + challengerGoals,
-          clean_sheets: (opponentTeam.clean_sheets ?? 0) + (challengerGoals === 0 ? 1 : 0),
+          clean_sheets: ((opponentTeam as CleanSheetsRow).clean_sheets ?? 0) + (challengerGoals === 0 ? 1 : 0),
         });
       }
 

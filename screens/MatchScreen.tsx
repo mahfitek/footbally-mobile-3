@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { sendLocalNotification } from '../lib/notifications';
 import { notifyEvent } from '../lib/notify';
+import { MATCH_COLUMNS } from '../lib/columns';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -116,7 +117,7 @@ export default function MatchScreen({ navigate }: Props) {
   // da ihtiyaç duyduğundan, o sekmelere ilk geçişte 'all' scope ayrıca çekilir.
   const fetchMatches = async (scope: 'active' | 'all', currentUserId: string | null) => {
     try {
-      let query = supabase.from('matches').select('*').order('date', { ascending: true });
+      let query = supabase.from('matches').select(MATCH_COLUMNS).order('date', { ascending: true });
       if (scope === 'active') {
         query = query.gte('date', todayStr());
       }

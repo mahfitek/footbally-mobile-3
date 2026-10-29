@@ -19,6 +19,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { TEAM_COLUMNS } from '../lib/columns';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
@@ -80,7 +81,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       return;
     }
 
-    const { data, error } = await supabase.from('teams').select('*').eq('owner_id', uid).maybeSingle();
+    const { data, error } = await supabase.from('teams').select(TEAM_COLUMNS).eq('owner_id', uid).maybeSingle();
 
     if (data) {
       setName(data.name || '');

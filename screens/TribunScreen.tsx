@@ -20,6 +20,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { TRIBUN_MESSAGE_COLUMNS } from '../lib/columns';
 import { moderateMessage } from '../lib/security';
 import { resolveSenderIdentities, SenderIdentity } from '../lib/chatIdentity';
 import LoadingScreen from '../components/LoadingScreen';
@@ -117,7 +118,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
 
     const { data, error } = await supabase
       .from('tribun_messages')
-      .select('*')
+      .select(TRIBUN_MESSAGE_COLUMNS)
       .order('created_at', { ascending: false })
       .limit(HISTORY_LIMIT);
 
