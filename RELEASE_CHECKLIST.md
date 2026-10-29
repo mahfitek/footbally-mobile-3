@@ -10,7 +10,11 @@ Ayrıntılı mağaza formları: `STORE_PREP.md`. Backend sözleşmesi: `MOBILE_B
 - [ ] **Hesap silme (web):** Web'de silme talebi yolu yok (Google Play gereksinimi).
 - [x] **Şikâyet (mobil):** Profil ve sohbet ekranından `ReportScreen` açılır; RPC yoksa "kullanılamıyor" gösterir (`lib/reports.ts`, test: `__tests__/reports.test.ts`).
 - [ ] **Şikâyet (backend):** `submit_report` RPC'si canlıda yok.
-- [ ] **Engelleme:** Kullanıcı engelleme özelliği yok (mobil UI ve backend). App Store 1.2 gereği gerekli.
+- [x] **Engelleme (mobil):** Profilde Engelle eylemi; `block_user` RPC yoksa "kullanılamıyor" gösterir (`lib/blocking.ts`).
+- [ ] **Engelleme (backend):** `block_user` / `unblock_user` RPC'leri ve `blocks` tablosu canlıda yok.
+- [x] **Oturum token'ları SecureStore'da:** Keychain / Keystore. Eski AsyncStorage oturumu ilk okumada taşınır (`lib/chunkedStorage.ts`, testli). Cihazda henüz denenmedi.
+- [x] **Sahte sosyal giriş kaldırıldı:** Google/Apple düğmeleri kimlik doğrulaması yapmadan oturum açıyordu.
+- [x] **Şifre sıfırlama:** Giriş ekranından istek; kurtarma bağlantısı ile yeni şifre ekranı (`lib/authFlows.ts`, testli). Cihazda deep link ile denenmedi.
 - [x] **Ban kontrolü (profil):** `get_my_profile` ve `clear_my_expired_ban` canlıda var (2026-10-29). Takım ban temizliği artık istemcide yazılmıyor; takım RPC'si istenmiştir.
 - [ ] **`refresh_my_score` canlıda yok.** Hata mobilde loglanır, kullanıcıya başarı gösterilmez.
 - [ ] **Anonim okuma güvenlik açığı (S1, S2):** `users` tablosu (38 satır, e-posta dahil) ve `teams` ban kolonları anonim okunabiliyor. Üretim DB değişikliği gerektirir; onay bekliyor. Bkz. `MOBILE_BACKEND_CONTRACT.md` §0.
@@ -48,14 +52,15 @@ Test hesabı: inceleme için ayrı bir hesap kullanın (üretim kullanıcısı d
 - `npx tsc --noEmit`: hata yok.
 - `npx expo-doctor`: 20/20 geçti.
 - `npx expo export --platform all`: iOS, Android ve web başarılı.
-- ESLint (`eslint-config-expo`): değiştirilen dosyalar temiz. Proje geneli: 73 hata, 153 uyarı. Çoğu React Compiler kuralları (render sırasında ref kullanımı, TDZ, bileşen tanımı). Ayrı bir refactor olarak planlanmalı.
+- ESLint (`eslint-config-expo`): proje geneli 38 hata, 154 uyarı (önceki 73). Kalanlar: 23 "effect içinde senkron setState" (veri yükleme ekranları), 12 immutability (çoğu Reanimated worklet false positive; 3 kalan TDZ), 2 ref, 1 `AndroidImportance` false positive (enum export ediliyor).
 - `npm audit --omit=dev`: 12 güvenlik uyarısı; çoğu `expo` CLI'nin geçişli bağımlılıklarında. `--force` Expo'yu 51'e düşürür; uygulanmadı.
 - `expo config --type public --json`: `com.footbally.app`, sürüm 1.0.0, `ios.icon` 1024px şeffafsız, izin metinleri tanımlı, şifreleme muafiyeti `false`.
 
 ## 4. EAS ve mağaza hesapları
 
 - EAS girişi: `osmantemur` (Owner). Proje ID `5c7da171-4aeb-470d-8fe0-5f3ba986fa63`.
-- Android preview build (SDK 58, commit `f03d13a`): `545ab486-da04-4843-91ac-984d9435bb52`. Durum: kuyrukta (başlatıldı, sonuç bekleniyor). Log: https://expo.dev/accounts/osmantemur/projects/footbally/builds/545ab486-da04-4843-91ac-984d9435bb52
+- Android preview build (SDK 58, commit `f03d13a`): `545ab486-da04-4843-91ac-984d9435bb52`. Durum: 2026-10-29 itibarıyla devam ediyordu.
+- Android preview build (HEAD, güvenli saklama ve düzeltmeler dahil): `5b7aaa8f-bbf3-4c33-a78a-3ce81d6ad1d2`. Kuyrukta, sonuç bekleniyor. Log: https://expo.dev/accounts/osmantemur/projects/footbally/builds/545ab486-da04-4843-91ac-984d9435bb52
 - Android için `.easignore` eklendi: Windows sembolik linkleri (`.agents/`, `.claude/`) EAS yüklemesini kırıyordu.
 - iOS preview build: **başarısız**. Non-interactive modda uygun dağıtım kimlik bilgisi bulunamadı. Apple hesabıyla etkileşimli giriş ve kimlik bilgisi oluşturma gerekli (kullanıcı adımı).
 - Google Play ve App Store Connect hesaplarına erişim doğrulanmadı.
