@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
@@ -20,6 +19,7 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
 import { translateAuthError } from '../lib/authErrors';
+import { requestPasswordReset } from '../lib/authFlows';
 import HapticTouchable from '../components/HapticTouchable';
 import FadeInView from '../components/FadeInView';
 
@@ -38,6 +38,24 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  // Gönderim başarısızsa "gönderildi" gösterilmez. Hesap varlığı sızdırılmaz: başarılı yanıt aynıdır.
+  const handleForgot = async () => {
+    setLoading(true);
+    const outcome = await requestPasswordReset(supabase, email);
+    setLoading(false);
+    if (outcome.status === 'invalid_email') {
+      Alert.alert(t('login_errorTitle'), t('login_emailRequired'));
+      return;
+    }
+    if (outcome.status === 'failed') {
+      Alert.alert(t('login_errorTitle'), t('auth_resetFailed'));
+      return;
+    }
+    setResetSent(true);
+  };
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -133,46 +151,59 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('login_passwordLabel')}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
+            {!forgotMode && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('login_passwordLabel')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor={theme.textMuted}
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                </View>
 
-            <HapticTouchable
-              style={[styles.btnGold, loading && styles.btnGoldDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={theme.bg} />
-              ) : (
-                <Text style={styles.btnGoldText}>{t('login_signIn')}</Text>
-              )}
-            </HapticTouchable>
+                <HapticTouchable
+                  style={[styles.btnGold, loading && styles.btnGoldDisabled]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={theme.bg} />
+                  ) : (
+                    <Text style={styles.btnGoldText}>{t('login_signIn')}</Text>
+                  )}
+                </HapticTouchable>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>{t('login_or')}</Text>
-              <View style={styles.dividerLine} />
-            </View>
+                <HapticTouchable style={styles.forgotLink} onPress={() => { setForgotMode(true); setResetSent(false); }} disabled={loading}>
+                  <Text style={styles.registerLink}>{t('auth_forgotPassword')}</Text>
+                </HapticTouchable>
+              </>
+            )}
 
-            <View style={styles.socialRow}>
-              <HapticTouchable style={styles.socialBtn} onPress={() => onLogin(userType)}>
-                <Ionicons name="logo-google" size={16} color={theme.text} />
-                <Text style={styles.socialBtnText}>{t('login_google')}</Text>
-              </HapticTouchable>
-              <HapticTouchable style={styles.socialBtn} onPress={() => onLogin(userType)}>
-                <Ionicons name="logo-apple" size={18} color={theme.text} />
-                <Text style={styles.socialBtnText}>{t('login_apple')}</Text>
-              </HapticTouchable>
-            </View>
+            {forgotMode && (
+              <>
+                <Text style={styles.resetHint}>{resetSent ? t('auth_resetSent') : t('auth_resetHint')}</Text>
+                {!resetSent && (
+                  <HapticTouchable
+                    style={[styles.btnGold, loading && styles.btnGoldDisabled]}
+                    onPress={handleForgot}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color={theme.bg} />
+                    ) : (
+                      <Text style={styles.btnGoldText}>{t('auth_sendResetLink')}</Text>
+                    )}
+                  </HapticTouchable>
+                )}
+                <HapticTouchable style={styles.forgotLink} onPress={() => { setForgotMode(false); setResetSent(false); }}>
+                  <Text style={styles.registerLink}>{t('auth_backToLogin')}</Text>
+                </HapticTouchable>
+              </>
+            )}
           </View>
         </FadeInView>
 
@@ -393,6 +424,8 @@ const createStyles = (theme: Theme) =>
       fontSize: 12,
       color: theme.goldDark,
     },
+    forgotLink: { alignSelf: 'center', marginTop: 14, paddingVertical: 6 },
+    resetHint: { fontFamily: FontFamily.body, fontSize: 14, color: theme.textSecondary, lineHeight: 20, marginBottom: 12 },
     legalText: {
       fontFamily: FontFamily.mono,
       fontSize: 10.5,

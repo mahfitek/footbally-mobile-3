@@ -54,6 +54,9 @@ import MerchScreen from './screens/MerchScreen';
 import MerchCartScreen from './screens/MerchCartScreen';
 import ReportScreen, { ReportTarget } from './screens/ReportScreen';
 import BottomNav from './components/BottomNav';
+import OfflineBanner from './components/OfflineBanner';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
+import { parseRecoveryUrl, PASSWORD_RESET_REDIRECT } from './lib/authFlows';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
 import ErrorBoundary from './components/ErrorBoundary';
 import RatingPromptSheet from './components/RatingPromptSheet';
@@ -95,7 +98,8 @@ type Screen =
   | 'userFollowList'
   | 'merch'
   | 'merchCart'
-  | 'report';
+  | 'report'
+  | 'resetPassword';
 
 type TabName = 'home' | 'match' | 'search' | 'messages' | 'profile' | 'teamHome' | 'findOpponent' | 'findPlayer' | 'teamProfile';
 
@@ -103,7 +107,7 @@ type TabName = 'home' | 'match' | 'search' | 'messages' | 'profile' | 'teamHome'
 // 'chat' buraya dahil: sohbet ekranında navbar üzerine binmesin diye sekme çubuğu gizlenir.
 // 'tribun' (Sahadan) bir navbar sekmesi olduğu için görünür kalır; klavye açıkken
 // gizlenmesi AppContent içinde ayrıca ele alınır.
-const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat', 'report'];
+const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat', 'report', 'resetPassword'];
 const EDGE_BACK_WIDTH = 28;
 const EDGE_BACK_THRESHOLD = 80;
 
@@ -300,7 +304,8 @@ function AppContent() {
         isVenue = await checkVenueOwnership(session.user.id);
       }
       setScreen((current) => {
-        if (current === 'splash') return current;
+        // Kurtarma (şifre sıfırlama) akışında oturum açılsa da kullanıcı yeni şifre ekranında kalır.
+        if (current === 'splash' || current === 'resetPassword') return current;
         setHistory([]);
         return session ? (isVenue ? 'home' : userTypeRef.current === 'team' ? 'teamHome' : 'home') : 'onboarding';
       });
@@ -364,6 +369,30 @@ function AppContent() {
     return () => subscription.remove();
   }, []);
 
+  // Şifre sıfırlama bağlantısı: tokenlar bağlantıdan alınır, oturum kurulur, yeni şifre ekranı açılır.
+  // Bağlantı geçersizse de ekran açılır ve geçersiz olduğu söylenir (sessiz başarısızlık yok).
+  const [recoverySession, setRecoverySession] = useState(false);
+  // Splash bu bağlantıdan önce bitmiş olabilir ya da sonra; her iki durumda da kurtarma ekranına gidilmeli.
+  const recoveryRef = useRef(false);
+  const handleRecoveryUrl = async (url: string | null) => {
+    if (!url || !url.startsWith(PASSWORD_RESET_REDIRECT)) return;
+    const tokens = parseRecoveryUrl(url);
+    let ok = false;
+    if (tokens) {
+      const { error } = await supabase.auth.setSession({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken });
+      ok = !error;
+    }
+    recoveryRef.current = true;
+    setRecoverySession(ok);
+    setHistory([]);
+    setScreen('resetPassword');
+  };
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => handleRecoveryUrl(url ?? null));
+    const subscription = Linking.addEventListener('url', ({ url }) => handleRecoveryUrl(url));
+    return () => subscription.remove();
+  }, []);
+
   const keyboardOpen = useKeyboardOpen();
   // Sahadan'da giriş alanı klavyenin altında kalmasın diye klavye açıkken navbar gizlenir.
   const showNav =
@@ -374,7 +403,7 @@ function AppContent() {
   const renderScreen = () => {
     switch (screen) {
       case 'splash':
-        return <SplashScreen onDone={() => navigate(sessionRef.current ? 'home' : 'onboarding')} />;
+        return <SplashScreen onDone={() => navigate(recoveryRef.current ? 'resetPassword' : sessionRef.current ? 'home' : 'onboarding')} />;
       case 'onboarding':
         return <OnboardingScreen onDone={() => navigate('login')} />;
       case 'login':
@@ -418,6 +447,17 @@ function AppContent() {
         return <MerchCartScreen onBack={goBack} />;
       case 'report':
         return <ReportScreen onBack={goBack} target={reportTarget} />;
+      case 'resetPassword':
+        return (
+          <ResetPasswordScreen
+            hasRecoverySession={recoverySession}
+            onDone={() => {
+              recoveryRef.current = false;
+              setRecoverySession(false);
+              navigate('login');
+            }}
+          />
+        );
       case 'ai':
         return <AIAnalysisScreen navigate={navigate} />;
       case 'settings':
@@ -493,6 +533,7 @@ function AppContent() {
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         {renderScreen()}
+        <OfflineBanner />
         {showNav && (
           <BottomNav
             active={

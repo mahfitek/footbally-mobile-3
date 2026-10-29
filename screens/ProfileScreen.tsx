@@ -32,6 +32,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { blockUser } from '../lib/blocking';
 import { profiles } from '../lib/profiles';
 import { calculateProfileCompletion } from '../lib/profileScore';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
@@ -254,6 +255,23 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       .eq('followed_id', targetUid)
       .maybeSingle();
     setIsFollowing(!!data);
+  };
+
+  // Engelleme onaydan sonra çalışır. Sunucu RPC'si yoksa "kullanılamıyor" gösterilir; engellenmiş gibi davranılmaz.
+  const confirmBlock = (targetId: string, name: string) => {
+    Alert.alert(t('block_title'), t('block_confirm').replace('{name}', name || t('common_defaultUser')), [
+      { text: t('common_cancel'), style: 'cancel' },
+      {
+        text: t('block_action'),
+        style: 'destructive',
+        onPress: async () => {
+          const outcome = await blockUser(supabase, targetId);
+          if (outcome.status === 'done') Alert.alert(t('block_title'), t('block_done'));
+          else if (outcome.status === 'unavailable') Alert.alert(t('block_title'), t('block_unavailable'));
+          else Alert.alert(t('block_title'), t('block_failed'));
+        },
+      },
+    ]);
   };
 
   const toggleFollow = async () => {
@@ -990,6 +1008,15 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
               accessibilityLabel={t('report_entryAction')}
             >
               <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+            </HapticTouchable>
+          )}
+          {!isOwnProfile && userId && (
+            <HapticTouchable
+              style={styles.reportBtn}
+              onPress={() => confirmBlock(userId, fullName)}
+              accessibilityLabel={t('block_action')}
+            >
+              <Ionicons name="ban-outline" size={16} color={theme.textMuted} />
             </HapticTouchable>
           )}
         </View>
