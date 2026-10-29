@@ -1,69 +1,83 @@
 # Footbally Mobil — Gerçek Cihaz ve Dağıtım Kontrol Listesi
 
-Son mobil temel commit: `4f99152`. Bu liste yalnızca mobil projeye aittir (`C:\Users\miyas\footbally-mobile-3`).
+Son güncelleme: 2026-10-29. Bu liste yalnızca mobil projeye aittir (`C:\Users\miyas\footbally-mobile-3`).
+Ayrıntılı mağaza formları: `STORE_PREP.md`. Backend sözleşmesi: `MOBILE_BACKEND_CONTRACT.md`.
 
 ## 1. Dağıtım engelleyicileri (store öncesi zorunlu)
 
-- [ ] **Hesap silme gerçek değil.** `screens/SettingsScreen.tsx` içindeki `handleDeleteAccount` yalnızca çıkış yapıyor. App Store (5.1.1(v)) ve Google Play hesap silme gereksinimi için sunucu tarafında gerçek silme (RPC/edge function) gerekir. Bu web/Supabase tarafı işidir; mobil tarafta sahte silme bırakılmamalı.
-- [ ] **Ban kontrolü canlıda devre dışı.** `get_my_profile` RPC'si canlı Supabase'de yok. `lib/accountAccess.ts` `fetchAccountBanRow` içinde profil satırı alınamayınca `null` dönüyor ve giriş izin veriliyor. Profil bazlı yasaklar RPC deploy edilene kadar uygulanmaz.
-- [ ] **Eksik RPC'ler (canlı şema kontrolü):** `get_my_profile`, `refresh_my_score`, `clear_my_expired_ban`. Uygulama çökmüyor, ancak kendi profil yüklemesi (Ana ekran, Profil, Maç, Rozet, Ayarlar, Premium, Performans) boş dönüyor. Deploy için web repo migration'ları (20261028a/b) gerekir.
-- [ ] **Bundle'da service role anahtarı yok** (iOS/Android export kontrol edildi). `.env.local` git'te ignore ediliyor. Yine de bu dosya yalnızca yerel betikler içindir.
+- [x] **Hesap silme (mobil):** Ayarlar → Hesabımı Sil gerçek `delete-account` çağrısı yapar. Başarı yalnızca sunucu `{ deleted: true }` dönerse gösterilir (`lib/accountDeletion.ts`, test: `__tests__/accountDeletion.test.ts`).
+- [ ] **Hesap silme (backend):** `delete-account` Edge Function deploy edilmedi (canlı: yok). Deploy edilene kadar uygulama "kullanılamıyor" gösterir.
+- [ ] **Hesap silme (web):** Web'de silme talebi yolu yok (Google Play gereksinimi).
+- [x] **Şikâyet (mobil):** Profil ve sohbet ekranından `ReportScreen` açılır; RPC yoksa "kullanılamıyor" gösterir (`lib/reports.ts`, test: `__tests__/reports.test.ts`).
+- [ ] **Şikâyet (backend):** `submit_report` RPC'si canlıda yok.
+- [ ] **Engelleme:** Kullanıcı engelleme özelliği yok (mobil UI ve backend). App Store 1.2 gereği gerekli.
+- [x] **Ban kontrolü (profil):** `get_my_profile` ve `clear_my_expired_ban` canlıda var (2026-10-29). Takım ban temizliği artık istemcide yazılmıyor; takım RPC'si istenmiştir.
+- [ ] **`refresh_my_score` canlıda yok.** Hata mobilde loglanır, kullanıcıya başarı gösterilmez.
+- [ ] **Anonim okuma güvenlik açığı (S1, S2):** `users` tablosu (38 satır, e-posta dahil) ve `teams` ban kolonları anonim okunabiliyor. Üretim DB değişikliği gerektirir; onay bekliyor. Bkz. `MOBILE_BACKEND_CONTRACT.md` §0.
+- [x] **Bundle'da service role anahtarı yok:** iOS, Android ve web export'ları tarandı. `.env.local` EAS arşivine de girmez (`.easignore`).
 
-## 2. Gerçek cihaz testi
+## 2. Gerçek cihaz testi (bu makinede yapılamadı: cihaz/emülatör yok)
 
 Test hesabı: inceleme için ayrı bir hesap kullanın (üretim kullanıcısı değil).
 
 | Alan | Kontrol | iOS | Android |
 |---|---|---|---|
 | Açılış | Uygulama soğuk açılıyor, splash kayboluyor | [ ] | [ ] |
-| Giriş | Geçerli e-posta/şifre ile giriş; yanlış şifre anlamlı hata | [ ] | [ ] |
-| Kayıt | Yeni hesap oluşturma; e-posta doğrulama akışı | [ ] | [ ] |
-| Ana ekran | Hızlı erişim kartları açılıyor; RPC eksikken boş durum görünüyor, çökme yok | [ ] | [ ] |
-| Profil | Yükleme, düzenleme, kaydetme, tamamlanma skoru değişiyor | [ ] | [ ] |
-| Profil fotoğrafı | Galeri/kamera izni istenir ve reddedilirse uygulama çökmez | [ ] | [ ] |
-| Takım | Listeleme; kapalı takım katılımı düğmesi görünmüyor/kapalı | [ ] | [ ] |
-| Maç | Liste sekmeleri; katılım; sonuç girişi (eksik kolon nedeniyle beklenen kısıt) | [ ] | [ ] |
-| Oyuncular/Scout | Arama, filtre, profil açma | [ ] | [ ] |
-| Sahadan | Liste ve detay açılıyor | [ ] | [ ] |
-| Mesajlar | Sohbet listesi, yeni mesaj, gerçek zamanlı mesaj | [ ] | [ ] |
-| Bildirimler | İzin isteği, bildirim listesi, bildirim dokununca doğru ekrana gidiş | [ ] | [ ] |
-| Premium | Ödeme/EFT bölümü görünmüyor (yalnızca geliştirme derlemesinde açılır) | [ ] | [ ] |
-| Ödül | Ödül talebi düğmesi görünmüyor | [ ] | [ ] |
-| Merch | Katalog okunuyor; sepete ekleme ve adres kaydetme "Yakında" | [ ] | [ ] |
-| Ayarlar | Gizlilik politikası ve kullanım koşulları linkleri açılıyor | [ ] | [ ] |
-| Çıkış | Çıkış yapınca onboarding'e dönülüyor; tekrar giriş çalışıyor | [ ] | [ ] |
-| Dönüş | Uygulama arka plana alınıp dönünce oturum korunuyor | [ ] | [ ] |
-| Klavye/Güvenli alan | Çentik ve klavye açılınca alt düğmeler kapanmıyor | [ ] | [ ] |
+| Giriş | Geçerli giriş; yanlış şifre anlamlı hata | [ ] | [ ] |
+| Kayıt | Yeni hesap; e-posta doğrulama | [ ] | [ ] |
+| Ana ekran | Kartlar açılıyor; boş durum çökmüyor | [ ] | [ ] |
+| Alt gezinme | 5 sekme (Ana Sayfa, Maçlar, Keşfet, Mesajlar, Profil); aktif vurgu doğru | [ ] | [ ] |
+| Mesaj rozeti | Okunmamış mesaj sayısı görünüyor | [ ] | [ ] |
+| Profil | Yükleme, düzenleme, kaydetme | [ ] | [ ] |
+| Profil fotoğrafı | İzin reddedilince çökmüyor | [ ] | [ ] |
+| Takım | Listeleme; takım profili | [ ] | [ ] |
+| Maç | Liste sekmeleri; katılım | [ ] | [ ] |
+| Maç sonucu | Beklenen: eksik kolon nedeniyle hata (ertelenmiş) | [ ] | [ ] |
+| Sahadan | Liste, gönderi oluşturma, **YouTube maç videosu paylaşımı** (düzeltildi) | [ ] | [ ] |
+| Mesajlar | Sohbet listesi, yeni mesaj | [ ] | [ ] |
+| Şikâyet | Profil ve sohbetten açılıyor; gönderim sonucu doğru gösteriliyor | [ ] | [ ] |
+| Bildirimler | İzin isteği; bildirime dokununca doğru ekran | [ ] | [ ] |
+| Ayarlar | Gizlilik ve kullanım koşulları linkleri; hesap silme akışı | [ ] | [ ] |
+| Çıkış | Çıkış sonrası onboarding; tekrar giriş | [ ] | [ ] |
+| Arka plan | Uygulama arka plana alınıp dönünce oturum korunuyor | [ ] | [ ] |
+| Klavye/güvenli alan | Çentik ve klavye açılınca alt düğmeler kapanmıyor | [ ] | [ ] |
 
-## 3. Derleme ve doğrulama (bu makinede yapıldı)
+## 3. Derleme ve doğrulama (bu makinede yapıldı, 2026-10-29)
 
-- `npm test`: 23/23 geçti
-- `npx tsc --noEmit`: hata yok (exit 0)
-- `npx expo export --platform ios` ve `--platform android`: başarılı
-- `npx expo config --type public`: `bundleIdentifier` / `package` = `com.footbally.app`, `ITSAppUsesNonExemptEncryption: false`
-- Gizlilik politikası (`https://getfootbally.com/privacy`) ve kullanım koşulları (`/terms`): 200
+- `npm test`: 40/40 geçti.
+- `npx tsc --noEmit`: hata yok.
+- `npx expo-doctor`: 20/20 geçti.
+- `npx expo export --platform all`: iOS, Android ve web başarılı.
+- ESLint (`eslint-config-expo`): değiştirilen dosyalar temiz. Proje geneli: 73 hata, 153 uyarı. Çoğu React Compiler kuralları (render sırasında ref kullanımı, TDZ, bileşen tanımı). Ayrı bir refactor olarak planlanmalı.
+- `npm audit --omit=dev`: 12 güvenlik uyarısı; çoğu `expo` CLI'nin geçişli bağımlılıklarında. `--force` Expo'yu 51'e düşürür; uygulanmadı.
+- `expo config --type public --json`: `com.footbally.app`, sürüm 1.0.0, `ios.icon` 1024px şeffafsız, izin metinleri tanımlı, şifreleme muafiyeti `false`.
 
 ## 4. EAS ve mağaza hesapları
 
-- EAS: `osmantemur` hesabıyla giriş yapılmış; proje ID `5c7da171-4aeb-470d-8fe0-5f3ba986fa63`.
-- Mevcut tek build: Android `preview` (SDK 54, 20.06.2026). SDK 58 için yeni build gerekir.
-- iOS build kaydı yok.
-- Credential durumu (iOS sertifika/provisioning, Android keystore, push anahtarı) bu CLI ile non-interactive okunamadı. Apple ve Google Play Console hesaplarının varlığı doğrulanmadı.
+- EAS girişi: `osmantemur` (Owner). Proje ID `5c7da171-4aeb-470d-8fe0-5f3ba986fa63`.
+- Android preview build (SDK 58, commit `f03d13a`): `545ab486-da04-4843-91ac-984d9435bb52`. Durum: kuyrukta (başlatıldı, sonuç bekleniyor). Log: https://expo.dev/accounts/osmantemur/projects/footbally/builds/545ab486-da04-4843-91ac-984d9435bb52
+- Android için `.easignore` eklendi: Windows sembolik linkleri (`.agents/`, `.claude/`) EAS yüklemesini kırıyordu.
+- iOS preview build: **başarısız**. Non-interactive modda uygun dağıtım kimlik bilgisi bulunamadı. Apple hesabıyla etkileşimli giriş ve kimlik bilgisi oluşturma gerekli (kullanıcı adımı).
+- Google Play ve App Store Connect hesaplarına erişim doğrulanmadı.
 
 ## 5. Mağaza gereksinimleri
 
-- [ ] Ekran görüntüleri (iPhone 6.7"/6.9" ve Android telefon; en az 2'şer adet)
-- [ ] Uygulama açıklaması (TR), kısa açıklama, anahtar kelimeler
-- [ ] Gizlilik politikası URL'si: `https://getfootbally.com/privacy` (erişilebilir)
-- [ ] Hesap silme: uygulama içinde ve web'de erişilebilir bir silme yolu (blokör, bkz. 1)
-- [ ] İnceleme hesabı ve demo verisi (Apple ve Google inceleyicileri için)
-- [ ] Veri güvenliği formu (Google Play) ve gizlilik beslemesi (App Store)
-- [ ] Yaş derecelendirmesi anketi (Google Play)
+- [ ] Ekran görüntüleri (iPhone 6.9" en az 3, Android telefon en az 2). Demo hesapla alınmalı.
+- [x] Uygulama açıklaması (TR ve EN), kısa açıklama, anahtar kelimeler (`STORE_PREP.md` §5).
+- [x] Gizlilik politikası URL'si: `https://getfootbally.com/privacy` (önceki kontrolde 200). İçeriğinde Gemini ve Expo beyanı doğrulanmalı.
+- [x] Veri güvenliği (Google Play) ve App Privacy (App Store) taslakları (`STORE_PREP.md` §3-4).
+- [ ] Hesap silme: uygulama içi (backend bekliyor) ve web (yok).
+- [ ] İnceleme hesabı ve demo verisi temizliği (`cleanup_demo_data.js` çalıştırılıp çalıştırılmadığı doğrulanmadı).
+- [ ] Yaş derecelendirmesi anketi (kullanıcı içeriği ve mesajlaşma nedeniyle).
+- [x] İkon: iOS 1024×1024 şeffafsız (`assets/icon-ios-1024.png`), Android adaptive icon mevcut.
+- [x] Splash arka planı: `#060A12` (marka zemini).
 
 ## 6. Kullanıcı onayı gereken adımlar
 
-Aşağıdakiler yalnızca kullanıcının onayı ve kimlik doğrulamasıyla yapılabilir:
+Aşağıdakiler yalnızca kullanıcı onayı ve kimlik doğrulamasıyla yapılabilir:
 
-- EAS build başlatma (iOS için Apple hesabı girişi, dağıtım sertifikası oluşturma)
-- TestFlight'a yükleme ve Google Play internal testing'e gönderim
-- Production store gönderimi
+- iOS build için Apple hesabı girişi ve dağıtım kimlik bilgisi oluşturma (`eas credentials` etkileşimli).
+- Üretim veritabanı değişiklikleri: S1 (`users` anonim okuma) ve S2 (`teams` ban kolonları). `MOBILE_BACKEND_CONTRACT.md` §0.
+- Eksik kolonların eklenmesi (ertelenmiş; kullanıcı kararı).
+- TestFlight'a yükleme ve Google Play internal testing'e gönderim.
+- Production store gönderimi.
