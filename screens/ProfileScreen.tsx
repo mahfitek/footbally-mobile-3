@@ -252,13 +252,8 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         setAiOverall(null);
         setCardStats(defaultCardStats(calculatedScore));
       }
-
-      // Sadece kendi profilin için otomatik skor senkronizasyonu — başkasının
-      // profilini görüntülerken onun satırına yazma denemesi yapılmamalı
-      // (RLS zaten engeller ama client tarafında da denememek daha doğru).
-      if (isOwnProfile && calculatedScore !== (data.score ?? 0)) {
-        profiles.updateOwn(uid, { score: calculatedScore });
-      }
+      // Skor yalnızca bu ekranda hesaplanır ve gösterilir; profiles.score'a yazılmaz.
+      // İstemci bu kolonu yazabildiği için rozet/ödül kararında güvenilmez (web: reward_premium_claim_rpc).
     } else if (error) {
       if (__DEV__) console.log('Profil yüklenemedi:', error);
       // Empty code means the request never reached the server (network failure).
