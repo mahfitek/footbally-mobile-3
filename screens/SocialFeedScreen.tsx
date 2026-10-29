@@ -78,11 +78,6 @@ export default function SocialFeedScreen({ navigate, userId }: Props) {
     })();
   }, [userId]);
 
-  useEffect(() => {
-    if (!currentUserId) return;
-    loadFeed(true);
-    fetchAuthorsMap([currentUserId]).then((map) => setViewerIsPremium(!!map.get(currentUserId)?.is_premium));
-  }, [currentUserId]);
 
   const loadFeed = async (reset: boolean) => {
     if (!currentUserId) return;
@@ -151,6 +146,12 @@ export default function SocialFeedScreen({ navigate, userId }: Props) {
       setLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadFeed(true);
+    fetchAuthorsMap([currentUserId]).then((map) => setViewerIsPremium(!!map.get(currentUserId)?.is_premium));
+  }, [currentUserId]);
 
   const fetchLikedSet = async (postIds: string[]): Promise<Set<string>> => {
     if (!currentUserId || postIds.length === 0) return new Set();
@@ -437,13 +438,6 @@ function CommentsModal({ post, visible, onClose, currentUserId, theme, t, onComm
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    if (visible && post) loadComments(post.id);
-    if (!visible) {
-      setComments([]);
-      setBody('');
-    }
-  }, [visible, post?.id]);
 
   const loadComments = async (postId: string) => {
     setLoading(true);
@@ -464,6 +458,14 @@ function CommentsModal({ post, visible, onClose, currentUserId, theme, t, onComm
     setComments((data as any[]).map((r) => ({ ...r, author: authorsMap.get(r.user_id) })));
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (visible && post) loadComments(post.id);
+    if (!visible) {
+      setComments([]);
+      setBody('');
+    }
+  }, [visible, post?.id]);
 
   const handleSend = async () => {
     const trimmed = body.trim();
@@ -599,10 +601,6 @@ function LikesModal({ post, visible, onClose, theme, t, onPressAuthor }: LikesMo
   const [likers, setLikers] = useState<PostAuthor[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (visible && post) loadLikers(post.id);
-    if (!visible) setLikers([]);
-  }, [visible, post?.id]);
 
   const loadLikers = async (postId: string) => {
     setLoading(true);
@@ -626,6 +624,11 @@ function LikesModal({ post, visible, onClose, theme, t, onPressAuthor }: LikesMo
     );
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (visible && post) loadLikers(post.id);
+    if (!visible) setLikers([]);
+  }, [visible, post?.id]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

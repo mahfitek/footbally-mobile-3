@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -84,8 +84,8 @@ export default function AIAnalysisScreen({ navigate }: Props) {
   const [messageIndex, setMessageIndex] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
-  const dotAnims = useRef([new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]).current;
-  const scoreAnim = useRef(new Animated.Value(0)).current;
+  const [dotAnims] = useState(() => [new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]);
+  const [scoreAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (stage !== 'analyzing') return;

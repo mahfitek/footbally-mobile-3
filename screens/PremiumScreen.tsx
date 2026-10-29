@@ -77,9 +77,6 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
   const [premium, setPremium] = useState<PremiumStatus>(INACTIVE_PREMIUM);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('monthly');
 
-  useEffect(() => {
-    loadData();
-  }, []);
 
   // Premium durumu ve üye numarası sunucudan okunur. Kullanıcı metadata'sındaki
   // premium alanı istemci tarafından yazılabildiği için hiçbir karar ona dayanmaz.
@@ -101,6 +98,10 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const isPremiumActive = premium.active;
   const premiumUntil = premium.until;

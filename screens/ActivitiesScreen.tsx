@@ -45,9 +45,6 @@ export default function ActivitiesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
-  useEffect(() => {
-    loadOpportunities();
-  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -92,6 +89,10 @@ export default function ActivitiesScreen() {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadOpportunities();
+  }, []);
 
   const handleApply = async (opportunityId: number | string) => {
     try {

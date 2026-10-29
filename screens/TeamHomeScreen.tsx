@@ -143,9 +143,6 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
   const [joinCode, setJoinCode] = useState('');
   const [joining, setJoining] = useState(false);
 
-  useEffect(() => {
-    loadAll();
-  }, [userId]);
 
   const handleJoinByCode = async () => {
     const raw = joinCode.trim();
@@ -177,6 +174,10 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
     await loadTeam();
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
 
   const loadTeam = async () => {
     let uid = userId;

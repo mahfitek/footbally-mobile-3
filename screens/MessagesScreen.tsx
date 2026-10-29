@@ -89,10 +89,6 @@ export default function MessagesScreen({ navigate }: Props) {
   >([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
-  useEffect(() => {
-    loadMessages();
-    loadConnections();
-  }, []);
 
   useEffect(() => {
     if (!newMessageModal) return;
@@ -217,6 +213,11 @@ export default function MessagesScreen({ navigate }: Props) {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadMessages();
+    loadConnections();
+  }, []);
 
   const loadConnections = async () => {
     const { data: { session } } = await supabase.auth.getSession();

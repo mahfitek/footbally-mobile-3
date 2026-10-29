@@ -48,10 +48,6 @@ export default function VenueDetailScreen({ navigate, venueId }: Props) {
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [availability, setAvailability] = useState<Record<number, string[]>>({});
 
-  useEffect(() => {
-    loadVenue();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [venueId]);
 
   const loadVenue = async () => {
     if (!venueId) {
@@ -80,6 +76,11 @@ export default function VenueDetailScreen({ navigate, venueId }: Props) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadVenue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venueId]);
 
   const hasAvailability = Object.values(availability).some((v) => v.length > 0);
 

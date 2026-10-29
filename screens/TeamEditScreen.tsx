@@ -63,9 +63,6 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
   const [whatsappLink, setWhatsappLink] = useState('');
   const [contactNumber, setContactNumber] = useState('');
 
-  useEffect(() => {
-    loadTeam();
-  }, [userId]);
 
   const resolveUserId = async () => {
     if (userId) return userId;
@@ -102,6 +99,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadTeam();
+  }, [userId]);
 
   const toggleFromList = (list: string[], setList: (v: string[]) => void, value: string) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);

@@ -87,9 +87,6 @@ export default function PerformanceScreen({ navigate }: Props) {
   const [score, setScore] = useState(0);
   const [weeklyForm, setWeeklyForm] = useState<ResultRow[]>([]);
 
-  useEffect(() => {
-    loadStats();
-  }, []);
 
   const loadStats = async () => {
     try {
@@ -125,6 +122,10 @@ export default function PerformanceScreen({ navigate }: Props) {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);

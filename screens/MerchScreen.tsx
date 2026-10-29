@@ -57,9 +57,6 @@ export default function MerchScreen({ onBack, onOpenCart }: Props) {
   const [products, setProducts] = useState<MerchProduct[]>([]);
   const [selected, setSelected] = useState<MerchProduct | null>(null);
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -76,6 +73,10 @@ export default function MerchScreen({ onBack, onOpenCart }: Props) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
   if (loading) {
     return (

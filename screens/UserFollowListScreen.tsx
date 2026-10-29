@@ -28,9 +28,6 @@ export default function UserFollowListScreen({ navigate, onBack, userId, type }:
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<PostAuthor[]>([]);
 
-  useEffect(() => {
-    loadList();
-  }, [userId, type]);
 
   const loadList = async () => {
     setLoading(true);
@@ -60,6 +57,10 @@ export default function UserFollowListScreen({ navigate, onBack, userId, type }:
     setUsers(ids.map((id) => authorsMap.get(id)).filter((a): a is PostAuthor => !!a));
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadList();
+  }, [userId, type]);
 
   return (
     <SafeAreaView style={styles.safe}>

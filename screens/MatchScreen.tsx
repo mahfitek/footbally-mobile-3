@@ -101,16 +101,7 @@ export default function MatchScreen({ navigate }: Props) {
   const [myRatings, setMyRatings] = useState<Record<string, number>>({});
   const [ratingBusyFor, setRatingBusyFor] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadInitial();
-  }, []);
 
-  useEffect(() => {
-    if (activeTab !== 'upcoming' && loadedScope !== 'all') {
-      setTabLoading(true);
-      fetchMatches('all', userId).finally(() => setTabLoading(false));
-    }
-  }, [activeTab]);
 
   // "Aktif İlanlar" (Yaklaşan) sekmesi için DB seviyesinde tarih filtresi;
   // diğer sekmeler (Geçmiş/Başvurulan/Benim Maçlarım) geçmiş tarihli maçlara
@@ -170,6 +161,13 @@ export default function MatchScreen({ navigate }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (activeTab !== 'upcoming' && loadedScope !== 'all') {
+      setTabLoading(true);
+      fetchMatches('all', userId).finally(() => setTabLoading(false));
+    }
+  }, [activeTab]);
+
   const loadInitial = async () => {
     setLoading(true);
     try {
@@ -191,6 +189,10 @@ export default function MatchScreen({ navigate }: Props) {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadInitial();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);

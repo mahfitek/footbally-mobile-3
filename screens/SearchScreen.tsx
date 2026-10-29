@@ -70,11 +70,6 @@ export default function SearchScreen({ navigate, userType }: Props) {
     });
   }, [userType]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => runSearch(), 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, activeTab]);
 
   const runSearch = async () => {
     setLoading(true);
@@ -107,6 +102,12 @@ export default function SearchScreen({ navigate, userType }: Props) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => runSearch(), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, activeTab]);
 
   const handleJoinMatch = async (match: MatchResult) => {
     if (!userId || match.creator_id === userId) return;

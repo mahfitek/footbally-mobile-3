@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Image, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -9,7 +9,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
-  const dotAnims = useRef([new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]).current;
+  const [dotAnims] = useState(() => [new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]);
 
   useEffect(() => {
     const loops = dotAnims.map((anim, i) =>

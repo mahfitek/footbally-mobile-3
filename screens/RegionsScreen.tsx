@@ -42,9 +42,6 @@ export default function RegionsScreen({ navigate, userId }: Props) {
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    loadRegions();
-  }, [userId]);
 
   const resolveUserId = async () => {
     if (userId) return userId;
@@ -91,6 +88,10 @@ export default function RegionsScreen({ navigate, userId }: Props) {
     setRegions(withCounts);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadRegions();
+  }, [userId]);
 
   const addRegion = async () => {
     if (!newCity) return;

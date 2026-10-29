@@ -152,12 +152,14 @@ export default function HomeScreen({ navigate, userId }: Props) {
   const unreadCount = notifications.filter((n) => n.unread).length;
   const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
   const dailyTips = getDailyTips(t);
-  const dailyTip = dailyTips[Math.floor(Date.now() / 86400000) % dailyTips.length];
+  // Gün, ekran ilk açıldığında sabitlenir; render sırasında saat okunmaz (saf render).
+  const [dayIndex] = useState(() => Math.floor(Date.now() / 86400000));
+  const dailyTip = dailyTips[dayIndex % dailyTips.length];
   const scoreLevel = getScoreLevel(score, theme, t);
   const gridItems = getGridItems(t);
   const platformActivity = getPlatformActivity(t);
-  const scoreAnim = useRef(new Animated.Value(0)).current;
-  const scoreCountAnim = useRef(new Animated.Value(0)).current;
+  const [scoreAnim] = useState(() => new Animated.Value(0));
+  const [scoreCountAnim] = useState(() => new Animated.Value(0));
   const gridAnims = useRef(gridItems.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {

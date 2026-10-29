@@ -37,11 +37,6 @@ export default function VenuesScreen({ navigate, userType }: Props) {
   const [city, setCity] = useState('');
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(loadVenues, 250);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, city]);
 
   const loadVenues = async () => {
     setLoading(true);
@@ -59,6 +54,12 @@ export default function VenuesScreen({ navigate, userType }: Props) {
     setVenues((data ?? []) as VenueRow[]);
     setLoading(false);
   };
+
+  useEffect(() => {
+    const timer = setTimeout(loadVenues, 250);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, city]);
 
   return (
     <SafeAreaView style={styles.safe}>

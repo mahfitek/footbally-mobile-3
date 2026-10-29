@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
@@ -12,7 +12,7 @@ interface Props {
 export default function StatBar({ name, value }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const widthAnim = useRef(new Animated.Value(0)).current;
+  const [widthAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.timing(widthAnim, {

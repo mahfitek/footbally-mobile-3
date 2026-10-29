@@ -274,9 +274,6 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
   const [pickerSlotIndex, setPickerSlotIndex] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSquad();
-  }, [userId]);
 
   useEffect(() => {
     setOverrides({});
@@ -352,6 +349,10 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
     );
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadSquad();
+  }, [userId]);
 
   const basePositions = useMemo(
     () => autoAssignPlayers(squadMembers, playerCount, selectedFormation),

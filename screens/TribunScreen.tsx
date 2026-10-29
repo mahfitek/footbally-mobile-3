@@ -75,9 +75,6 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   // Navbar Sahadan'da görünür; giriş çubuğu onun üstünde durur, klavye açılınca navbar gizlenir.
   const keyboardOpen = useKeyboardOpen();
 
-  useEffect(() => {
-    load();
-  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -138,6 +135,10 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
     setMyIdentity(resolved.get(user.id) ?? { name: 'Sen', kind: 'player' });
     setLoading(false);
   };
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleAttachPress = () => {
     Alert.alert(t('sahadan_mediaAddTitle'), t('sahadan_mediaAddBody'), [

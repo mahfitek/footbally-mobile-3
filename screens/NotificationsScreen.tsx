@@ -76,9 +76,6 @@ export default function NotificationsScreen({ navigate }: Props) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  useEffect(() => {
-    loadNotifications();
-  }, []);
 
   const loadNotifications = async () => {
     try {
@@ -107,6 +104,10 @@ export default function NotificationsScreen({ navigate }: Props) {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -65,10 +65,6 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
   } | null>(null);
   const scrollRef = useRef<ScrollViewInstance>(null);
 
-  useEffect(() => {
-    loadMessages();
-    loadOtherProfile();
-  }, []);
 
   const loadOtherProfile = async () => {
     if (!otherUserId) return;
@@ -161,6 +157,11 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadMessages();
+    loadOtherProfile();
+  }, []);
 
   const handleSend = async () => {
     const content = text.trim();

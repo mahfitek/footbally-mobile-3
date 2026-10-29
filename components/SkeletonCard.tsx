@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { CARD_RADIUS } from '../constants/theme';
@@ -10,7 +10,7 @@ interface Props {
 
 export default function SkeletonCard({ height = 80, style }: Props) {
   const { theme } = useTheme();
-  const opacity = useRef(new Animated.Value(0.3)).current;
+  const [opacity] = useState(() => new Animated.Value(0.3));
 
   useEffect(() => {
     const loop = Animated.loop(

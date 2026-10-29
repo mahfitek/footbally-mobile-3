@@ -46,9 +46,6 @@ export default function BadgesScreen({ navigate, userId }: Props) {
   const [claimingKey, setClaimingKey] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
-  useEffect(() => {
-    load();
-  }, [userId]);
 
   const load = async () => {
     setLoading(true);
@@ -76,6 +73,10 @@ export default function BadgesScreen({ navigate, userId }: Props) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    load();
+  }, [userId]);
 
   const handleClaim = async (badge: Badge) => {
     if (!resolvedUserId || claimingKey) return;

@@ -62,9 +62,6 @@ export default function VenuePanelScreen({ navigate, userId }: Props) {
     return session?.user?.id ?? null;
   };
 
-  useEffect(() => {
-    loadVenue();
-  }, [userId]);
 
   const loadVenue = async () => {
     setLoading(true);
@@ -102,6 +99,10 @@ export default function VenuePanelScreen({ navigate, userId }: Props) {
     setAvailability(grouped);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadVenue();
+  }, [userId]);
 
   const toggleSlot = (day: number, start: string) => {
     setAvailability((prev) => {
