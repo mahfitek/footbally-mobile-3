@@ -13,16 +13,15 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const ROOT = path.resolve(__dirname, '..');
-const ENV_PATH = path.join(ROOT, '.env.local');
 const MANIFEST_PATH = path.join(__dirname, 'demo_seed_manifest.json');
 const SUPABASE_URL = 'https://mohsosllyfgevvvpbkkn.supabase.co';
 const DELETE_HEROES = process.argv.includes('--delete-heroes');
 
+// Anahtar yalnızca ortam değişkeninden okunur; mobil .env.local dosyasında tutulmaz.
 function loadServiceKey() {
-  const content = fs.readFileSync(ENV_PATH, 'utf8');
-  const match = content.match(/^SUPABASE_SERVICE_ROLE_KEY\s*=\s*(.+)$/m);
-  if (!match) throw new Error('.env.local içinde SUPABASE_SERVICE_ROLE_KEY bulunamadı.');
-  return match[1].trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY ortam değişkeni tanımlı değil.');
+  return key.trim();
 }
 
 const supabase = createClient(SUPABASE_URL, loadServiceKey(), {
