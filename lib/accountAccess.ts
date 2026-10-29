@@ -1,27 +1,51 @@
 import { supabase } from './supabase';
 import { profiles } from './profiles';
-import type { AccountBanFields, AccountBanLookupResult } from './accountAccessRules';
+import {
+  classifyAccountStatusError,
+  evaluateAccountAccess,
+  parseAccountStatusRow,
+  type AccountAccessResult,
+  type AccountBanLookupResult,
+} from './accountAccessRules';
 
 export { evaluateAccountAccess } from './accountAccessRules';
-export type { AccountAccessResult, AccountBanFields, AccountBanLookup, AccountBanLookupResult } from './accountAccessRules';
+export type { AccountAccessResult, AccountBanFields, AccountBanLookup, AccountBanLookupResult, AccountUnverifiedReason } from './accountAccessRules';
+
+// Açılışta ağ yavaşsa kullanıcı sonsuza kadar splash'te beklemesin; süre dolunca doğrulanamadı sayılır.
+const ACCOUNT_STATUS_TIMEOUT_MS = 6000;
 
 /**
  * Ban/status fields of the signed-in user (contract §4.2).
  *
  * Uses get_my_account_status(), which returns only the caller's own status (team or profile). The `teams`
- * table is NOT read here: its ban columns are anon-readable until backend fix S2 lands. Any RPC error,
- * including a missing function, returns `verified: false`, which evaluateAccountAccess denies.
+ * table is NOT read here: its ban columns are anon-readable until backend fix S2 lands.
+ * Errors are classified (network, timeout, missing RPC, RPC error, malformed) and never treated as a ban.
  * Call only with a signed-in session.
  */
 export async function fetchAccountBanRow(): Promise<AccountBanLookupResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<AccountBanLookupResult>((resolve) => {
+    timer = setTimeout(() => resolve({ verified: false, reason: 'timeout' }), ACCOUNT_STATUS_TIMEOUT_MS);
+  });
+  const lookup = (async (): Promise<AccountBanLookupResult> => {
+    try {
+      const { data, error } = await supabase.rpc('get_my_account_status');
+      if (error) return { verified: false, reason: classifyAccountStatusError(error) };
+      return parseAccountStatusRow(data);
+    } catch {
+      return { verified: false, reason: 'network' };
+    }
+  })();
   try {
-    const { data, error } = await supabase.rpc('get_my_account_status');
-    if (error) return { verified: false };
-    const row = Array.isArray(data) ? data[0] : data;
-    return { verified: true, row: row ? { ...(row as AccountBanFields), table: 'profiles' } : null };
-  } catch {
-    return { verified: false };
+    return await Promise.race([lookup, timeout]);
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+/** Oturum açan kullanıcının erişim kararı: ban kontrolü + doğrulama durumu. */
+export async function checkAccountAccess(): Promise<AccountAccessResult> {
+  return evaluateAccountAccess(await fetchAccountBanRow());
 }
 
 /**

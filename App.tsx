@@ -58,6 +58,7 @@ import OfflineBanner from './components/OfflineBanner';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { parseRecoveryUrl, PASSWORD_RESET_REDIRECT } from './lib/authFlows';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
+import { checkAccountAccess } from './lib/accountAccess';
 import ErrorBoundary from './components/ErrorBoundary';
 import RatingPromptSheet from './components/RatingPromptSheet';
 import { shouldShowRatingPrompt, markRatingPromptShown, markRatingPromptResponded } from './lib/appRating';
@@ -267,8 +268,10 @@ function AppContent() {
     return false;
   };
 
+  // Giriş/kayıt sonrası çağrılır. Login ekranı ban kontrolünü bu çağrıdan önce yapar ve yasaklıysa çağırmaz.
   const handleAuthSuccess = async (type: 'player' | 'team') => {
     const uid = sessionRef.current?.user?.id;
+    if (uid) savePushToken(uid);
     const isVenue = uid ? await checkVenueOwnership(uid) : false;
     if (!isVenue) {
       setUserType(type);
@@ -286,18 +289,22 @@ function AppContent() {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      sessionRef.current = session;
-      setCurrentUserId(session?.user?.id ?? null);
-      if (session) {
-        savePushToken(session.user.id);
-        checkVenueOwnership(session.user.id);
+    // Açılıştaki kayıtlı oturumda ban kontrolü: yasaklıysa oturum kapatılır, doğrulanamazsa (örn. çevrimdışı) oturum korunur.
+    const restoreStoredSession = async (session: Session) => {
+      const access = await checkAccountAccess();
+      if (access.verified && !access.allowed) {
+        sessionRef.current = null;
+        setCurrentUserId(null);
+        setHistory([]);
+        setScreen('onboarding');
+        Alert.alert('Giriş engellendi', access.message);
+        void supabase.auth.signOut();
+        return;
       }
-    });
+      await routeForSession(session);
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      sessionRef.current = session;
-      setCurrentUserId(session?.user?.id ?? null);
+    const routeForSession = async (session: Session | null) => {
       let isVenue = false;
       if (session) {
         savePushToken(session.user.id);
@@ -309,6 +316,19 @@ function AppContent() {
         setHistory([]);
         return session ? (isVenue ? 'home' : userTypeRef.current === 'team' ? 'teamHome' : 'home') : 'onboarding';
       });
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      sessionRef.current = session;
+      setCurrentUserId(session?.user?.id ?? null);
+      // Girişte (SIGNED_IN) ekran geçişi ve push kaydı handleAuthSuccess içinde, ban kontrolünden sonra yapılır.
+      if (event === 'SIGNED_IN') return;
+      // Ban kontrolü ağ çağrısı yapar; auth callback'i (oturum kilidi altında) beklemesin diye callback dışında çalışır.
+      if (event === 'INITIAL_SESSION' && session) {
+        setTimeout(() => void restoreStoredSession(session), 0);
+        return;
+      }
+      void routeForSession(session);
     });
 
     return () => subscription.unsubscribe();
