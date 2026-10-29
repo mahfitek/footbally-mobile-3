@@ -70,7 +70,9 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const identitiesRef = useRef(identities);
-  identitiesRef.current = identities;
+  useEffect(() => {
+    identitiesRef.current = identities;
+  }, [identities]);
   const scrollRef = useRef<ScrollViewInstance>(null);
   // Navbar Sahadan'da görünür; giriş çubuğu onun üstünde durur, klavye açılınca navbar gizlenir.
   const keyboardOpen = useKeyboardOpen();

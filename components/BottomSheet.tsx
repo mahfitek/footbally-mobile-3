@@ -28,9 +28,12 @@ export default function BottomSheet({ visible, onClose, theme, children, content
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropOpacity = useSharedValue(0);
 
+  // Açılırken hemen mount edilir. Render sırasında state ayarlamak React'in belgelediği desendir;
+  // böylece effect içinde senkron setState yoktur.
+  if (visible && !mounted) setMounted(true);
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       translateY.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) });
       backdropOpacity.value = withTiming(1, { duration: 280 });
     } else {
@@ -49,6 +52,9 @@ export default function BottomSheet({ visible, onClose, theme, children, content
   };
 
   const pan = Gesture.Pan()
+    // Reanimated: gesture callback'leri worklet olarak çalışır ve SharedValue.value yazmak belgelenmiş
+    // kullanımdır. react-hooks/immutability bunu render'da yakalanan bir değer değişikliği sanıyor (yanlış pozitif).
+    /* eslint-disable react-hooks/immutability */
     .onUpdate((e) => {
       if (e.translationY > 0) translateY.value = e.translationY;
     })
@@ -62,6 +68,7 @@ export default function BottomSheet({ visible, onClose, theme, children, content
         translateY.value = withSpring(0, { damping: 22, stiffness: 280 });
       }
     });
+    /* eslint-enable react-hooks/immutability */
 
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));

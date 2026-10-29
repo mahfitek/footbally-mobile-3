@@ -160,7 +160,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
   const platformActivity = getPlatformActivity(t);
   const [scoreAnim] = useState(() => new Animated.Value(0));
   const [scoreCountAnim] = useState(() => new Animated.Value(0));
-  const gridAnims = useRef(gridItems.map(() => new Animated.Value(0))).current;
+  const [gridAnims] = useState(() => gridItems.map(() => new Animated.Value(0)));
 
   useEffect(() => {
     Animated.timing(scoreAnim, {
