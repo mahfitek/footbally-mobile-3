@@ -142,18 +142,18 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     );
   };
 
+  // Sunucu tarafı silme (delete-account) henüz yok; sahte silme yerine destek e-postasına yönlendirir.
   const handleDeleteAccount = () => {
     Alert.alert(
       t('settings_deleteAccount'),
-      t('settings_deleteConfirm'),
+      t('settings_deleteRequestConfirm'),
       [
         { text: t('common_cancel'), style: 'cancel' },
         {
-          text: t('settings_delete'),
-          style: 'destructive',
-          onPress: async () => {
-            await supabase.auth.signOut();
-            navigate('onboarding');
+          text: t('settings_deleteRequestAction'),
+          onPress: () => {
+            const subject = encodeURIComponent(t('settings_deleteRequestSubject'));
+            Linking.openURL(`mailto:info@getfootbally.com?subject=${subject}`);
           },
         },
       ]
