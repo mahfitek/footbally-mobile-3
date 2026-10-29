@@ -33,6 +33,9 @@ export type Badge = {
 
 export const MAX_REWARD_PREMIUM_DAYS_PER_MONTH = 7;
 
+// Ödül/Premium talebi sunucu RPC'sine taşınana kadar kapalı. Kapalıyken claim düğmesi gösterilmez.
+export const REWARD_CLAIM_ENABLED = false;
+
 export const getBadges = (score: number, hasProfileBasics: boolean, isPremiumActive: boolean, t: T): Badge[] => [
   { key: 'basics', icon: 'person-outline', title: t('rewards_badgeBasicsTitle'), desc: t('rewards_badgeBasicsDesc'), unlocked: hasProfileBasics, rewardDays: 1 },
   { key: 'gelisiyor', icon: 'trending-up-outline', title: t('rewards_levelImproving'), desc: t('rewards_badgeGelisiyorDesc'), unlocked: score >= 31, rewardDays: 1 },

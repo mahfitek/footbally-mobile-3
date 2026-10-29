@@ -15,8 +15,10 @@ import {
   claimBadgeReward,
   loadRewardProgress,
   MAX_REWARD_PREMIUM_DAYS_PER_MONTH,
+  REWARD_CLAIM_ENABLED,
   Badge,
 } from '../lib/rewards';
+import { calculateProfileCompletion } from '../lib/profileScore';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
@@ -61,8 +63,11 @@ export default function BadgesScreen({ navigate, userId }: Props) {
     }
 
     if (uid) {
-      const { data } = await profiles.ownProfile('score, position, city, age');
-      setScore(data?.score ?? 0);
+      // ProfileScreen ile aynı tamamlanma puanı; sunucudaki profiles.score okunmaz (güncel olmayabilir).
+      const { data } = await profiles.ownProfile(
+        'full_name, position, age, height, weight, city, district, foot, club'
+      );
+      setScore(data ? calculateProfileCompletion(data) : 0);
       setHasProfileBasics(!!(data?.position && data?.city && data?.age));
 
       const progress = await loadRewardProgress(uid);
@@ -124,7 +129,7 @@ export default function BadgesScreen({ navigate, userId }: Props) {
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${progressPct}%`, backgroundColor: theme[level.colorKey] }]} />
           </View>
-          <Text style={styles.progressText}>{t('badges_aiScorePrefix')} {score}/100</Text>
+          <Text style={styles.progressText}>{t('profile_completionLabel')} {score}/100</Text>
         </View>
 
         <View style={styles.tipCard}>
@@ -154,7 +159,7 @@ export default function BadgesScreen({ navigate, userId }: Props) {
         <View style={styles.grid}>
           {badges.map((b) => {
             const claimed = claimedKeys.includes(b.key);
-            const canClaim = b.unlocked && b.rewardDays > 0 && !claimed;
+            const canClaim = REWARD_CLAIM_ENABLED && b.unlocked && b.rewardDays > 0 && !claimed;
             return (
               <View key={b.key} style={[styles.badgeCard, !b.unlocked && styles.badgeCardLocked]}>
                 <View style={[styles.badgeIconWrap, { backgroundColor: b.unlocked ? hexToRgba(theme.gold, 0.16) : theme.card2 }]}>

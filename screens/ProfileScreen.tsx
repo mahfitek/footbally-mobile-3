@@ -33,6 +33,7 @@ import { FontFamily } from '../constants/fonts';
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { calculateProfileCompletion } from '../lib/profileScore';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
@@ -91,35 +92,15 @@ const AGE_OPTIONS = Array.from({ length: 32 }, (_, i) => i + 14);
 const HEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => i + 150);
 const WEIGHT_OPTIONS = Array.from({ length: 76 }, (_, i) => i + 45);
 
-const calculateScore = (profile: {
-  full_name?: string | null;
-  position?: string | null;
-  age?: number | null;
-  height?: number | null;
-  weight?: number | null;
-  city?: string | null;
-  district?: string | null;
-  foot?: string | null;
-  club?: string | null;
-  activity_score?: number | null;
-}) => {
-  let score = 0;
-
-  // Profile completeness (50 points)
-  if (profile.full_name) score += 10;
-  if (profile.position) score += 10;
-  if (profile.age) score += 5;
-  if (profile.height) score += 5;
-  if (profile.weight) score += 5;
-  if (profile.city) score += 5;
-  if (profile.district) score += 3;
-  if (profile.foot) score += 3;
-  if (profile.club) score += 4;
-
-  // Activity (50 points - mock for now, will be real data later from matches/applications)
-  score += profile.activity_score || 0;
-
-  return Math.min(score, 100);
+// Kaydetmeden sonra sunucu tarafı skoru yeniler. refresh_my_score canlıda henüz olmayabilir;
+// bu yüzden hata (eksik fonksiyon dahil) profil kaydını bozmaz, yalnızca geliştirme günlüğüne düşer.
+const refreshServerScore = async (uid: string) => {
+  try {
+    const { error } = await profiles.refreshMyScore();
+    if (error && __DEV__) console.log('Skor yenilenemedi (refresh_my_score):', uid, error.message);
+  } catch (err) {
+    if (__DEV__) console.log('Skor yenilenirken beklenmeyen hata:', err);
+  }
 };
 
 interface Props {
@@ -235,8 +216,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       setAvatarUrl(data.avatar_url ?? null);
       setRawProfile(data);
 
-      const calculatedScore = calculateScore(data);
-      setScore(calculatedScore);
+      setScore(calculateProfileCompletion(data));
 
       if (data.overall_rating != null) {
         setAiOverall(data.overall_rating);
@@ -249,11 +229,12 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
           savunma: data.stat_savunma ?? 50,
         });
       } else {
+        // Doğrulanmış yetenek verisi yok: kart değerleri profil tamamlanmasından türetilmez.
         setAiOverall(null);
-        setCardStats(defaultCardStats(calculatedScore));
+        setCardStats(defaultCardStats(50));
       }
-      // Skor yalnızca bu ekranda hesaplanır ve gösterilir; profiles.score'a yazılmaz.
-      // İstemci bu kolonu yazabildiği için rozet/ödül kararında güvenilmez (web: reward_premium_claim_rpc).
+      // Tamamlanma puanı yalnızca bu ekranda hesaplanır; profiles.score'a yazılmaz.
+      // Sunucudaki profiles.score, refresh_my_score() ile kaydetmeden sonra yenilenir.
     } else if (error) {
       if (__DEV__) console.log('Profil yüklenemedi:', error);
       // Empty code means the request never reached the server (network failure).
@@ -453,7 +434,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       }
 
       if (!updated || updated.length === 0) {
-        const { error: insertError } = await profiles.insertOwn(uid, { ...payload, score: 0 });
+        const { error: insertError } = await profiles.insertOwn(uid, payload);
         if (insertError) {
           if (__DEV__) console.log('Profil oluşturulamadı:', insertError);
           setToast({ message: t('profile_createFailed'), type: 'error' });
@@ -465,6 +446,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       setSaving(false);
       setEditMode(false);
       setOpenPicker(null);
+      await refreshServerScore(uid);
       await loadProfile();
       setToast({ message: t('profile_updateSuccess'), type: 'success' });
       sendLocalNotification(t('profile_updatedNotifTitle'), t('profile_updatedNotifBody'));
@@ -665,7 +647,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     return <LoadingScreen message={t('profile_loading')} />;
   }
 
-  const stats = [{ val: String(score), label: t('profile_scoreLabel') }, ...getExtraStats(t)];
+  const stats = [{ val: String(score), label: t('profile_completionLabel') }, ...getExtraStats(t)];
 
   // profiles.is_premium (migration ile eklendi) artık tek doğru kaynak —
   // hem kendi hem başkasının profili için geçerli. Kolon henüz yoksa
@@ -1013,7 +995,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         {/* Score Progress */}
         <View style={styles.card}>
           <View style={styles.scoreCardHeader}>
-            <Text style={styles.cardTitle}>{t('profile_overallScoreTitle')}</Text>
+            <Text style={styles.cardTitle}>{t('profile_completionLabel')}</Text>
             <Text style={styles.scoreCardValue}>{score}/100</Text>
           </View>
           <View style={styles.completionTrack}>
@@ -1170,7 +1152,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <PlayerShareCard
               name={fullName}
               position={position}
-              score={aiOverall ?? score}
+              score={aiOverall ?? 0}
               city={city}
               club={club}
               avatarUrl={avatarUrl}

@@ -49,5 +49,10 @@ export function createProfileQueries(client: ProfileClient) {
     clearExpiredBan() {
       return client.rpc('clear_my_expired_ban');
     },
+
+    /** Sunucuda profiles.score'u yeniler. İstemci skoru doğrudan yazmaz. */
+    refreshMyScore() {
+      return client.rpc('refresh_my_score');
+    },
   };
 }

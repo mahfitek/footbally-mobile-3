@@ -69,6 +69,13 @@ test('clearExpiredBan goes through the RPC, not a direct ban-column update', () 
   assert.equal(calls.some((c) => c.method === 'from:profiles'), false);
 });
 
+test('refreshMyScore goes through the refresh_my_score RPC and never writes profiles.score', () => {
+  const { client, calls } = fakeClient();
+  createProfileQueries(client as any).refreshMyScore();
+  assert.equal(calls[0].method, 'rpc:refresh_my_score');
+  assert.equal(calls.some((c) => c.method === 'from:profiles'), false);
+});
+
 test('insertOwn stamps the caller user_id onto the values', () => {
   const { client, calls } = fakeClient();
   createProfileQueries(client as any).insertOwn('me', { full_name: 'X', score: 0 });

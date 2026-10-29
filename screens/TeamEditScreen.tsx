@@ -414,6 +414,16 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
             />
           </View>
 
+          {/* Katılım ayarı: teams üzerinde karşılığı olan bir alan ve API henüz canlıda yok.
+              Değiştirilemez; alan ve kayıt yolu eklenince etkinleştirilecek. Düzenleme yalnızca
+              owner_id ile sınırlı olduğundan sahip dışı kullanıcı bu ekrandan takımı değiştiremez. */}
+          <View style={styles.inputGroup}>
+            <View style={styles.joinRow}>
+              <Text style={styles.inputLabel}>{t('teamEdit_joinOpenLabel')}</Text>
+              <Text style={styles.joinHint}>{t('settings_comingSoonTitle')}</Text>
+            </View>
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -459,6 +469,8 @@ const createStyles = (theme: Theme) =>
     half: { flex: 1 },
     inputGroup: { marginBottom: 16 },
     inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 8 },
+    joinRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    joinHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary },
     input: {
       height: 48,
       backgroundColor: theme.card2,
