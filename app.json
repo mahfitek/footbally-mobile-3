@@ -11,6 +11,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
+      "icon": "./assets/icon-ios-1024.png",
       "bundleIdentifier": "com.footbally.app",
       "buildNumber": "1",
       "infoPlist": {
@@ -63,7 +64,7 @@
         {
           "image": "./assets/logo-icon-square.png",
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
+          "backgroundColor": "#060A12"
         }
       ]
     ],
