@@ -73,22 +73,16 @@ export async function fetchAccountBanRow(userId: string): Promise<AccountBanLook
   return null;
 }
 
-/** Self-heals a lapsed temporary ban back to active status. */
-export async function clearExpiredBan(userId: string, table: 'profiles' | 'teams'): Promise<void> {
+/**
+ * Süresi dolmuş geçici yasağı temizler.
+ *
+ * Profil: yalnızca sunucu RPC'si (clear_my_expired_ban) ban kolonlarını değiştirir.
+ * Takım: istemci `teams` ban kolonlarını YAZMAZ. Aksi halde yasaklı bir takım sahibi, RLS izin verirse
+ * kendi yasağını kaldırabilirdi. Süresi dolmuş yasak zaten evaluateAccountAccess ile izin verilir, bu yüzden
+ * yazmaya gerek yoktur. Takım için sunucu RPC'si MOBILE_BACKEND_CONTRACT.md §4'te istenmiştir.
+ */
+export async function clearExpiredBan(table: 'profiles' | 'teams'): Promise<void> {
   if (table === 'profiles') {
-    // Ban alanlarını istemci doğrudan yazmaz; sunucu fonksiyonu yalnızca süresi dolmuş yasağı temizler.
     await profiles.clearExpiredBan();
-    return;
   }
-  await supabase
-    .from(table)
-    .update({
-      account_status: 'active',
-      banned_until: null,
-      ban_is_permanent: false,
-      ban_reason: null,
-      banned_by: null,
-      banned_at: null,
-    })
-    .eq('owner_id', userId);
 }

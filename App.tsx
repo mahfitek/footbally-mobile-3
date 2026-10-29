@@ -97,7 +97,7 @@ type Screen =
   | 'merchCart'
   | 'report';
 
-type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'tribun' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
+type TabName = 'home' | 'match' | 'search' | 'messages' | 'profile' | 'teamHome' | 'findOpponent' | 'findPlayer' | 'teamProfile';
 
 // Giriş öncesi akış — bu ekranlarda alt navbar ve kenardan geri kaydırma jesti gösterilmez.
 // 'chat' buraya dahil: sohbet ekranında navbar üzerine binmesin diye sekme çubuğu gizlenir.

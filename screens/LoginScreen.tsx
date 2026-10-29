@@ -67,7 +67,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
         return;
       }
       if (access.expiredBan && banRow) {
-        void clearExpiredBan(userId, banRow.table);
+        void clearExpiredBan(banRow.table);
       }
     }
 

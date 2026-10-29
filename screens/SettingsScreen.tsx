@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { CARD_RADIUS, Paper } from '../constants/theme';
+import { CARD_RADIUS, Paper, Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
@@ -20,6 +20,45 @@ interface Props {
   navigate: (s: string) => void;
   userId: string | null;
   fromScreen?: string;
+}
+
+function SettingRow({ theme, icon, title, subtitle, onPress, right, danger = false }: {
+    theme: Theme;
+    icon: IoniconName; title: string; subtitle?: string; onPress: () => void; right?: React.ReactNode; danger?: boolean;
+  }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        padding: 16,
+        backgroundColor: theme.card,
+        borderRadius: RADIUS,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: danger ? theme.error : theme.border,
+      }}>
+      <View
+        style={{
+          width: 38,
+          height: 38,
+          backgroundColor: theme.card2,
+          borderRadius: RADIUS,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <Ionicons name={icon} size={17} color={danger ? theme.error : theme.gold} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: danger ? theme.error : theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>{title}</Text>
+        {subtitle && <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2, fontFamily: FontFamily.body }}>{subtitle}</Text>}
+      </View>
+      {right || <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />}
+    </TouchableOpacity>
+  );
 }
 
 export default function SettingsScreen({ navigate, userId, fromScreen }: Props) {
@@ -181,41 +220,6 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     ]);
   };
 
-  const SettingRow = ({ icon, title, subtitle, onPress, right, danger = false }: {
-    icon: IoniconName; title: string; subtitle?: string; onPress: () => void; right?: React.ReactNode; danger?: boolean;
-  }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-        padding: 16,
-        backgroundColor: theme.card,
-        borderRadius: RADIUS,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: danger ? theme.error : theme.border,
-      }}>
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          backgroundColor: theme.card2,
-          borderRadius: RADIUS,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Ionicons name={icon} size={17} color={danger ? theme.error : theme.gold} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: danger ? theme.error : theme.text, fontSize: 14, fontFamily: FontFamily.bodySemiBold }}>{title}</Text>
-        {subtitle && <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2, fontFamily: FontFamily.body }}>{subtitle}</Text>}
-      </View>
-      {right || <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />}
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -272,7 +276,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           </View>
         </View>
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="location-outline"
           title={t('settings_regionsTitle')}
           subtitle={t('settings_regionsSub')}
@@ -282,7 +286,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         {/* HESAP AYARLARI */}
         <SectionHeader title={t('settings_accountSectionHeader')} horizontalPadding={4} />
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon={accountStatus.ok ? 'checkmark-circle-outline' : 'alert-circle-outline'}
           title={t('settings_accountStatusTitle')}
           subtitle={accountStatus.ok ? t('settings_accountStatusOk') : accountStatus.detail}
@@ -305,22 +309,22 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           }
         />
 
-        <SettingRow icon="lock-closed-outline" title={t('settings_changePassword')} subtitle={t('settings_changePasswordSub')} onPress={() => setShowPasswordModal(true)} />
+        <SettingRow theme={theme} icon="lock-closed-outline" title={t('settings_changePassword')} subtitle={t('settings_changePasswordSub')} onPress={() => setShowPasswordModal(true)} />
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="mail-outline"
           title={t('settings_emailTitle')}
           subtitle={email}
           onPress={() => setShowEmailModal(true)}
         />
 
-        <SettingRow icon="star-outline" title={t('performance_premiumCta')} subtitle={t('settings_premiumUpgradeSub')} onPress={() => navigate('premium')} />
+        <SettingRow theme={theme} icon="star-outline" title={t('performance_premiumCta')} subtitle={t('settings_premiumUpgradeSub')} onPress={() => navigate('premium')} />
 
-        <SettingRow icon="card-outline" title={t('settings_paymentsTitle')} subtitle={t('settings_paymentsSub')} onPress={() => navigate('premium')} />
+        <SettingRow theme={theme} icon="card-outline" title={t('settings_paymentsTitle')} subtitle={t('settings_paymentsSub')} onPress={() => navigate('premium')} />
 
-        <SettingRow icon="shirt-outline" title={t('merch_settingsTitle')} subtitle={t('merch_settingsSub')} onPress={() => navigate('merch')} />
+        <SettingRow theme={theme} icon="shirt-outline" title={t('merch_settingsTitle')} subtitle={t('merch_settingsSub')} onPress={() => navigate('merch')} />
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="download-outline"
           title={t('settings_downloadDataTitle')}
           subtitle={t('settings_downloadDataSub')}
@@ -386,7 +390,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           </View>
         </View>
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="compass-outline"
           title={t('settings_replayOnboarding')}
           subtitle={t('settings_replayOnboardingSub')}
@@ -396,7 +400,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         {/* İLERLEME */}
         <SectionHeader title={t('settings_progressHeader')} horizontalPadding={4} />
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="ribbon-outline"
           title={t('settings_badgesTitle')}
           subtitle={t('settings_badgesSub')}
@@ -434,18 +438,18 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         {/* GİZLİLİK & DESTEK */}
         <SectionHeader title={t('settings_privacyHeader')} horizontalPadding={4} />
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="document-text-outline"
           title={t('settings_privacyPolicy')}
           subtitle={t('settings_privacyPolicySub')}
           onPress={() => Linking.openURL('https://getfootbally.com/privacy')}
         />
 
-        <SettingRow icon="clipboard-outline" title={t('settings_termsOfUse')} onPress={() => Linking.openURL('https://getfootbally.com/terms')} />
+        <SettingRow theme={theme} icon="clipboard-outline" title={t('settings_termsOfUse')} onPress={() => Linking.openURL('https://getfootbally.com/terms')} />
 
-        <SettingRow icon="chatbubble-outline" title={t('settings_contactUs')} subtitle="info@getfootbally.com" onPress={() => Linking.openURL('mailto:info@getfootbally.com')} />
+        <SettingRow theme={theme} icon="chatbubble-outline" title={t('settings_contactUs')} subtitle="info@getfootbally.com" onPress={() => Linking.openURL('mailto:info@getfootbally.com')} />
 
-        <SettingRow
+        <SettingRow theme={theme}
           icon="star-outline"
           title={t('settings_rateApp')}
           subtitle={t('settings_rateAppSub')}
@@ -466,9 +470,9 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           {t('settings_dangerZoneHeader')}
         </Text>
 
-        <SettingRow icon="log-out-outline" title={t('settings_logout')} subtitle={t('settings_logoutSub')} onPress={handleLogout} danger={true} />
+        <SettingRow theme={theme} icon="log-out-outline" title={t('settings_logout')} subtitle={t('settings_logoutSub')} onPress={handleLogout} danger={true} />
 
-        <SettingRow icon="trash-outline" title={t('settings_deleteAccount')} subtitle={t('settings_deleteAccountSub')} onPress={handleDeleteAccount} danger={true} />
+        <SettingRow theme={theme} icon="trash-outline" title={t('settings_deleteAccount')} subtitle={t('settings_deleteAccountSub')} onPress={handleDeleteAccount} danger={true} />
 
         <View style={{ height: 40 }} />
       </ScrollView>
