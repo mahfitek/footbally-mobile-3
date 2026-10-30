@@ -61,6 +61,14 @@ const translations = {
     onboarding_continue: 'Devam Et',
     onboarding_alreadyHaveAccount: 'Zaten hesabım var',
 
+    // Profil menüsü (tek hesap türü)
+    profileHub_header: 'HESABIM',
+    profileHub_playerProfile: 'Oyuncu profilim',
+    profileHub_myTeams: 'Takımlarım',
+    profileHub_createTeam: 'Takım oluştur',
+    profileHub_manageTeam: 'Takım yönet',
+    profileHub_settings: 'Ayarlar',
+
     // Login
     login_licenseLabel: 'OYUNCU LİSANSI · GİRİŞ',
     login_iAmPlayer: 'Oyuncuyum',
@@ -1245,6 +1253,14 @@ const translations = {
     onboarding_start: 'Start',
     onboarding_continue: 'Continue',
     onboarding_alreadyHaveAccount: 'I already have an account',
+
+    // Profile menu (single account type)
+    profileHub_header: 'MY ACCOUNT',
+    profileHub_playerProfile: 'My player profile',
+    profileHub_myTeams: 'My teams',
+    profileHub_createTeam: 'Create a team',
+    profileHub_manageTeam: 'Manage team',
+    profileHub_settings: 'Settings',
 
     // Login
     login_licenseLabel: 'PLAYER LICENSE · SIGN IN',

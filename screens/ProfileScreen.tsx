@@ -1090,6 +1090,27 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
           )}
         </HapticTouchable>
 
+        {/* Hesap menüsü: tek hesap türü, takım ekranlarına alt navbar yerine buradan girilir. Takım rolü
+            Profil'in son sekme olmasını değiştirmez. Takım yoksa "Takım oluştur" takım düzenleme ekranını açar. */}
+        {isOwnProfile && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('profileHub_header')}</Text>
+            {([
+              { icon: 'person-outline', label: t('profileHub_playerProfile'), onPress: () => navigate('profile') },
+              { icon: 'shield-outline', label: t('profileHub_myTeams'), onPress: () => navigate('teamProfile') },
+              { icon: 'add-circle-outline', label: t('profileHub_createTeam'), onPress: () => navigate('teamEdit') },
+              { icon: 'people-outline', label: t('profileHub_manageTeam'), onPress: () => navigate('teamHome') },
+              { icon: 'settings-outline', label: t('profileHub_settings'), onPress: () => navigate('settings') },
+            ] as const).map((row) => (
+              <HapticTouchable key={row.label} style={styles.hubRow} onPress={row.onPress}>
+                <Ionicons name={row.icon} size={18} color={theme.gold} />
+                <Text style={styles.hubRowText}>{row.label}</Text>
+                <Ionicons name="chevron-forward" size={14} color={theme.textMuted} />
+              </HapticTouchable>
+            ))}
+          </View>
+        )}
+
         {/* Bio */}
         <View style={styles.card}>
           {bio.map((b, i) => (
@@ -1491,6 +1512,15 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.gold,
     },
     rewardsCtaText: { flex: 1, fontFamily: FontFamily.body, fontSize: 12, color: theme.text, lineHeight: 17 },
+    hubRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    hubRowText: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: theme.text },
     bioRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
