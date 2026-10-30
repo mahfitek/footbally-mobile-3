@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  callAccountStatusRpc,
   classifyAccountStatusError,
   evaluateAccountAccess,
   mustSignOut,
@@ -405,4 +406,39 @@ test('a temporary ban without an end date is still denied and does not crash', (
 
 test('an inactive account is denied', () => {
   assert.equal(evaluateAccountAccess(parse([profileRow({ account_status: 'inactive' })])).allowed, false);
+});
+
+// v2 yoksa (canlı) v1'e düşülür; diğer hatalar v1'e düşmez ve doğrulanamadı olarak kalır.
+test('the status lookup prefers v2 and falls back to v1 only when v2 is missing on the server', async () => {
+  const calls: string[] = [];
+  const missingV2 = { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_my_account_status_v2' } };
+  const v1 = { data: [profileRow()], error: null };
+  const response = await callAccountStatusRpc(async (fn) => {
+    calls.push(fn);
+    return fn === 'get_my_account_status_v2' ? missingV2 : v1;
+  });
+  assert.deepEqual(calls, ['get_my_account_status_v2', 'get_my_account_status']);
+  assert.deepEqual(response, v1);
+});
+
+test('a v2 success is used as is, without calling v1', async () => {
+  const calls: string[] = [];
+  const v2 = { data: [profileRow({ subject_id: UID, subject_type: 'profile' }), teamRow({ subject_id: TEAM_ID, subject_type: 'team' })], error: null };
+  const response = await callAccountStatusRpc(async (fn) => {
+    calls.push(fn);
+    return v2;
+  });
+  assert.deepEqual(calls, ['get_my_account_status_v2']);
+  assert.deepEqual(response, v2);
+});
+
+test('a non-missing v2 error is not replaced by v1 and stays unverified', async () => {
+  const calls: string[] = [];
+  const denied = { data: null, error: { code: '42501', message: 'permission denied' } };
+  const response = await callAccountStatusRpc(async (fn) => {
+    calls.push(fn);
+    return denied;
+  });
+  assert.deepEqual(calls, ['get_my_account_status_v2']);
+  assert.equal(classifyAccountStatusError(response.error ?? {}), 'rpc_error');
 });

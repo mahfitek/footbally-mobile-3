@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { notifyEvent } from '../lib/notify';
 import { MESSAGE_COLUMNS } from '../lib/columns';
-import { buildNameMap, displayName, partnerIdFor } from '../lib/chatNames';
+import { buildNameMap, buildOwnedTeamNameMap, displayName, mergeNameMaps, partnerIdFor } from '../lib/chatNames';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -192,8 +192,22 @@ export default function MessagesScreen({ navigate }: Props) {
     }
 
     const otherIds = Array.from(groups.keys()).map((convId) => otherIdByConv.get(convId)!);
-    const { data: otherProfiles } = await profiles.publicProfiles(otherIds, 'user_id, full_name');
-    const nameMap = buildNameMap(otherProfiles);
+    // Ad önceliği: profil adı → sahip olunan takım adı → "Kullanıcı" (displayName fallback'i).
+    let profileNames = new Map<string, string>();
+    let teamNames = new Map<string, string>();
+    if (otherIds.length > 0) {
+      const { data: otherProfiles } = await profiles.publicProfiles(otherIds, 'user_id, full_name');
+      profileNames = buildNameMap(otherProfiles);
+      const withoutProfileName = otherIds.filter((id) => !profileNames.has(id));
+      if (withoutProfileName.length > 0) {
+        const { data: ownedTeams } = await supabase
+          .from('teams')
+          .select('owner_id, name')
+          .in('owner_id', withoutProfileName);
+        teamNames = buildOwnedTeamNameMap(ownedTeams);
+      }
+    }
+    const nameMap = mergeNameMaps(profileNames, teamNames);
 
     const conversations: ChatView[] = Array.from(groups.keys()).map((convId) => {
       const otherId = otherIdByConv.get(convId)!;

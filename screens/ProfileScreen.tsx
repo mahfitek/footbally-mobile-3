@@ -46,7 +46,20 @@ import PlayerShareCard from '../components/PlayerShareCard';
 import FadeInView from '../components/FadeInView';
 import StatCard from '../components/StatCard';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
-import { FOOTBALL_POSITIONS } from '../constants/footballPositions';
+import {
+  PROFILE_FOOT_OPTIONS,
+  PROFILE_POSITIONS,
+  buildProfilePatch,
+  classifyCompletionResult,
+  completionStateOf,
+  isMissingColumnError,
+  missingRequiredFields,
+  toProfileFoot,
+  toProfilePosition,
+  type ProfileCompletionState,
+  type ProfileFormValues,
+  type RequiredProfileField,
+} from '../lib/profileCompletion';
 
 interface GalleryItem {
   id: string;
@@ -88,11 +101,24 @@ const getExtraStats = (t: (key: any) => string) => [
   { val: '0', label: t('teamProfile_statMatches') },
 ];
 
-const FOOT_OPTIONS = ['Sol Ayak', 'Sağ Ayak', 'Her İkisi'];
+// Seçici listelerinin başındaki boş seçenek: alan kullanıcı tarafından doldurulana kadar boş kalır.
+const EMPTY_PICKER_VALUE = '';
 
 const AGE_OPTIONS = Array.from({ length: 32 }, (_, i) => i + 14);
 const HEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => i + 150);
 const WEIGHT_OPTIONS = Array.from({ length: 76 }, (_, i) => i + 45);
+
+// Sunucunun tamamlanma için istediği alanların kullanıcıya gösterilen adları.
+const MISSING_FIELD_KEYS: Record<RequiredProfileField, 'profile_missingName' | 'profile_missingPosition' | 'profile_missingCity' | 'profile_missingDistrict' | 'profile_missingFoot' | 'profile_missingAge' | 'profile_missingHeight' | 'profile_missingWeight'> = {
+  full_name: 'profile_missingName',
+  position: 'profile_missingPosition',
+  city: 'profile_missingCity',
+  district: 'profile_missingDistrict',
+  foot: 'profile_missingFoot',
+  age: 'profile_missingAge',
+  height: 'profile_missingHeight',
+  weight: 'profile_missingWeight',
+};
 
 // Kaydetmeden sonra sunucu tarafı skoru yeniler. refresh_my_score canlıda henüz olmayabilir;
 // bu yüzden hata (eksik fonksiyon dahil) profil kaydını bozmaz, yalnızca geliştirme günlüğüne düşer.
@@ -135,17 +161,21 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const [galleryPreviewUrl, setGalleryPreviewUrl] = useState<string | null>(null);
   const [showGalleryGrid, setShowGalleryGrid] = useState(false);
 
+  // Futbol alanları varsayılan değer almadan başlar; kullanıcı doldurana kadar boştur.
   const [fullName, setFullName] = useState('');
   const [position, setPosition] = useState('');
-  const [age, setAge] = useState('18');
-  const [height, setHeight] = useState('175');
-  const [weight, setWeight] = useState('70');
-  const [foot, setFoot] = useState('Sağ Ayak');
+  const [age, setAge] = useState(EMPTY_PICKER_VALUE);
+  const [height, setHeight] = useState(EMPTY_PICKER_VALUE);
+  const [weight, setWeight] = useState(EMPTY_PICKER_VALUE);
+  const [foot, setFoot] = useState('');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [club, setClub] = useState('');
   const [score, setScore] = useState(0);
   const [rawProfile, setRawProfile] = useState<any>(null);
+  // Tamamlanma: sunucu durumu (profile_completed_at) ve kayıtlı değerlerdeki eksik zorunlu alanlar.
+  const [completion, setCompletion] = useState<ProfileCompletionState>('unknown');
+  const [savedMissing, setSavedMissing] = useState<RequiredProfileField[]>([]);
   const [isPremium, setIsPremium] = useState(false);
   const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
 
@@ -196,24 +226,47 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
 
     // Ekranın kullandığı alanlar. Kendi profilinde get_my_profile, başkasınınkinde herkese açık görünüm.
     const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
-    const { data, error } = isOwnProfile
-      ? await profiles.ownProfile(profileFields)
+    // Tamamlanma alanı yalnızca kendi profilinde istenir. Sunucu migration'ı uygulanmamışsa kolon yoktur (42703);
+    // o durumda aynı sorgu tamamlanma alanı olmadan tekrarlanır ve durum "bilinmiyor" kalır.
+    let { data, error } = isOwnProfile
+      ? await profiles.ownProfile(`${profileFields}, profile_completed_at`)
       : await profiles.publicProfile(uid, profileFields);
+    if (isOwnProfile && isMissingColumnError(error)) {
+      ({ data, error } = await profiles.ownProfile(profileFields));
+    }
 
     if (data) {
       setFollowersCount(data.followers_count ?? 0);
       setFollowingCount(data.following_count ?? 0);
       setFullName(data.full_name || '');
-      setPosition(data.position || '');
-      setAge(String(data.age || 18));
-      setHeight(String(data.height || 175));
-      setWeight(String(data.weight || 70));
-      setFoot(data.foot || 'Sağ Ayak');
+      // Eski ayrıntılı mevki ve ayak etiketleri sunucu değerine çevrilir; tanınmayan değer boş kalır.
+      setPosition(toProfilePosition(data.position) ?? '');
+      setAge(data.age ? String(data.age) : EMPTY_PICKER_VALUE);
+      setHeight(data.height ? String(data.height) : EMPTY_PICKER_VALUE);
+      setWeight(data.weight ? String(data.weight) : EMPTY_PICKER_VALUE);
+      setFoot(toProfileFoot(data.foot) ?? '');
       setCity(data.city || '');
       setDistrict(data.district || '');
       setClub(data.club || '');
       setAvatarUrl(data.avatar_url ?? null);
       setRawProfile(data);
+
+      if (isOwnProfile) {
+        setCompletion(completionStateOf(data));
+        setSavedMissing(
+          missingRequiredFields({
+            fullName: data.full_name || '',
+            position: data.position || '',
+            city: data.city || '',
+            district: data.district || '',
+            foot: data.foot || '',
+            age: data.age ? String(data.age) : '',
+            height: data.height ? String(data.height) : '',
+            weight: data.weight ? String(data.weight) : '',
+            club: data.club || '',
+          }),
+        );
+      }
 
       setScore(calculateProfileCompletion(data));
 
@@ -431,17 +484,8 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         return;
       }
 
-      const payload = {
-        full_name: fullName,
-        position,
-        age: parseInt(age, 10) || null,
-        height: parseInt(height, 10) || null,
-        weight: parseInt(weight, 10) || null,
-        foot,
-        city,
-        district: district || null,
-        club: club.trim() || null,
-      };
+      const values: ProfileFormValues = { fullName, position, age, height, weight, foot, city, district, club };
+      const payload = buildProfilePatch(values);
 
       // profiles.id is an auto-generated identity column; the link to the
       // signed-in user is profiles.user_id, so update/insert by that instead.
@@ -464,13 +508,42 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         }
       }
 
+      // Alanlar kaydedildi. Tamamlanma yalnızca sunucu onayıyla sayılır (complete_my_player_profile).
+      const missing = missingRequiredFields(values);
+      let toastMessage = t('profile_updateSuccess');
+      let toastType: 'error' | 'success' = 'success';
+      if (missing.length > 0) {
+        toastMessage = `${t('profile_savedPartial')} ${missing.map((f) => t(MISSING_FIELD_KEYS[f])).join(', ')}`;
+        toastType = 'error';
+      } else {
+        const outcome = classifyCompletionResult(await profiles.completeOwnPlayerProfile());
+        if (outcome.status === 'completed') {
+          toastMessage = t('profile_completedToast');
+        } else if (outcome.status === 'unavailable') {
+          // RPC bu sunucuda yok: profil tamamlandı olarak gösterilmez.
+          toastMessage = t('profile_completionUnavailable');
+          toastType = 'error';
+        } else if (outcome.status === 'incomplete') {
+          toastMessage = t('profile_completionIncomplete');
+          toastType = 'error';
+        } else if (outcome.status === 'restricted') {
+          toastMessage = t('profile_completionRestricted');
+          toastType = 'error';
+        } else {
+          toastMessage = t('profile_completionFailed');
+          toastType = 'error';
+        }
+      }
+
       setSaving(false);
       setEditMode(false);
       setOpenPicker(null);
       await refreshServerScore(uid);
       await loadProfile();
-      setToast({ message: t('profile_updateSuccess'), type: 'success' });
-      sendLocalNotification(t('profile_updatedNotifTitle'), t('profile_updatedNotifBody'));
+      setToast({ message: toastMessage, type: toastType });
+      if (toastType === 'success') {
+        sendLocalNotification(t('profile_updatedNotifTitle'), t('profile_updatedNotifBody'));
+      }
     } catch (err) {
       if (__DEV__) console.log('Profil kaydedilirken beklenmeyen hata:', err);
       setToast({ message: t('findOpponent_unexpectedError'), type: 'error' });
@@ -706,6 +779,21 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     { key: 'club', done: !!rawProfile?.club, label: t('profile_addClub'), points: 4 },
   ].filter((s) => !s.done);
 
+  // Tamamlanma bildirimi. Sunucu "tamamlanmadı" diyorsa bunu söyler; sunucu alanı yoksa yalnızca eksik alanları
+  // listeler ve tamamlandı iddiasında bulunmaz. Tamamlandıysa bildirim gösterilmez.
+  const savedMissingNames = savedMissing.map((f) => t(MISSING_FIELD_KEYS[f])).join(', ');
+  const completionNotice: { title: string; detail: string | null } | null =
+    completion === 'complete'
+      ? null
+      : completion === 'incomplete'
+        ? {
+            title: t('profile_statusIncomplete'),
+            detail: savedMissing.length > 0 ? `${t('profile_statusMissing')} ${savedMissingNames}` : t('profile_statusServerPending'),
+          }
+        : savedMissing.length > 0
+          ? { title: t('profile_statusMissingOnly'), detail: `${t('profile_statusMissing')} ${savedMissingNames}` }
+          : null;
+
   const bio = [
     { label: t('profile_bioPosition'), value: position || '-' },
     { label: t('profile_bioAge'), value: age || '-' },
@@ -761,20 +849,15 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             {openPicker === 'position' && (
               <View style={styles.inlinePicker}>
                 <ScrollView nestedScrollEnabled style={{ maxHeight: 300 }}>
-                  {FOOTBALL_POSITIONS.map((cat) => (
-                    <View key={cat.category}>
-                      <Text style={styles.pickerSectionHeader}>{cat.category}</Text>
-                      {cat.positions.map((pos) => (
-                        <TouchableOpacity
-                          key={pos}
-                          onPress={() => handleSelectPosition(pos)}
-                          style={styles.fullListRow}
-                        >
-                          <Text style={styles.listRowText}>{pos}</Text>
-                          {position === pos && <Text style={styles.checkmark}>✓</Text>}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                  {PROFILE_POSITIONS.map((pos) => (
+                    <TouchableOpacity
+                      key={pos}
+                      onPress={() => handleSelectPosition(pos)}
+                      style={styles.fullListRow}
+                    >
+                      <Text style={styles.listRowText}>{pos}</Text>
+                      {position === pos && <Text style={styles.checkmark}>✓</Text>}
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
@@ -783,13 +866,16 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t('profile_ageLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('age')}>
-                <Text style={styles.inputValueText}>{age} {t('teamProfile_ageSuffix')} {openPicker === 'age' ? '▲' : '▼'}</Text>
+                <Text style={age ? styles.inputValueText : styles.inputPlaceholderText}>
+                  {age ? `${age} ${t('teamProfile_ageSuffix')}` : t('profile_selectValue')} {openPicker === 'age' ? '▲' : '▼'}
+                </Text>
               </TouchableOpacity>
             </View>
 
             {openPicker === 'age' && (
               <View style={styles.inlinePicker}>
                 <Picker selectedValue={age} onValueChange={setAge} itemStyle={{ color: theme.text }}>
+                  <Picker.Item label={t('profile_selectValue')} value={EMPTY_PICKER_VALUE} color={theme.textSecondary} />
                   {AGE_OPTIONS.map((n) => (
                     <Picker.Item key={n} label={`${n} ${t('teamProfile_ageSuffix')}`} value={String(n)} color={theme.text} />
                   ))}
@@ -800,13 +886,16 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t('profile_heightLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('height')}>
-                <Text style={styles.inputValueText}>{height} cm {openPicker === 'height' ? '▲' : '▼'}</Text>
+                <Text style={height ? styles.inputValueText : styles.inputPlaceholderText}>
+                  {height ? `${height} cm` : t('profile_selectValue')} {openPicker === 'height' ? '▲' : '▼'}
+                </Text>
               </TouchableOpacity>
             </View>
 
             {openPicker === 'height' && (
               <View style={styles.inlinePicker}>
                 <Picker selectedValue={height} onValueChange={setHeight} itemStyle={{ color: theme.text }}>
+                  <Picker.Item label={t('profile_selectValue')} value={EMPTY_PICKER_VALUE} color={theme.textSecondary} />
                   {HEIGHT_OPTIONS.map((n) => (
                     <Picker.Item key={n} label={`${n} cm`} value={String(n)} color={theme.text} />
                   ))}
@@ -817,13 +906,16 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t('profile_weightLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('weight')}>
-                <Text style={styles.inputValueText}>{weight} kg {openPicker === 'weight' ? '▲' : '▼'}</Text>
+                <Text style={weight ? styles.inputValueText : styles.inputPlaceholderText}>
+                  {weight ? `${weight} kg` : t('profile_selectValue')} {openPicker === 'weight' ? '▲' : '▼'}
+                </Text>
               </TouchableOpacity>
             </View>
 
             {openPicker === 'weight' && (
               <View style={styles.inlinePicker}>
                 <Picker selectedValue={weight} onValueChange={setWeight} itemStyle={{ color: theme.text }}>
+                  <Picker.Item label={t('profile_selectValue')} value={EMPTY_PICKER_VALUE} color={theme.textSecondary} />
                   {WEIGHT_OPTIONS.map((n) => (
                     <Picker.Item key={n} label={`${n} kg`} value={String(n)} color={theme.text} />
                   ))}
@@ -834,7 +926,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t('profile_footLabel')}</Text>
               <View style={styles.footRow}>
-                {FOOT_OPTIONS.map((f) => (
+                {PROFILE_FOOT_OPTIONS.map((f) => (
                   <TouchableOpacity
                     key={f}
                     onPress={() => setFoot(f)}
@@ -1044,6 +1136,16 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <Text style={styles.cardTitle}>{t('profile_completionLabel')}</Text>
             <Text style={styles.scoreCardValue}>{score}/100</Text>
           </View>
+          {isOwnProfile && completionNotice && (
+            <View style={styles.completionNotice}>
+              <Text style={styles.completionNoticeTitle}>{completionNotice.title}</Text>
+              {completionNotice.detail ? <Text style={styles.completionNoticeText}>{completionNotice.detail}</Text> : null}
+              <TouchableOpacity onPress={() => setEditMode(true)} style={styles.completionNoticeBtn}>
+                <Text style={styles.completionNoticeBtnText}>{t('profile_completeButton')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.completionTrack}>
             <View style={[styles.completionFill, { width: `${score}%` }]} />
           </View>
@@ -1487,6 +1589,11 @@ const createStyles = (theme: Theme) =>
     completionTrack: { height: 4, backgroundColor: theme.border, marginBottom: 4 },
     completionFill: { height: 4, backgroundColor: theme.gold },
     scoreHint: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 10 },
+    completionNotice: { padding: 12, marginBottom: 12, borderRadius: RADIUS, backgroundColor: theme.card2, gap: 6 },
+    completionNoticeTitle: { fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    completionNoticeText: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary },
+    completionNoticeBtn: { alignSelf: 'flex-start', marginTop: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: RADIUS, borderWidth: 1, borderColor: theme.gold },
+    completionNoticeBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, fontSize: 13 },
     scoreSuggestionRow: {
       flexDirection: 'row',
       alignItems: 'center',

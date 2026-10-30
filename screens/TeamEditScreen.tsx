@@ -64,6 +64,9 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
   const [neededPositions, setNeededPositions] = useState<string[]>([]);
   const [whatsappLink, setWhatsappLink] = useState('');
   const [contactNumber, setContactNumber] = useState('');
+  // Mevcut takımın kimliği. Güncelleme bu id ile yapılır; yükleme başarısızsa yeni takım oluşturulmaz.
+  const [teamId, setTeamId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
 
   const resolveUserId = async () => {
@@ -83,6 +86,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
     const { data, error } = await supabase.from('teams').select(TEAM_COLUMNS).eq('owner_id', uid).maybeSingle();
 
     if (data) {
+      setTeamId(data.id);
       setName(data.name || '');
       setCity(data.city || '');
       setDistrict(data.district || '');
@@ -96,8 +100,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       setNeededPositions(data.needed_positions || []);
       setWhatsappLink(data.whatsapp_link || '');
       setContactNumber(data.contact_number || '');
-    } else if (error && __DEV__) {
-      console.log('Takım yüklenemedi:', error);
+    } else if (error) {
+      // Okuma başarısızsa mevcut takım var sayılır ve kaydetme kapatılır; böylece ikinci takım oluşturulmaz.
+      setLoadFailed(true);
+      if (__DEV__) console.log('Takım yüklenemedi:', error);
     }
     setLoading(false);
   };
@@ -156,27 +162,43 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
         contact_number: contactNumber.trim() || null,
       };
 
-      const { data: updated, error: updateError } = await supabase
-        .from('teams')
-        .update(payload)
-        .eq('owner_id', uid)
-        .select();
-
-      if (updateError) {
-        if (__DEV__) console.log('Takım kaydedilemedi:', updateError);
-        setToast({ message: t('teamEdit_saveFailed'), type: 'error' });
-        setSaving(false);
-        return;
-      }
-
-      if (!updated || updated.length === 0) {
-        const { error: insertError } = await supabase.from('teams').insert({ owner_id: uid, ...payload });
-        if (insertError) {
-          if (__DEV__) console.log('Takım oluşturulamadı:', insertError);
-          setToast({ message: t('teamEdit_createFailed'), type: 'error' });
+      // Mevcut takım varsa id ile güncellenir. Güncelleme 0 satır dönerse (RLS, yasak vb.) yeni takım
+      // oluşturulmaz: hata gösterilir. Yalnızca hiç takım yoksa (yükleme başarılı, kayıt yok) yeni takım açılır.
+      if (teamId || loadFailed) {
+        if (!teamId) {
+          setToast({ message: t('teamEdit_saveFailed'), type: 'error' });
           setSaving(false);
           return;
         }
+        const { data: updated, error: updateError } = await supabase
+          .from('teams')
+          .update(payload)
+          .eq('id', teamId)
+          .select('id');
+
+        if (updateError || !updated || updated.length === 0) {
+          if (__DEV__) console.log('Takım kaydedilemedi:', updateError);
+          setToast({ message: t('teamEdit_saveFailed'), type: 'error' });
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { data: created, error: insertError } = await supabase
+          .from('teams')
+          .insert({ owner_id: uid, ...payload })
+          .select('id')
+          .single();
+        if (insertError) {
+          if (__DEV__) console.log('Takım oluşturulamadı:', insertError);
+          // 42501: hesap kısıtlıysa takım oluşturulamaz (restrictive RLS).
+          setToast({
+            message: insertError.code === '42501' ? t('account_writeBlocked') : t('teamEdit_createFailed'),
+            type: 'error',
+          });
+          setSaving(false);
+          return;
+        }
+        setTeamId(created.id);
       }
 
       setToast({ message: t('teamEdit_saveSuccess'), type: 'success' });

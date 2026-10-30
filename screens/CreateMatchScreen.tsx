@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -25,9 +25,24 @@ import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
 import Toast from '../components/Toast';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
+import { useAccountAccess, canWriteProfile, canWriteTeam } from '../lib/accountContext';
+import { fetchManagedTeams, type ManagedTeam } from '../lib/managedTeams';
+import { buildMatchInsert, classifyMatchResult, type MatchFailureReason, type MatchScope } from '../lib/matchCreation';
+import type { TranslationKey } from '../lib/i18n';
 
 const PLAYER_COUNTS = [5, 7, 11];
 const MATCH_CATEGORIES = ['Eğlence', 'Rekabetçi', 'Antrenman'];
+
+// Sunucu hata nedeni → kullanıcıya gösterilen metin (bkz. lib/matchCreation.ts).
+const MATCH_FAILURE_KEYS: Record<MatchFailureReason, TranslationKey> = {
+  not_team_manager: 'createMatch_err_notTeamManager',
+  team_archived: 'createMatch_err_teamArchived',
+  team_restricted: 'createMatch_err_teamRestricted',
+  personal_account_restricted: 'createMatch_err_personalRestricted',
+  team_not_found: 'createMatch_err_teamNotFound',
+  team_unsupported: 'createMatch_err_teamUnsupported',
+  unknown: 'createMatch_createFailed',
+};
 
 interface Props {
   navigate: (screen: string) => void;
@@ -67,6 +82,27 @@ export default function CreateMatchScreen({ navigate }: Props) {
   const [category, setCategory] = useState(MATCH_CATEGORIES[0]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  // Bireysel maç varsayılandır. Takım seçilirse team_id gönderilir; seçilmezse alan hiç gönderilmez.
+  const [scope, setScope] = useState<MatchScope>({ kind: 'personal' });
+  const [managedTeams, setManagedTeams] = useState<ManagedTeam[]>([]);
+  const [teamsComplete, setTeamsComplete] = useState(true);
+  const { access: accountAccess } = useAccountAccess();
+
+  // Yüklenirken `teamsComplete` true kalır; sonuç geldikten sonra güncellenir (senkron setState yok).
+  const loadManagedTeams = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+    const result = await fetchManagedTeams(supabase, uid, t('createMatch_unnamedTeam'));
+    setManagedTeams(result.teams);
+    setTeamsComplete(result.ok);
+  };
+
+  // Ekran açılışında bir kez yüklenir. State yalnızca await'ten sonra yazılır (senkron setState yok).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    void loadManagedTeams();
+  }, []);
 
   const selectedCity = TURKEY_CITIES.find((c) => c.name === city);
   const filteredCities = TURKEY_CITIES.filter((c) =>
@@ -96,6 +132,15 @@ export default function CreateMatchScreen({ navigate }: Props) {
       return;
     }
 
+    // Hesap durumu doğrulanmadıysa ya da ilgili kapsam kısıtlıysa yazma yapılmaz (fail closed).
+    const teamScope = scope.kind === 'team';
+    const writeAllowed = teamScope ? canWriteTeam(accountAccess) : canWriteProfile(accountAccess);
+    if (!writeAllowed) {
+      const restrictedTeam = teamScope && accountAccess?.verified && accountAccess.teamRestricted;
+      setToast({ message: restrictedTeam ? t('account_teamWriteBlocked') : t('account_writeBlocked'), type: 'error' });
+      return;
+    }
+
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -106,21 +151,26 @@ export default function CreateMatchScreen({ navigate }: Props) {
         return;
       }
 
-      const { error } = await supabase.from('matches').insert({
-        title: title.trim(),
-        date: formatDateForSupabase(date),
-        time: formatTimeForSupabase(time),
-        location: location.trim(),
-        city: `${city}, ${district}`,
-        required_players: playersPerSide * 2,
-        type: `${playersPerSide}v${playersPerSide}`,
-        category: category,
-        creator_id: user.id,
-      });
+      const row = buildMatchInsert(
+        {
+          title: title.trim(),
+          date: formatDateForSupabase(date),
+          time: formatTimeForSupabase(time),
+          location: location.trim(),
+          city: `${city}, ${district}`,
+          required_players: playersPerSide * 2,
+          type: `${playersPerSide}v${playersPerSide}`,
+          category: category,
+          creator_id: user.id,
+        },
+        scope,
+      );
 
-      if (error) {
-        if (__DEV__) console.log('Maç oluşturulamadı:', error);
-        setToast({ message: t('createMatch_createFailed'), type: 'error' });
+      const outcome = classifyMatchResult(await supabase.from('matches').insert(row), scope);
+
+      if (outcome.status === 'failed') {
+        if (__DEV__) console.log('Maç oluşturulamadı:', outcome.reason);
+        setToast({ message: t(MATCH_FAILURE_KEYS[outcome.reason]), type: 'error' });
         setSaving(false);
         return;
       }
@@ -153,6 +203,34 @@ export default function CreateMatchScreen({ navigate }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}
         >
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>{t('createMatch_scopeLabel')}</Text>
+            <View style={styles.typeRow}>
+              <HapticTouchable
+                style={[styles.typePill, scope.kind === 'personal' && styles.typePillActive]}
+                onPress={() => setScope({ kind: 'personal' })}
+              >
+                <Text style={[styles.typePillText, scope.kind === 'personal' && styles.typePillTextActive]}>
+                  {t('createMatch_scopePersonal')}
+                </Text>
+              </HapticTouchable>
+              {managedTeams.map((team) => (
+                <HapticTouchable
+                  key={team.id}
+                  style={[styles.typePill, scope.kind === 'team' && scope.teamId === team.id && styles.typePillActive]}
+                  onPress={() => setScope({ kind: 'team', teamId: team.id })}
+                >
+                  <Text
+                    style={[styles.typePillText, scope.kind === 'team' && scope.teamId === team.id && styles.typePillTextActive]}
+                  >
+                    {team.name}
+                  </Text>
+                </HapticTouchable>
+              ))}
+            </View>
+            {!teamsComplete && <Text style={styles.scopeNote}>{t('createMatch_teamsUnavailable')}</Text>}
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>{t('createMatch_nameLabel')}</Text>
             <TextInput
@@ -405,7 +483,8 @@ const createStyles = (theme: Theme) =>
     inputDisabled: { backgroundColor: theme.card2 },
     inputValueText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
     inputPlaceholderText: { color: theme.textSecondary, fontSize: 14, fontFamily: FontFamily.mono },
-    typeRow: { flexDirection: 'row', gap: 10 },
+    typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    scopeNote: { marginTop: 6, fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.body },
     typePill: {
       flex: 1,
       paddingVertical: 12,

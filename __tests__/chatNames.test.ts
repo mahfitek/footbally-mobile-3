@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildNameMap, displayName, partnerIdFor } from '../lib/chatNames';
+import { buildNameMap, buildOwnedTeamNameMap, displayName, mergeNameMaps, partnerIdFor } from '../lib/chatNames';
 
 const ME = '11111111-1111-4111-8111-111111111111';
 const OTHER = '22222222-2222-4222-8222-222222222222';
@@ -51,4 +51,21 @@ test('a failed profile lookup (no data) leaves every partner on the fallback, wi
   assert.equal(names.size, 0);
   assert.equal(displayName(OTHER, names, FALLBACK), FALLBACK);
   assert.equal(displayName(OTHER, buildNameMap(undefined), FALLBACK), FALLBACK);
+});
+
+test('a conversation with the user on both sides has no partner, so the user never appears as the counterpart', () => {
+  assert.equal(partnerIdFor({ participant_a: ME, participant_b: ME }, ME), null);
+});
+
+test('the team name is used when the owner has no profile name, and the profile name wins when both exist', () => {
+  const teams = buildOwnedTeamNameMap([{ owner_id: OTHER, name: 'Kartal FK' }, { owner_id: STRANGER, name: '  ' }]);
+  const profiles = buildNameMap([{ user_id: OTHER, full_name: '' }]);
+  assert.equal(displayName(OTHER, mergeNameMaps(profiles, teams), FALLBACK), 'Kartal FK');
+  const profilesWithName = buildNameMap([{ user_id: OTHER, full_name: 'Ali Yılmaz' }]);
+  assert.equal(displayName(OTHER, mergeNameMaps(profilesWithName, teams), FALLBACK), 'Ali Yılmaz');
+});
+
+test('a blank team name is not used, so the fallback label is shown', () => {
+  const teams = buildOwnedTeamNameMap([{ owner_id: STRANGER, name: '   ' }]);
+  assert.equal(displayName(STRANGER, mergeNameMaps(new Map(), teams), FALLBACK), FALLBACK);
 });

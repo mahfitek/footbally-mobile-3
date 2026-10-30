@@ -13,7 +13,7 @@ const outDir = mkdtempSync(join(tmpdir(), 'footbally-tests-'));
 
 // Derlenecek kaynaklar: testler ve test edilen saf modüller. Deno'ya özgü
 // Edge Function giriş noktası (index.ts) dahil edilmez; yalnızca kuralları içeren dosyalar test edilir.
-const SOURCE_DIRS = ['__tests__', 'lib', 'supabase/functions/notify-event'];
+const SOURCE_DIRS = ['__tests__', 'lib', 'constants', 'supabase/functions/notify-event'];
 const EXCLUDED = new Set(['index.ts', 'supabase.ts', 'profiles.ts']);
 
 function walk(dir) {

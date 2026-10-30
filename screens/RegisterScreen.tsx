@@ -21,11 +21,9 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { translateAuthError } from '../lib/authErrors';
 import HapticTouchable from '../components/HapticTouchable';
-import BottomSheet from '../components/BottomSheet';
 
 const RADIUS = CARD_RADIUS;
 
-const POSITIONS = ['Kaleci', 'Defans', 'Orta Saha', 'Forvet'];
 
 interface Props {
   onLogin: () => void;
@@ -40,13 +38,12 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [position, setPosition] = useState('');
-  const [positionModalVisible, setPositionModalVisible] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Kayıtta yalnızca temel hesap bilgisi alınır. Futbol bilgileri (mevki, ayak, şehir vb.) profil ekranında tamamlanır.
   const handleRegister = async () => {
-    if (!fullName.trim() || !email.trim() || !password || !confirmPassword || !position) {
+    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
       Alert.alert(t('login_errorTitle'), t('register_fillAllFields'));
       return;
     }
@@ -70,7 +67,6 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
       options: {
         data: {
           full_name: fullName.trim(),
-          position,
           kvkk_accepted_at: new Date().toISOString(),
         },
       },
@@ -169,15 +165,6 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('register_position')}</Text>
-                <HapticTouchable style={styles.input} onPress={() => setPositionModalVisible(true)}>
-                  <Text style={position ? styles.selectValue : styles.selectPlaceholder}>
-                    {position || t('register_selectPosition')}
-                  </Text>
-                </HapticTouchable>
-              </View>
-
               <HapticTouchable
                 style={styles.privacyRow}
                 onPress={() => setPrivacyAccepted((v) => !v)}
@@ -227,24 +214,6 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <BottomSheet visible={positionModalVisible} onClose={() => setPositionModalVisible(false)} theme={theme}>
-        <Text style={styles.modalTitle}>{t('register_selectPositionModal')}</Text>
-        {POSITIONS.map((p) => (
-          <HapticTouchable
-            key={p}
-            style={styles.optionRow}
-            onPress={() => {
-              setPosition(p);
-              setPositionModalVisible(false);
-            }}
-          >
-            <Text style={[styles.optionText, p === position && styles.optionTextActive]}>
-              {p}
-            </Text>
-            {p === position && <Text style={styles.optionCheck}>✓</Text>}
-          </HapticTouchable>
-        ))}
-      </BottomSheet>
     </SafeAreaView>
   );
 }

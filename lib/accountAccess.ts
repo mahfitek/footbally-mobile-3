@@ -1,11 +1,13 @@
 import { supabase } from './supabase';
 import { profiles } from './profiles';
 import {
+  callAccountStatusRpc,
   classifyAccountStatusError,
   evaluateAccountAccess,
   parseAccountStatusRows,
   type AccountAccessResult,
   type AccountBanLookupResult,
+  type StatusRpcResponse,
 } from './accountAccessRules';
 
 export { evaluateAccountAccess, mustSignOut } from './accountAccessRules';
@@ -22,13 +24,15 @@ export type {
 const ACCOUNT_STATUS_TIMEOUT_MS = 6000;
 
 /**
- * Oturum açan kullanıcının hesap durumu (get_my_account_status, v1).
+ * Oturum açan kullanıcının hesap durumu.
  *
- * Yanıt profil satırı (`source = 'profile'`) ve sahip olunan takım satırlarını içerir; sıra garanti değildir.
- * Her başarısız durum doğrulanamadı olarak döner ve yasak olarak yorumlanmaz. Tanı için yalnızca nedeni, HTTP
- * durumunu ve satır sayılarını loglar; kullanıcı kimliği, e-posta ya da yanıt içeriği loglanmaz.
+ * Önce get_my_account_status_v2 denenir (takım satırlarında gerçek team_id döner). Sunucuda v2 yoksa
+ * (PGRST202 / 42883) v1 (get_my_account_status) kullanılır; v1 takım satırlarında id vermez, ama ban kararı
+ * için yeterlidir. Diğer her hata doğrulanamadı olarak döner; yasak olarak yorumlanmaz.
  *
- * TODO(v2): get_my_account_status_v2 canlıya çıkınca tercih edilecek; şimdilik yalnızca v1 kullanılır.
+ * Yanıt profil satırı (`source` / `subject_type` = 'profile') ve takım satırlarını içerir; sıra garanti değildir.
+ * Tanı için yalnızca nedeni, HTTP durumunu ve satır sayılarını loglar; kullanıcı kimliği, e-posta ya da yanıt
+ * içeriği loglanmaz.
  */
 export async function fetchAccountBanRow(userId: string): Promise<AccountBanLookupResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -36,9 +40,9 @@ export async function fetchAccountBanRow(userId: string): Promise<AccountBanLook
     timer = setTimeout(() => resolve({ verified: false, reason: 'timeout' }), ACCOUNT_STATUS_TIMEOUT_MS);
   });
   const lookup = (async (): Promise<AccountBanLookupResult> => {
-    let response: Awaited<ReturnType<typeof supabase.rpc>>;
+    let response: StatusRpcResponse;
     try {
-      response = await supabase.rpc('get_my_account_status');
+      response = await callAccountStatusRpc((fn) => supabase.rpc(fn));
     } catch {
       // Yalnızca istemci çağrısının kendisi fırlatırsa ağ hatası sayılır; ayrıştırma hataları burada değil.
       return { verified: false, reason: 'network' };

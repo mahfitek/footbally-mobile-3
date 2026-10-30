@@ -54,5 +54,13 @@ export function createProfileQueries(client: ProfileClient) {
     refreshMyScore() {
       return client.rpc('refresh_my_score');
     },
+
+    /**
+     * Form alanları kaydedildikten sonra tamamlanmayı sunucuda onaylar (parametresiz).
+     * Tamamlanma zamanını yalnızca sunucu yazar; sonuç için profileCompletion.classifyCompletionResult kullanılır.
+     */
+    completeOwnPlayerProfile() {
+      return client.rpc('complete_my_player_profile');
+    },
   };
 }

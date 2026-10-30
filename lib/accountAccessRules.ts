@@ -76,6 +76,24 @@ function formatDate(d: Date): string {
   return `${d.getDate()} ${TURKISH_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+export interface StatusRpcResponse {
+  data: unknown;
+  error: { code?: string; message?: string } | null;
+  status?: number;
+}
+
+/**
+ * Hesap durumu RPC'si: önce v2 (takım satırlarında team_id), canlıda yoksa (PGRST202 / 42883) v1.
+ * Diğer hatalar v1'e düşmez; doğrulanamadı olarak yorumlanır. Supabase'e bağımlı değildir (çağrıcı verilir).
+ */
+export async function callAccountStatusRpc(
+  callRpc: (fn: string) => PromiseLike<StatusRpcResponse>,
+): Promise<StatusRpcResponse> {
+  const first = await callRpc('get_my_account_status_v2');
+  if (first.error && isMissingRpc(first.error)) return callRpc('get_my_account_status');
+  return first;
+}
+
 /** Supabase RPC hatasını doğrulanamama nedenine çevirir. */
 export function classifyAccountStatusError(error: { code?: string; message?: string }): AccountUnverifiedReason {
   if (isMissingRpc(error)) return 'missing_rpc';

@@ -112,6 +112,13 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       .ownProfile('full_name')
       .then(({ data }) => setMyName(data?.full_name ?? ''));
 
+    // Kendi hesabıyla ya da kimliksiz sohbet açılmaz: bu, kendini karşı taraf gösteren bir konuşma üretir.
+    if (!otherUserId || otherUserId === user.id) {
+      setToast({ message: t('chat_cannotMessageSelf'), type: 'error' });
+      setLoading(false);
+      return;
+    }
+
     const { data: existingConv } = await supabase
       .from('conversations')
       .select('id')

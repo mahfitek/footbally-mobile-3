@@ -180,3 +180,28 @@ Web, Admin, Scout ve Mobil için aynı senaryolar:
 7. Şikâyet gönderimi: `submit_report` deploy sonrası (başarı, "kullanılamıyor", hata).
 8. YouTube maç videosu paylaşımı (highlight sütunları).
 9. Oturum süresi dolunca yeniden giriş; arka plandan dönüşte oturumun korunması.
+
+---
+
+## 7. Mobil uyum durumu (2026-10-30)
+
+Kaynak sözleşme: web reposu `docs/unified-account-mobile-contract.md` ve `docs/mobile-api-contract.md` (branch `feat/unified-account-model`, commit `053e12d`). Canlı kontrol yalnızca okuma yoluyla (publishable anahtarla, oturumsuz çağrı) yapıldı.
+
+| Yüzey | Canlı (2026-10-30) | Mobil davranış |
+|---|---|---|
+| `get_my_account_status_v2` | Yok (PGRST202) | Önce v2 denenir; yoksa v1 (`get_my_account_status`) kullanılır. Diğer hatalar doğrulanamadı sayılır. |
+| `get_my_account_status` (v1) | Var | Profil ve takım yasağı ayrı değerlendirilir. Doğrulanamayan durum oturumu kapatmaz. |
+| `complete_my_player_profile()` | Yok | Çağrılır; RPC yoksa profil "tamamlandı" gösterilmez, kayıt başarılı gibi sunulmaz. |
+| `profiles.profile_completed_at` | Yok (42703) | Kolon yoksa profil sorgusu kolonsuz tekrarlanır; durum "bilinmiyor" kalır, tamamlanmış sayılmaz. |
+| `get_my_profile()` | Var | Kendi profili için kullanılır. |
+| `get_conversation_display_names` | Yok | Kullanılmaz. İsimler `profiles_public` ve `teams.name` ile çözülür (profil → sahip olunan takım → "Kullanıcı"). |
+| `get_my_teams` | Yok | Kullanılmaz. Takım listesi `teams` (owner) ve `team_members` (admin) ile alınır. |
+| `matches.team_id` | Yok (42703) | Bireysel maçta gönderilmez. Takım adına maç seçilirse sunucu hatası "bu sunucuda etkin değil" olarak gösterilir. |
+| `block_user` / `unblock_user` / `submit_report` | Yok | Mevcut "kullanılamıyor" yolu korunur. |
+
+Mobil form değerleri (sunucu kabul listesi, `lib/profileCompletion.ts`):
+- Mevki: `Kaleci`, `Defans`, `Orta Saha`, `Kanat`, `Forvet`. Eski ayrıntılı değerler kategoriye çevrilir.
+- Ayak: `Sağ`, `Sol`, `Her İkisi`. Eski `Sağ Ayak` / `Sol Ayak` etiketleri çevrilir.
+- Aralıklar: yaş 10–80, boy 100–250, kilo 30–250.
+
+Kayıt ekranı artık mevki istemez (sunucu trigger'ı metadata'daki mevkiyi kullanmıyor). Futbol bilgileri profil ekranında tamamlanır.
