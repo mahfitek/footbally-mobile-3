@@ -195,12 +195,6 @@ export default function HomeScreen({ navigate, userId }: Props) {
     return () => scoreCountAnim.removeListener(listenerId);
   }, [loading, score]);
 
-  useEffect(() => {
-    loadProfile();
-    loadUpcomingMatches();
-    loadNotifications();
-  }, [userId]);
-
   const loadProfile = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -311,6 +305,12 @@ export default function HomeScreen({ navigate, userId }: Props) {
   const totalPoints = tasks.reduce((sum, t) => sum + t.points, 0);
   const pendingTasks = tasks.filter((t) => !t.done).slice(0, 3);
   const taskProgress = totalPoints > 0 ? (completedPoints / totalPoints) * 100 : 0;
+
+  useEffect(() => {
+    loadProfile();
+    loadUpcomingMatches();
+    loadNotifications();
+  }, [userId]);
 
   if (loading) {
     return (

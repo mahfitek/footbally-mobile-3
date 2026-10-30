@@ -120,10 +120,6 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
   // gizlenir, Takip Et butonu gösterilir — bkz. screens/ProfileScreen.tsx.
   const isOwnProfile = !currentUserId || !team || team.owner_id === currentUserId;
 
-  useEffect(() => {
-    loadAll();
-  }, [userId]);
-
   const loadAll = async () => {
     setLoading(true);
     await loadTeam();
@@ -382,6 +378,10 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
   const handleRejectApplication = (app: Application) => {
     setApplications((prev) => prev.filter((a) => a.id !== app.id));
   };
+
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
 
   if (loading) {
     return <LoadingScreen message={t('teamProfile_loading')} />;

@@ -68,10 +68,6 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
-  useEffect(() => {
-    loadAll();
-  }, [userId]);
-
   const resolveUserId = async () => {
     if (userId) return userId;
     const { data: { session } } = await supabase.auth.getSession();
@@ -255,6 +251,10 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
     }
     setSaving(false);
   };
+
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
 
   if (loading) {
     return (

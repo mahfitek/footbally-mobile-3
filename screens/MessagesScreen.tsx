@@ -133,12 +133,6 @@ export default function MessagesScreen({ navigate }: Props) {
     navigate('chat', { id: u.user_id, name: u.full_name });
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadMessages();
-    loadConnections();
-  };
-
   const loadMessages = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
@@ -232,11 +226,6 @@ export default function MessagesScreen({ navigate }: Props) {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    loadMessages();
-    loadConnections();
-  }, []);
-
   const loadConnections = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
@@ -323,6 +312,11 @@ export default function MessagesScreen({ navigate }: Props) {
     setPendingRequests((prev) => prev.filter((p) => p.connectionId !== req.connectionId));
   };
 
+  useEffect(() => {
+    loadMessages();
+    loadConnections();
+  }, []);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -337,6 +331,12 @@ export default function MessagesScreen({ navigate }: Props) {
       </SafeAreaView>
     );
   }
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadMessages();
+    loadConnections();
+  };
 
   return (
     <SafeAreaView style={styles.safe}>

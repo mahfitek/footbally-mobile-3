@@ -77,17 +77,6 @@ export default function ScoutScreen({ navigate }: Props) {
   const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
   const FREE_PREVIEW_COUNT = 2;
 
-  useEffect(() => {
-    loadPlayers();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.user) return;
-      setViewerId(session.user.id);
-      const status = await fetchPremiumStatus(session.user.id).catch(() => INACTIVE_PREMIUM);
-      setIsPremium(status.active);
-      setPremiumUntil(status.until);
-    });
-  }, []);
-
   const requestConnection = async (player: PlayerView) => {
     if (!viewerId || player.id === viewerId || requestedIds.has(player.id)) return;
     const { error } = await supabase
@@ -144,6 +133,17 @@ export default function ScoutScreen({ navigate }: Props) {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadPlayers();
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) return;
+      setViewerId(session.user.id);
+      const status = await fetchPremiumStatus(session.user.id).catch(() => INACTIVE_PREMIUM);
+      setIsPremium(status.active);
+      setPremiumUntil(status.until);
+    });
+  }, []);
 
   if (loading) {
     return (

@@ -106,10 +106,6 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
   const [challengeLocation, setChallengeLocation] = useState('');
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
   const loadAll = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -206,6 +202,10 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
     if (selectedDistrict && team.district !== selectedDistrict) return false;
     return true;
   });
+
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   if (loading) {
     return (
