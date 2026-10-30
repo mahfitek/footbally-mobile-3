@@ -10,9 +10,10 @@ import {
   type StatusRpcResponse,
 } from './accountAccessRules';
 
-export { evaluateAccountAccess, mustSignOut } from './accountAccessRules';
+export { evaluateAccountAccess, mustSignOut, renderAccountMessage } from './accountAccessRules';
 export type {
   AccountAccessResult,
+  AccountMessage,
   AccountBanFields,
   AccountBanLookupResult,
   AccountSubjectRow,

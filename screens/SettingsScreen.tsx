@@ -9,6 +9,7 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { useAccountAccess } from '../lib/accountContext';
+import { renderAccountMessage } from '../lib/accountAccess';
 import { requestAccountDeletion } from '../lib/accountDeletion';
 import BottomSheet from '../components/BottomSheet';
 import SectionHeader from '../components/SectionHeader';
@@ -85,8 +86,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
   const statusDetail = statusClean
     ? undefined
     : access?.verified && access.allowed && access.teamRestricted
-      ? access.teamMessage
-      : access?.message ?? t('settings_accountStatusChecking');
+      ? renderAccountMessage(access.teamMessage, lang)
+      : renderAccountMessage(access?.message, lang) ?? t('settings_accountStatusChecking');
   // "Kısıtlı" yalnızca kişisel hesap kısıtlıysa gösterilir; takım yasağı ya da profil eksikliği ayrı etiket alır.
   const statusLabel = statusClean
     ? t('settings_accountStatusActive')

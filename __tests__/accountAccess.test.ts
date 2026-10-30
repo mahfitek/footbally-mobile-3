@@ -7,9 +7,15 @@ import {
   evaluateAccountAccess,
   mustSignOut,
   parseAccountStatusRows,
+  renderAccountMessage,
   type AccountAccessResult,
   type AccountBanLookupResult,
+  type AccountMessage,
 } from '../lib/accountAccessRules';
+
+/** Mesajı Türkçe metne çevirir. İngilizce için ikinci parametre 'en' verilir. */
+const textOf = (message: AccountMessage | undefined, lang: 'tr' | 'en' = 'tr') =>
+  renderAccountMessage(message, lang) ?? '';
 
 const UID = '11111111-1111-4111-8111-111111111111';
 const TEAM_ID = '22222222-2222-4222-8222-222222222222';
@@ -88,7 +94,7 @@ test('an unverified lookup keeps the session but closes protected writes', () =>
   assert.equal(access.unverifiedReason, 'rpc_error');
   assert.equal(access.profileWriteAllowed, false);
   assert.equal(access.teamWriteAllowed, false);
-  assert.match(access.message ?? '', /doğrulanamadı/);
+  assert.match(textOf(access.message), /doğrulanamadı/);
 });
 
 test('an unverified lookup never signs the user out', () => {
@@ -102,28 +108,28 @@ test('an unverified lookup never shows a ban message, whatever the reason', () =
     const access = evaluateAccountAccess(unverified(reason));
     assert.equal(access.expiredBan, false, reason);
     assert.equal(access.teamRestricted, false, reason);
-    assert.doesNotMatch(access.message ?? '', /kalıcı|askıya|yasaklan/, reason);
+    assert.doesNotMatch(textOf(access.message), /kalıcı|askıya|yasaklan/, reason);
   }
 });
 
 test('network and timeout failures ask the user to check the connection', () => {
-  assert.match(evaluateAccountAccess(unverified('network')).message ?? '', /bağlantınızı/);
-  assert.match(evaluateAccountAccess(unverified('timeout')).message ?? '', /bağlantınızı/);
+  assert.match(textOf(evaluateAccountAccess(unverified('network')).message), /bağlantınızı/);
+  assert.match(textOf(evaluateAccountAccess(unverified('timeout')).message), /bağlantınızı/);
 });
 
 test('a missing RPC or a missing profile is not reported as a network problem', () => {
-  assert.doesNotMatch(evaluateAccountAccess(unverified('missing_rpc')).message ?? '', /bağlantınızı/);
-  assert.doesNotMatch(evaluateAccountAccess(unverified('no_profile')).message ?? '', /bağlantınızı/);
+  assert.doesNotMatch(textOf(evaluateAccountAccess(unverified('missing_rpc')).message), /bağlantınızı/);
+  assert.doesNotMatch(textOf(evaluateAccountAccess(unverified('no_profile')).message), /bağlantınızı/);
 });
 
 test('an unverified lookup tells the user to try again, except a missing profile which states its own case', () => {
   for (const reason of UNVERIFIED_REASONS.filter((r) => r !== 'no_profile')) {
-    assert.match(evaluateAccountAccess(unverified(reason)).message ?? '', /tekrar/, reason);
+    assert.match(textOf(evaluateAccountAccess(unverified(reason)).message), /tekrar/, reason);
   }
 });
 
 test('each unverified reason has its own message, not one shared generic text', () => {
-  const messages = UNVERIFIED_REASONS.map((reason) => evaluateAccountAccess(unverified(reason)).message ?? '');
+  const messages = UNVERIFIED_REASONS.map((reason) => textOf(evaluateAccountAccess(unverified(reason)).message));
   assert.ok(messages.every((m) => m.length > 0));
   assert.equal(new Set(messages).size, UNVERIFIED_REASONS.length);
 });
@@ -131,7 +137,7 @@ test('each unverified reason has its own message, not one shared generic text', 
 test('a missing profile shows the profile-not-created message and keeps the account open', () => {
   const access = evaluateAccountAccess(unverified('no_profile'));
   assert.equal(
-    access.message,
+    textOf(access.message),
     'Oyuncu profiliniz henüz oluşturulmamış. Hesabınız açık, ancak bazı işlemler geçici olarak kullanılamıyor.',
   );
   assert.equal(access.allowed, true);
@@ -139,13 +145,53 @@ test('a missing profile shows the profile-not-created message and keeps the acco
 });
 
 test('a missing RPC says it is not a restriction', () => {
-  assert.match(evaluateAccountAccess(unverified('missing_rpc')).message ?? '', /kısıtlama anlamına gelmez/);
+  assert.match(textOf(evaluateAccountAccess(unverified('missing_rpc')).message), /kısıtlama anlamına gelmez/);
 });
 
 test('a permission failure is reported as a permission problem, not a connection or server problem', () => {
-  const message = evaluateAccountAccess(unverified('permission_denied')).message ?? '';
+  const message = textOf(evaluateAccountAccess(unverified('permission_denied')).message);
   assert.match(message, /yetki/);
   assert.doesNotMatch(message, /bağlantınızı/);
+});
+
+// --- Dil: her mesaj Türkçe ve İngilizce çevrilir; eksik çeviri anahtarın kendisini gösterir ---
+
+test('every unverified reason renders a real English message, not a translation key', () => {
+  for (const reason of UNVERIFIED_REASONS) {
+    const en = textOf(evaluateAccountAccess(unverified(reason)).message, 'en');
+    assert.ok(en.length > 0, reason);
+    assert.doesNotMatch(en, /^accountMsg_/, reason);
+    assert.notEqual(en, textOf(evaluateAccountAccess(unverified(reason)).message, 'tr'), reason);
+  }
+});
+
+test('the English no-profile message is the English wording of the same state', () => {
+  assert.equal(
+    textOf(evaluateAccountAccess(unverified('no_profile')).message, 'en'),
+    'Your player profile has not been created yet. Your account is open, but some actions are temporarily unavailable.',
+  );
+});
+
+test('English ban messages use the English subject, date and reason', () => {
+  const access = evaluateAccountAccess(
+    parse([profileRow({ account_status: 'banned', banned_until: '2027-01-15T12:00:00.000Z', ban_reason: 'spam' })]),
+  );
+  const en = textOf(access.message, 'en');
+  assert.match(en, /^Your account is suspended until January 15, 2027\./);
+  assert.match(en, /Reason: spam$/);
+  assert.doesNotMatch(en, /Hesab|Sebep|Ocak/);
+});
+
+test('English team restriction names a team the user owns', () => {
+  const access = evaluateAccountAccess(
+    parse([profileRow(), teamRow({ account_status: 'banned', ban_is_permanent: true })]),
+  );
+  assert.equal(textOf(access.teamMessage, 'en'), 'A team you own has been permanently banned.');
+});
+
+test('the language of a rendered message follows the requested language, not the stored data', () => {
+  const access = evaluateAccountAccess(unverified('rpc_error'));
+  assert.notEqual(textOf(access.message, 'en'), textOf(access.message, 'tr'));
 });
 
 // --- Hata sınıflandırması ---
@@ -285,8 +331,8 @@ test('a live team ban is a team restriction and does not block the personal acco
   assert.equal(access.teamRestricted, true);
   assert.equal(access.teamWriteAllowed, false);
   assert.equal(access.message, undefined);
-  assert.match(access.teamMessage ?? '', /Sahip olduğunuz bir takım kalıcı/);
-  assert.match(access.teamMessage ?? '', /Sebep: kötü takım/);
+  assert.match(textOf(access.teamMessage), /Sahip olduğunuz bir takım kalıcı/);
+  assert.match(textOf(access.teamMessage), /Sebep: kötü takım/);
   assert.equal(mustSignOut(access), false);
 });
 
@@ -298,7 +344,7 @@ test('a live profile ban is found after team rows and blocks the personal accoun
   ]));
   assert.equal(access.allowed, false);
   assert.equal(mustSignOut(access), true);
-  assert.match(access.message ?? '', /tarihine kadar/);
+  assert.match(textOf(access.message), /tarihine kadar/);
 });
 
 // --- Sıra bağımsızlığı: ilk satır karar değildir ---
@@ -309,7 +355,7 @@ test('a banned profile is denied even when a clean team row comes first', () => 
     profileRow({ account_status: 'banned', ban_is_permanent: true, ban_reason: 'spam' }),
   ]));
   assert.equal(access.allowed, false);
-  assert.match(access.message ?? '', /kalıcı/);
+  assert.match(textOf(access.message), /kalıcı/);
 });
 
 test('a banned profile is denied when it comes after a banned team row', () => {
@@ -328,7 +374,7 @@ test('a clean profile is never blocked by a banned team, in either order', () =>
     assert.equal(access.allowed, true);
     assert.equal(access.verified, true);
     assert.equal(access.teamRestricted, true);
-    assert.match(access.teamMessage ?? '', /Sahip olduğunuz bir takım kalıcı/);
+    assert.match(textOf(access.teamMessage), /Sahip olduğunuz bir takım kalıcı/);
     assert.equal(access.message, undefined);
   }
 });
@@ -394,7 +440,7 @@ test('legacy shape: banned profile and team rows are still read', () => {
   ]));
   assert.equal(access.allowed, false);
   assert.equal(access.teamRestricted, true);
-  assert.match(access.message ?? '', /Sebep: spam/);
+  assert.match(textOf(access.message), /Sebep: spam/);
 });
 
 test('legacy shape: an owner with an active profile and team is allowed without restriction', () => {
@@ -415,8 +461,8 @@ test('a permanent ban is denied, shows the reason and signs out', () => {
   assert.equal(access.allowed, false);
   assert.equal(access.verified, true);
   assert.equal(mustSignOut(access), true);
-  assert.match(access.message ?? '', /kalıcı/);
-  assert.match(access.message ?? '', /Sebep: spam/);
+  assert.match(textOf(access.message), /kalıcı/);
+  assert.match(textOf(access.message), /Sebep: spam/);
 });
 
 test('a permanent ban wins even when an old banned_until is in the past', () => {
@@ -429,7 +475,7 @@ test('a temporary ban in the future is denied with its end date', () => {
   const access = evaluateAccountAccess(parse([profileRow({ account_status: 'banned', banned_until: future(3) })]));
   assert.equal(access.allowed, false);
   assert.equal(access.expiredBan, false);
-  assert.match(access.message ?? '', /tarihine kadar/);
+  assert.match(textOf(access.message), /tarihine kadar/);
 });
 
 test('an expired temporary profile ban is allowed and flagged for clearing', () => {
@@ -441,7 +487,7 @@ test('an expired temporary profile ban is allowed and flagged for clearing', () 
 test('a temporary ban without an end date is still denied and does not crash', () => {
   const access = evaluateAccountAccess(parse([profileRow({ account_status: 'banned', banned_until: null, ban_is_permanent: false })]));
   assert.equal(access.allowed, false);
-  assert.match(access.message ?? '', /askıya alınmıştır/);
+  assert.match(textOf(access.message), /askıya alınmıştır/);
 });
 
 test('an inactive account is denied', () => {

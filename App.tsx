@@ -57,7 +57,7 @@ import OfflineBanner from './components/OfflineBanner';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { parseRecoveryUrl, PASSWORD_RESET_REDIRECT } from './lib/authFlows';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
-import { checkAccountAccess, clearExpiredBan, mustSignOut, type AccountAccessResult } from './lib/accountAccess';
+import { checkAccountAccess, clearExpiredBan, mustSignOut, renderAccountMessage, type AccountAccessResult } from './lib/accountAccess';
 import { AccountAccessContext } from './lib/accountContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import RatingPromptSheet from './components/RatingPromptSheet';
@@ -304,7 +304,7 @@ function AppContent() {
       setAccountAccess(null);
       setHistory([]);
       setScreen('onboarding');
-      Alert.alert(t('login_blocked'), access.message);
+      Alert.alert(t('login_blocked'), renderAccountMessage(access.message, lang));
       void supabase.auth.signOut();
       return false;
     }

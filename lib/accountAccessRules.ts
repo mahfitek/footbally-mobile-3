@@ -1,6 +1,8 @@
 // Hesap erişim kuralları (saf fonksiyonlar). Supabase'e bağımlı değildir; birim testleri bu dosyayı kullanır.
 // Veri çekme ve süresi dolmuş yasağı temizleme: accountAccess.ts.
+// Mesajlar burada metin olarak tutulmaz: yapısal veri döner, renderAccountMessage dilde çevirir.
 import { isMissingRpc } from './reports';
+import { t as translate, type Lang, type TranslationKey } from './i18n';
 
 export interface AccountBanFields {
   account_status: string;
@@ -52,6 +54,22 @@ export type AccountBanLookupResult =
       httpStatus?: number;
     };
 
+/**
+ * Kullanıcıya gösterilecek hesap mesajı. Metin değil veri: dil, render anında (renderAccountMessage) seçilir;
+ * böylece Ayarlar'da dil değiştiğinde mesaj da değişir.
+ */
+export type AccountMessage =
+  | { kind: 'unverified'; reason: AccountUnverifiedReason }
+  | {
+      kind: 'ban';
+      subject: 'account' | 'team';
+      /** permanent: kalıcı; until: bitiş tarihi (ISO); indefinite: süre bilinmiyor. */
+      ban: 'permanent' | 'until' | 'indefinite';
+      until?: string;
+      reason?: string | null;
+    }
+  | { kind: 'inactive' };
+
 export interface AccountAccessResult {
   /**
    * Kişisel oturum devam edebilir mi. Yalnızca doğrulanmış kişisel yasak ya da pasiflik false yapar.
@@ -67,21 +85,55 @@ export interface AccountAccessResult {
   unverifiedReason?: AccountUnverifiedReason;
   /** Profil satırındaki süresi dolmuş geçici yasak; sunucuda temizlenmesi gerekir. */
   expiredBan: boolean;
-  message?: string;
+  message?: AccountMessage;
   /** Sahip olunan takımlardan en az biri aktif olarak yasaklı. Kişisel oturumu kapatmaz; takım işlemlerini kısıtlar. */
   teamRestricted: boolean;
-  teamMessage?: string;
+  teamMessage?: AccountMessage;
 }
 
-const TURKISH_MONTHS = [
-  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-];
-
-// Formatted manually (not toLocaleDateString) so the tr-TR output is guaranteed
+// Formatted manually (not toLocaleDateString) so the output is guaranteed
 // regardless of whether the device's Hermes build includes full ICU data.
-function formatDate(d: Date): string {
-  return `${d.getDate()} ${TURKISH_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+function formatDate(d: Date, lang: Lang): string {
+  const monthKeys: TranslationKey[] = [
+    'accountMsg_month1', 'accountMsg_month2', 'accountMsg_month3', 'accountMsg_month4',
+    'accountMsg_month5', 'accountMsg_month6', 'accountMsg_month7', 'accountMsg_month8',
+    'accountMsg_month9', 'accountMsg_month10', 'accountMsg_month11', 'accountMsg_month12',
+  ];
+  const month = translate(monthKeys[d.getMonth()], lang);
+  return lang === 'en'
+    ? `${month} ${d.getDate()}, ${d.getFullYear()}`
+    : `${d.getDate()} ${month} ${d.getFullYear()}`;
+}
+
+/** Hesap mesajını seçilen dile çevirir. Mesaj yoksa undefined döner. */
+export function renderAccountMessage(message: AccountMessage | undefined, lang: Lang): string | undefined {
+  if (!message) return undefined;
+  if (message.kind === 'inactive') return translate('accountMsg_inactive', lang);
+  if (message.kind === 'unverified') {
+    const keys = {
+      network: 'accountMsg_unverifiedNetwork',
+      timeout: 'accountMsg_unverifiedTimeout',
+      missing_rpc: 'accountMsg_unverifiedMissingRpc',
+      permission_denied: 'accountMsg_unverifiedPermission',
+      rpc_error: 'accountMsg_unverifiedRpc',
+      no_profile: 'accountMsg_unverifiedNoProfile',
+      malformed: 'accountMsg_unverifiedMalformed',
+    } as const;
+    return translate(keys[message.reason], lang);
+  }
+  const subject = translate(message.subject === 'team' ? 'accountMsg_subjectTeam' : 'accountMsg_subjectAccount', lang);
+  let text: string;
+  if (message.ban === 'permanent') {
+    text = translate('accountMsg_banPermanent', lang).replace('{subject}', subject);
+  } else if (message.ban === 'until' && message.until) {
+    text = translate('accountMsg_banUntil', lang)
+      .replace('{subject}', subject)
+      .replace('{date}', formatDate(new Date(message.until), lang));
+  } else {
+    text = translate('accountMsg_banIndefinite', lang).replace('{subject}', subject);
+  }
+  if (message.reason) text += ` ${translate('accountMsg_reason', lang).replace('{reason}', message.reason)}`;
+  return text;
 }
 
 export interface StatusRpcResponse {
@@ -191,31 +243,9 @@ export function parseAccountStatusRows(data: unknown, userId: string): AccountBa
  *  - Doğrulanamama: oturum açık kalır, korunan yazmalar kapalıdır. Yasak mesajı ASLA gösterilmez.
  *  - Takım yasağı kişisel oturumu kapatmaz; takım yazmalarını kapatır.
  */
-/**
- * Doğrulanamama nedeni için kullanıcı mesajı. Her neden ayrı metin alır; hepsi "kısıtlama" iddiası taşımaz.
- * Yasak metinleri burada üretilmez (bkz. evaluateBanFields).
- */
-function unverifiedMessage(reason: AccountUnverifiedReason): string {
-  switch (reason) {
-    case 'network':
-      return 'Hesap durumunuz doğrulanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
-    case 'timeout':
-      return 'Hesap durumunuz zamanında doğrulanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
-    case 'missing_rpc':
-      return 'Hesap durumu servisi bu sunucuda henüz etkin değil. Bu bir kısıtlama anlamına gelmez; daha sonra tekrar deneyin.';
-    case 'permission_denied':
-      return 'Hesap durumunuz sunucuda okunamadı (yetki hatası). Lütfen daha sonra tekrar deneyin.';
-    case 'rpc_error':
-      return 'Hesap durumunuz sunucuda doğrulanamadı. Lütfen daha sonra tekrar deneyin.';
-    case 'no_profile':
-      return 'Oyuncu profiliniz henüz oluşturulmamış. Hesabınız açık, ancak bazı işlemler geçici olarak kullanılamıyor.';
-    case 'malformed':
-      return 'Hesap durumunuz sunucudan beklenmeyen bir yanıtla geldi. Lütfen daha sonra tekrar deneyin.';
-  }
-}
-
 export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAccessResult {
   if (!lookup.verified) {
+    // Her neden ayrı mesaj alır; hiçbiri yasak anlamına gelmez (bkz. renderAccountMessage).
     return {
       allowed: true,
       profileWriteAllowed: false,
@@ -224,7 +254,7 @@ export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAc
       unverifiedReason: lookup.reason,
       expiredBan: false,
       teamRestricted: false,
-      message: unverifiedMessage(lookup.reason),
+      message: { kind: 'unverified', reason: lookup.reason },
     };
   }
 
@@ -237,7 +267,7 @@ export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAc
     teamWriteAllowed: profileAccess.allowed && !teamRestricted,
     teamRestricted,
     // Hangi takım olduğu RPC'de yok; mesaj belirli bir takım adı iddia etmez.
-    teamMessage: activeTeamBan ? banMessage(activeTeamBan, 'Sahip olduğunuz bir takım') : undefined,
+    teamMessage: activeTeamBan ? banMessage(activeTeamBan, 'team') : undefined,
   };
 }
 
@@ -250,30 +280,25 @@ function isActiveBan(row: AccountBanFields): boolean {
   return until.getTime() > Date.now();
 }
 
-function banMessage(row: AccountBanFields, subject: string): string {
-  const reasonSuffix = row.ban_reason ? ` Sebep: ${row.ban_reason}` : '';
-  if (row.ban_is_permanent) return `${subject} kalıcı olarak yasaklanmıştır.${reasonSuffix}`;
+function banMessage(row: AccountBanFields, subject: 'account' | 'team'): AccountMessage {
+  const reason = row.ban_reason ?? null;
+  if (row.ban_is_permanent) return { kind: 'ban', subject, ban: 'permanent', reason };
   const until = row.banned_until ? new Date(row.banned_until) : null;
   if (until && !Number.isNaN(until.getTime())) {
-    return `${subject} ${formatDate(until)} tarihine kadar askıya alınmıştır.${reasonSuffix}`;
+    return { kind: 'ban', subject, ban: 'until', until: until.toISOString(), reason };
   }
   // Bitiş tarihi yoksa süre bilinmiyor; yine de yasak uygulanır.
-  return `${subject} askıya alınmıştır.${reasonSuffix}`;
+  return { kind: 'ban', subject, ban: 'indefinite', reason };
 }
 
 function evaluateBanFields(row: AccountBanFields): Pick<AccountAccessResult, 'allowed' | 'verified' | 'expiredBan' | 'message'> {
   if (row.account_status === 'banned') {
     if (!isActiveBan(row)) return { allowed: true, verified: true, expiredBan: true };
-    return { allowed: false, verified: true, expiredBan: false, message: banMessage(row, 'Hesabınız') };
+    return { allowed: false, verified: true, expiredBan: false, message: banMessage(row, 'account') };
   }
 
   if (row.account_status === 'inactive') {
-    return {
-      allowed: false,
-      verified: true,
-      expiredBan: false,
-      message: 'Hesabınız şu anda pasif durumda. Aktif hale getirilmesi için destek ile iletişime geçin.',
-    };
+    return { allowed: false, verified: true, expiredBan: false, message: { kind: 'inactive' } };
   }
 
   return { allowed: true, verified: true, expiredBan: false };
