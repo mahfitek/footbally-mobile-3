@@ -8,7 +8,7 @@ import { CARD_RADIUS, Paper, Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
-import { fetchAccountBanRow, evaluateAccountAccess } from '../lib/accountAccess';
+import { useAccountAccess } from '../lib/accountContext';
 import { requestAccountDeletion } from '../lib/accountDeletion';
 import BottomSheet from '../components/BottomSheet';
 import SectionHeader from '../components/SectionHeader';
@@ -76,8 +76,22 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
-  const [accountStatus, setAccountStatus] = useState<{ ok: boolean; detail?: string }>({ ok: true });
   const [deleting, setDeleting] = useState(false);
+  const [retryingStatus, setRetryingStatus] = useState(false);
+  // Hesap durumu App'teki tek kaynaktan gelir; Ayarlar kendi sorgusunu yapmaz.
+  const { access, refresh: refreshAccountStatus } = useAccountAccess();
+  // Doğrulanmış ve temiz: korunan işlemler açık. Doğrulanamadıysa "tekrar dene" sunulur.
+  const statusClean = !!access && access.verified && access.allowed && !access.teamRestricted;
+  const statusDetail = statusClean
+    ? undefined
+    : access?.verified && access.allowed && access.teamRestricted
+      ? access.teamMessage
+      : access?.message ?? t('settings_accountStatusChecking');
+  const statusLabel = statusClean
+    ? t('settings_accountStatusActive')
+    : access?.verified
+      ? t('settings_accountStatusRestricted')
+      : t('settings_accountStatusUnverified');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -85,13 +99,11 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     });
   }, []);
 
-  useEffect(() => {
-    if (!userId) return;
-    fetchAccountBanRow(userId).then((lookup) => {
-      const access = evaluateAccountAccess(lookup);
-      setAccountStatus(access.allowed ? { ok: true } : { ok: false, detail: access.message });
-    });
-  }, [userId]);
+  const retryAccountStatus = async () => {
+    setRetryingStatus(true);
+    await refreshAccountStatus();
+    setRetryingStatus(false);
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -287,23 +299,33 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         <SectionHeader title={t('settings_accountSectionHeader')} horizontalPadding={4} />
 
         <SettingRow theme={theme}
-          icon={accountStatus.ok ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+          icon={statusClean ? 'checkmark-circle-outline' : 'alert-circle-outline'}
           title={t('settings_accountStatusTitle')}
-          subtitle={accountStatus.ok ? t('settings_accountStatusOk') : accountStatus.detail}
+          subtitle={
+            statusClean
+              ? t('settings_accountStatusOk')
+              : `${statusDetail ?? ''} ${access?.verified ? '' : t('settings_accountStatusRetryHint')}`.trim()
+          }
           onPress={() => {
-            if (!accountStatus.ok) Alert.alert(t('settings_accountStatusTitle'), accountStatus.detail || t('settings_accountRestrictionDefault'));
+            // Doğrulanamayan durumda dokunmak yeniden dener; doğrulanmış kısıtlamada yalnızca açıklama gösterilir.
+            if (statusClean || retryingStatus) return;
+            if (access?.verified) {
+              Alert.alert(t('settings_accountStatusTitle'), statusDetail || t('settings_accountRestrictionDefault'));
+            } else {
+              void retryAccountStatus();
+            }
           }}
           right={
             <View
               style={{
                 borderWidth: 1,
-                borderColor: accountStatus.ok ? theme.success : theme.error,
+                borderColor: statusClean ? theme.success : theme.error,
                 borderRadius: RADIUS,
                 paddingHorizontal: 10,
                 paddingVertical: 4,
               }}>
-              <Text style={{ color: accountStatus.ok ? theme.success : theme.error, fontSize: 11, fontFamily: FontFamily.mono }}>
-                {(accountStatus.ok ? t('settings_accountStatusActive') : t('settings_accountStatusRestricted')).toUpperCase()}
+              <Text style={{ color: statusClean ? theme.success : theme.error, fontSize: 11, fontFamily: FontFamily.mono }}>
+                {statusLabel.toUpperCase()}
               </Text>
             </View>
           }

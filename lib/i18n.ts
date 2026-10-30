@@ -61,6 +61,14 @@ const translations = {
     onboarding_continue: 'Devam Et',
     onboarding_alreadyHaveAccount: 'Zaten hesabım var',
 
+    // Hesap durumu (doğrulama ve korunan yazmalar)
+    settings_accountStatusChecking: 'Hesap durumu kontrol ediliyor…',
+    settings_accountStatusUnverified: 'Doğrulanamadı',
+    settings_accountStatusRetryHint: 'Tekrar denemek için dokun',
+    account_writeBlockedTitle: 'Kaydedilemedi',
+    account_writeBlocked: 'Hesap durumunuz doğrulanamadığı için bu değişiklik kaydedilemiyor. Ayarlar\'dan hesap durumunu tekrar deneyin.',
+    account_teamWriteBlocked: 'Sahip olduğunuz takımda aktif bir yasak olduğu için takım bilgileri değiştirilemez.',
+
     // Profil menüsü (tek hesap türü)
     profileHub_header: 'HESABIM',
     profileHub_playerProfile: 'Oyuncu profilim',
@@ -1253,6 +1261,14 @@ const translations = {
     onboarding_start: 'Start',
     onboarding_continue: 'Continue',
     onboarding_alreadyHaveAccount: 'I already have an account',
+
+    // Account status (verification and protected writes)
+    settings_accountStatusChecking: 'Checking account status…',
+    settings_accountStatusUnverified: 'Unverified',
+    settings_accountStatusRetryHint: 'Tap to retry',
+    account_writeBlockedTitle: 'Could not save',
+    account_writeBlocked: "This change can't be saved because your account status could not be verified. Retry the account status from Settings.",
+    account_teamWriteBlocked: 'Team details cannot be changed while an active restriction applies to a team you own.',
 
     // Profile menu (single account type)
     profileHub_header: 'MY ACCOUNT',

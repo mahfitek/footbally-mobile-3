@@ -17,7 +17,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
 import { translateAuthError } from '../lib/authErrors';
 import { requestPasswordReset } from '../lib/authFlows';
 import HapticTouchable from '../components/HapticTouchable';
@@ -66,28 +65,15 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setLoading(false);
       Alert.alert(t('login_error'), translateAuthError(error.message, t));
       return;
     }
 
-    const userId = data.user?.id;
-    if (userId) {
-      const banLookup = await fetchAccountBanRow(userId);
-      const access = evaluateAccountAccess(banLookup);
-      if (!access.allowed) {
-        await supabase.auth.signOut();
-        setLoading(false);
-        Alert.alert(t('login_blocked'), access.message);
-        return;
-      }
-      if (access.expiredBan) {
-        void clearExpiredBan();
-      }
-    }
-
+    // Hesap durumu (yasak/pasiflik) App tarafında kontrol edilir: doğrulanmış yasaklı hesap oturumdan çıkarılır,
+    // doğrulanamayan hesap ise oturumda kalır ve korunan işlemler kapalı başlar.
     setLoading(false);
     onLogin();
   };

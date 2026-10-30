@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet, Linking, Alert } from 'react-native';
+import { View, StyleSheet, Linking, Alert, BackHandler } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -57,7 +57,8 @@ import OfflineBanner from './components/OfflineBanner';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { parseRecoveryUrl, PASSWORD_RESET_REDIRECT } from './lib/authFlows';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
-import { checkAccountAccess } from './lib/accountAccess';
+import { checkAccountAccess, clearExpiredBan, mustSignOut, type AccountAccessResult } from './lib/accountAccess';
+import { AccountAccessContext } from './lib/accountContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import RatingPromptSheet from './components/RatingPromptSheet';
 import { shouldShowRatingPrompt, markRatingPromptShown, markRatingPromptResponded } from './lib/appRating';
@@ -170,6 +171,8 @@ function AppContent() {
   // Tek hesap türü: oyuncu/takım ayrımı yok. Saha sahipleri (venues) panelden tanımlandığı için ayrı kalır.
   const [userType, setUserType] = useState<'player' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Hesap durumu tek kaynak: giriş, açılış ve Ayarlar bu değeri kullanır. null = henüz kontrol edilmedi.
+  const [accountAccess, setAccountAccess] = useState<AccountAccessResult | null>(null);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
   const [settingsFrom, setSettingsFrom] = useState<Screen>('profile');
   const sessionRef = useRef<Session | null>(null);
@@ -245,6 +248,29 @@ function AppContent() {
       }
     });
 
+  // Ayarlar'daki "Tekrar dene": hesap durumunu yeniden sorar.
+  const refreshAccountAccess = async () => {
+    const uid = sessionRef.current?.user?.id;
+    if (uid) await applyAccountAccess(uid);
+  };
+
+  // Android geri tuşu: geçmiş varsa önceki ekrana döner; geçmiş yoksa ve ana ekranda değilsek ana ekrana döner.
+  // Böylece takım ekranlarından geri basmak uygulamayı kapatmaz. Ana ekranda sistem geri davranışı korunur.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (history.length > 0) {
+        goBack();
+        return true;
+      }
+      if (screen !== 'home' && screen !== 'splash' && screen !== 'onboarding' && screen !== 'login') {
+        navigate('home');
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [history, screen]);
+
   const savePushToken = async (userId: string) => {
     if (!pushTokenRef.current) return;
     await profiles.updateOwn(userId, { push_token: pushTokenRef.current });
@@ -262,10 +288,30 @@ function AppContent() {
     return isVenue;
   };
 
-  // Giriş/kayıt sonrası çağrılır. Login ekranı ban kontrolünü bu çağrıdan önce yapar ve yasaklıysa çağırmaz.
+  // Hesap durumunu uygular. Yalnızca doğrulanmış kişisel yasak/pasiflik oturumu kapatır (false döner).
+  // Doğrulanamama oturumu kapatmaz: durum saklanır, korunan yazmalar kapalı kalır ve Ayarlar'da yeniden denenebilir.
+  const applyAccountAccess = async (uid: string): Promise<boolean> => {
+    const access = await checkAccountAccess(uid);
+    if (mustSignOut(access)) {
+      sessionRef.current = null;
+      setCurrentUserId(null);
+      setAccountAccess(null);
+      setHistory([]);
+      setScreen('onboarding');
+      Alert.alert(t('login_blocked'), access.message);
+      void supabase.auth.signOut();
+      return false;
+    }
+    if (access.verified && access.expiredBan) void clearExpiredBan();
+    setAccountAccess(access);
+    return true;
+  };
+
+  // Giriş/kayıt sonrası çağrılır. Yasaklı ya da pasif hesap burada oturumdan çıkarılır ve ana ekrana geçilmez.
   const handleAuthSuccess = async () => {
     const uid = sessionRef.current?.user?.id;
     if (uid) {
+      if (!(await applyAccountAccess(uid))) return;
       savePushToken(uid);
       await checkVenueOwnership(uid);
     }
@@ -273,18 +319,9 @@ function AppContent() {
   };
 
   useEffect(() => {
-    // Açılıştaki kayıtlı oturumda ban kontrolü: yasaklıysa oturum kapatılır, doğrulanamazsa (örn. çevrimdışı) oturum korunur.
+    // Açılıştaki kayıtlı oturum: yasaklıysa kapatılır, doğrulanamazsa (çevrimdışı, geçici hata) oturum korunur.
     const restoreStoredSession = async (session: Session) => {
-      const access = await checkAccountAccess(session.user.id);
-      if (access.verified && !access.allowed) {
-        sessionRef.current = null;
-        setCurrentUserId(null);
-        setHistory([]);
-        setScreen('onboarding');
-        Alert.alert('Giriş engellendi', access.message);
-        void supabase.auth.signOut();
-        return;
-      }
+      if (!(await applyAccountAccess(session.user.id))) return;
       await routeForSession(session);
     };
 
@@ -292,6 +329,8 @@ function AppContent() {
       if (session) {
         savePushToken(session.user.id);
         await checkVenueOwnership(session.user.id);
+      } else {
+        setAccountAccess(null);
       }
       setScreen((current) => {
         // Kurtarma (şifre sıfırlama) akışında oturum açılsa da kullanıcı yeni şifre ekranında kalır.
@@ -526,6 +565,7 @@ function AppContent() {
   };
 
   return (
+    <AccountAccessContext.Provider value={{ access: accountAccess, refresh: refreshAccountAccess }}>
     <ErrorBoundary theme={theme} lang={lang}>
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -558,6 +598,7 @@ function AppContent() {
         />
       </View>
     </ErrorBoundary>
+    </AccountAccessContext.Provider>
   );
 }
 
