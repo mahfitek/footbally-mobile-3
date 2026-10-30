@@ -12,14 +12,14 @@ export interface AccountBanFields {
 export type AccountSubjectType = 'profile' | 'team';
 
 /**
- * get_my_account_status satırı. Bir yanıt birden fazla satır içerebilir (profil + sahip olunan takımlar) ve
- * sırası garanti değildir; bu yüzden satırlar yalnızca tipi ve gerçek kimliğiyle eşleştirilerek okunur.
+ * Canlı get_my_account_status satırının (source, account_status, banned_until, ban_is_permanent, ban_reason)
+ * ve eski şeklin (subject_type, subject_id, ...) ortak temsili. Satırın tipi hangi alanla geldiyse ondan okunur.
  *  - subject_type: 'profile' (kullanıcının kendi profili) veya 'team' (sahip olunan takım)
- *  - subject_id:   profil satırında auth kullanıcı id'si, takım satırında takım id'si
+ *  - subject_id:   canlı RPC döndürmez (null); eski şekilde profilde auth kullanıcı id'si, takımda takım id'si
  */
 export interface AccountSubjectRow extends AccountBanFields {
   subject_type: AccountSubjectType;
-  subject_id: string;
+  subject_id: string | null;
 }
 
 /**
@@ -29,7 +29,7 @@ export interface AccountSubjectRow extends AccountBanFields {
  *  - timeout:      sunucu makul sürede yanıt vermedi
  *  - missing_rpc:  get_my_account_status fonksiyonu sunucuda yok
  *  - rpc_error:    RPC hata döndürdü (yetki, sunucu hatası vb.)
- *  - malformed:    RPC yanıtı beklenen şekilde değil veya bir satırın kimliği oturumdaki kullanıcıyla eşleşmiyor
+ *  - malformed:    yanıt boş, bozuk, beklenen profil satırını içermiyor veya kimliği eşleşmiyor
  */
 export type AccountUnverifiedReason = 'network' | 'timeout' | 'missing_rpc' | 'rpc_error' | 'malformed';
 
@@ -71,15 +71,31 @@ export function classifyAccountStatusError(error: { code?: string; message?: str
 
 const MALFORMED: AccountBanLookupResult = { verified: false, reason: 'malformed' };
 
+/**
+ * Satırın tipi: canlı RPC `source`, eski şekil `subject_type` kullanır. İkisi de varsa aynı olmalıdır.
+ * Tanınmayan ya da birbiriyle çelişen tip null döner.
+ */
+function readSubjectType(candidate: Record<string, unknown>): AccountSubjectType | null {
+  const { source, subject_type: legacyType } = candidate;
+  const isKnown = (value: unknown): value is AccountSubjectType => value === 'profile' || value === 'team';
+  if (source !== undefined && !isKnown(source)) return null;
+  if (legacyType !== undefined && !isKnown(legacyType)) return null;
+  if (source !== undefined && legacyType !== undefined && source !== legacyType) return null;
+  return source ?? legacyType ?? null;
+}
+
 function parseSubjectRow(raw: unknown): AccountSubjectRow | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const candidate = raw as Record<string, unknown>;
   if (typeof candidate.account_status !== 'string') return null;
-  if (candidate.subject_type !== 'profile' && candidate.subject_type !== 'team') return null;
-  if (typeof candidate.subject_id !== 'string' || candidate.subject_id.length === 0) return null;
+  const subjectType = readSubjectType(candidate);
+  if (subjectType === null) return null;
+  // Canlı RPC subject_id döndürmez (null). Varsa boş olmayan metin olmalıdır.
+  const { subject_id: subjectId } = candidate;
+  if (subjectId !== undefined && subjectId !== null && (typeof subjectId !== 'string' || subjectId.length === 0)) return null;
   return {
-    subject_type: candidate.subject_type,
-    subject_id: candidate.subject_id,
+    subject_type: subjectType,
+    subject_id: typeof subjectId === 'string' ? subjectId : null,
     account_status: candidate.account_status,
     banned_until: typeof candidate.banned_until === 'string' ? candidate.banned_until : null,
     ban_is_permanent: typeof candidate.ban_is_permanent === 'boolean' ? candidate.ban_is_permanent : null,
@@ -88,14 +104,16 @@ function parseSubjectRow(raw: unknown): AccountSubjectRow | null {
 }
 
 /**
- * get_my_account_status yanıtını oturumdaki kullanıcı kimliğiyle doğrular.
+ * get_my_account_status yanıtını doğrular. Sonuç yalnızca tüm satırlar tanınır ve tam bir profil satırı varsa
+ * doğrulanmış sayılır; aksi halde temiz hesap varsayılmaz.
  *  - Yanıt bir dizi ya da tek satır olabilir; sıra anlamsızdır, ilk satır ASLA tek başına karar değildir.
- *  - Her satır tipi ve kimliğiyle okunur. Profil satırının kimliği oturumdaki kullanıcıyla eşleşmelidir.
- *  - Tanınmayan, eksik alanlı veya başka kullanıcıya ait bir satır varsa tüm yanıt doğrulanamadı sayılır.
- *  - Boş yanıt: kısıt yoktur (hesap durumu kaydı olmayan kullanıcı).
+ *  - Tam olarak bir profil satırı şarttır. Null, boş, bozuk, profilsiz ya da birden çok profil satırı → malformed.
+ *  - Profil satırında subject_id varsa oturumdaki kullanıcıyla eşleşmelidir; yoksa RPC'nin çağıranın kendi
+ *    satırını döndürdüğüne güvenilir (canlı şekil).
+ *  - Takım satırları takım kısıtlaması olarak okunur; hangi takıma ait olduğu bilinmez, kişisel oturumu kapatmaz.
  */
 export function parseAccountStatusRows(data: unknown, userId: string): AccountBanLookupResult {
-  if (data === null || data === undefined) return { verified: true, profile: null, teams: [] };
+  if (data === null || typeof data !== 'object') return MALFORMED;
   const rows: unknown[] = Array.isArray(data) ? data : [data];
 
   let profile: AccountBanFields | null = null;
@@ -107,7 +125,7 @@ export function parseAccountStatusRows(data: unknown, userId: string): AccountBa
     if (!row) return MALFORMED;
     if (row.subject_type === 'profile') {
       // Başka bir kullanıcının profil satırı asla bu kullanıcının kararına girmez.
-      if (row.subject_id !== userId) return MALFORMED;
+      if (row.subject_id !== null && row.subject_id !== userId) return MALFORMED;
       profileRows += 1;
       profile = {
         account_status: row.account_status,
@@ -120,7 +138,7 @@ export function parseAccountStatusRows(data: unknown, userId: string): AccountBa
     }
   }
 
-  if (profileRows > 1) return MALFORMED;
+  if (profileRows !== 1) return MALFORMED;
   return { verified: true, profile, teams };
 }
 
@@ -143,7 +161,8 @@ export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAc
   return {
     ...profileAccess,
     teamRestricted: !!activeTeamBan,
-    teamMessage: activeTeamBan ? banMessage(activeTeamBan, 'Takımınız') : undefined,
+    // Hangi takım olduğu RPC'de yok; mesaj belirli bir takım adı iddia etmez.
+    teamMessage: activeTeamBan ? banMessage(activeTeamBan, 'Sahip olduğunuz bir takım') : undefined,
   };
 }
 

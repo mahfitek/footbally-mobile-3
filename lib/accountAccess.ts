@@ -24,9 +24,10 @@ const ACCOUNT_STATUS_TIMEOUT_MS = 6000;
 /**
  * Ban/status rows of the signed-in user (contract §4.2).
  *
- * Uses get_my_account_status(), which returns the caller's own profile row and owned team rows, in no guaranteed
- * order. Rows are matched by type and identity against `userId`; the `teams` table is NOT read here.
+ * Uses get_my_account_status(), which returns the caller's own profile row (`source = 'profile'`) and owned team
+ * rows (`source = 'team'`) in no guaranteed order. The `teams` table is NOT read here.
  * Errors are classified (network, timeout, missing RPC, RPC error, malformed) and never treated as a ban.
+ * A response that is not verified is never treated as a clean account.
  */
 export async function fetchAccountBanRow(userId: string): Promise<AccountBanLookupResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -34,13 +35,16 @@ export async function fetchAccountBanRow(userId: string): Promise<AccountBanLook
     timer = setTimeout(() => resolve({ verified: false, reason: 'timeout' }), ACCOUNT_STATUS_TIMEOUT_MS);
   });
   const lookup = (async (): Promise<AccountBanLookupResult> => {
+    let response: Awaited<ReturnType<typeof supabase.rpc>>;
     try {
-      const { data, error } = await supabase.rpc('get_my_account_status');
-      if (error) return { verified: false, reason: classifyAccountStatusError(error) };
-      return parseAccountStatusRows(data, userId);
+      response = await supabase.rpc('get_my_account_status');
     } catch {
+      // Yalnızca istemci çağrısının kendisi fırlatırsa ağ hatası sayılır; ayrıştırma hataları burada değil.
       return { verified: false, reason: 'network' };
     }
+    const { data, error } = response;
+    if (error) return { verified: false, reason: classifyAccountStatusError(error) };
+    return parseAccountStatusRows(data, userId);
   })();
   try {
     return await Promise.race([lookup, timeout]);
