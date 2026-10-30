@@ -269,7 +269,7 @@ function AppContent() {
       return false;
     });
     return () => subscription.remove();
-  }, [history, screen]);
+  }, [history, screen, goBack, navigate]);
 
   const savePushToken = async (userId: string) => {
     if (!pushTokenRef.current) return;
