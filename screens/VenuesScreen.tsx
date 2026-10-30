@@ -24,10 +24,9 @@ type VenueRow = {
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
-  userType?: 'player' | 'team' | 'venue';
 }
 
-export default function VenuesScreen({ navigate, userType }: Props) {
+export default function VenuesScreen({ navigate }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -64,7 +63,7 @@ export default function VenuesScreen({ navigate, userType }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <HapticTouchable style={styles.backBtn} onPress={() => navigate(userType === 'team' ? 'teamHome' : 'home')}>
+        <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
           <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
         <Text style={styles.title}>{t('venues_title')}</Text>

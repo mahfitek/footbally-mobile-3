@@ -53,10 +53,9 @@ const formatTime = (iso: string) => {
 
 interface Props {
   navigate: (screen: string) => void;
-  userType?: 'player' | 'team' | 'venue';
 }
 
-export default function TribunScreen({ navigate, userType = 'player' }: Props) {
+export default function TribunScreen({ navigate }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -253,7 +252,7 @@ export default function TribunScreen({ navigate, userType = 'player' }: Props) {
         <View style={styles.header}>
           <HapticTouchable
             style={styles.backBtn}
-            onPress={() => navigate(userType === 'team' ? 'teamHome' : 'messages')}
+            onPress={() => navigate('messages')}
           >
             <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>

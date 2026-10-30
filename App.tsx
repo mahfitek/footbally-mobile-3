@@ -4,7 +4,6 @@ import { View, StyleSheet, Linking, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
@@ -130,8 +129,6 @@ const TAB_ROOT_SCREENS: Screen[] = [
   'teamProfile',
 ];
 
-const USER_TYPE_STORAGE_KEY = '@footbally/userType';
-
 export default function App() {
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
@@ -170,13 +167,13 @@ function AppContent() {
   const [viewedTeamOwnerId, setViewedTeamOwnerId] = useState<string | null>(null);
   const [followListTarget, setFollowListTarget] = useState<{ userId: string; type: 'followers' | 'following' } | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
-  const [userType, setUserType] = useState<'player' | 'team' | 'venue'>('player');
+  // Tek hesap türü: oyuncu/takım ayrımı yok. Saha sahipleri (venues) panelden tanımlandığı için ayrı kalır.
+  const [userType, setUserType] = useState<'player' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
   const [settingsFrom, setSettingsFrom] = useState<Screen>('profile');
   const sessionRef = useRef<Session | null>(null);
   const pushTokenRef = useRef<string | null>(null);
-  const userTypeRef = useRef<'player' | 'team' | 'venue'>('player');
 
   const navigate = (next: string, params?: any) => {
     if (next === 'chat' && params) {
@@ -257,38 +254,25 @@ function AppContent() {
   // (anlasmali/kuratoryel ortaklik). Bu yuzden Login/Register'daki oyuncu/takim
   // rol secimine bagli olmadan, giris yapan kullanicinin bir saha sahibi olup
   // olmadigi venues tablosundan dogrudan kontrol edilir.
+  // Her girişte yeniden hesaplanır; saha sahibi olmayan bir hesap önceki oturumdan kalan 'venue' durumunu devralmaz.
   const checkVenueOwnership = async (uid: string): Promise<boolean> => {
     const { data } = await supabase.from('venues').select('id').eq('owner_user_id', uid).maybeSingle();
-    if (data) {
-      userTypeRef.current = 'venue';
-      setUserType('venue');
-      AsyncStorage.setItem(USER_TYPE_STORAGE_KEY, 'venue');
-      return true;
-    }
-    return false;
+    const isVenue = !!data;
+    setUserType(isVenue ? 'venue' : 'player');
+    return isVenue;
   };
 
   // Giriş/kayıt sonrası çağrılır. Login ekranı ban kontrolünü bu çağrıdan önce yapar ve yasaklıysa çağırmaz.
-  const handleAuthSuccess = async (type: 'player' | 'team') => {
+  const handleAuthSuccess = async () => {
     const uid = sessionRef.current?.user?.id;
-    if (uid) savePushToken(uid);
-    const isVenue = uid ? await checkVenueOwnership(uid) : false;
-    if (!isVenue) {
-      setUserType(type);
-      userTypeRef.current = type;
-      AsyncStorage.setItem(USER_TYPE_STORAGE_KEY, type);
+    if (uid) {
+      savePushToken(uid);
+      await checkVenueOwnership(uid);
     }
-    navigate(!isVenue && type === 'team' ? 'teamHome' : 'home');
+    navigate('home');
   };
 
   useEffect(() => {
-    AsyncStorage.getItem(USER_TYPE_STORAGE_KEY).then((stored) => {
-      if (stored === 'player' || stored === 'team' || stored === 'venue') {
-        setUserType(stored);
-        userTypeRef.current = stored;
-      }
-    });
-
     // Açılıştaki kayıtlı oturumda ban kontrolü: yasaklıysa oturum kapatılır, doğrulanamazsa (örn. çevrimdışı) oturum korunur.
     const restoreStoredSession = async (session: Session) => {
       const access = await checkAccountAccess(session.user.id);
@@ -305,16 +289,15 @@ function AppContent() {
     };
 
     const routeForSession = async (session: Session | null) => {
-      let isVenue = false;
       if (session) {
         savePushToken(session.user.id);
-        isVenue = await checkVenueOwnership(session.user.id);
+        await checkVenueOwnership(session.user.id);
       }
       setScreen((current) => {
         // Kurtarma (şifre sıfırlama) akışında oturum açılsa da kullanıcı yeni şifre ekranında kalır.
         if (current === 'splash' || current === 'resetPassword') return current;
         setHistory([]);
-        return session ? (isVenue ? 'home' : userTypeRef.current === 'team' ? 'teamHome' : 'home') : 'onboarding';
+        return session ? 'home' : 'onboarding';
       });
     };
 
@@ -427,7 +410,7 @@ function AppContent() {
       case 'onboarding':
         return <OnboardingScreen onDone={() => navigate('login')} />;
       case 'login':
-        return <LoginScreen onLogin={handleAuthSuccess} onRegister={(type) => { setUserType(type); navigate('register'); }} />;
+        return <LoginScreen onLogin={handleAuthSuccess} onRegister={() => navigate('register')} />;
       case 'register':
         return <RegisterScreen onLogin={handleAuthSuccess} onBack={() => navigate('login')} />;
       case 'activities':
@@ -503,7 +486,7 @@ function AppContent() {
           />
         );
       case 'tribun':
-        return <TribunScreen navigate={navigate} userType={userType} />;
+        return <TribunScreen navigate={navigate} />;
       case 'teamHome':
         return <TeamHomeScreen navigate={navigate} userId={currentUserId} />;
       case 'teamProfile':
@@ -524,27 +507,21 @@ function AppContent() {
       case 'findOpponent':
         return <FindOpponentScreen navigate={navigate} onBack={goBack} />;
       case 'search':
-        return <SearchScreen navigate={navigate} userType={userType} />;
+        return <SearchScreen navigate={navigate} />;
       case 'teamStats':
         return <TeamStatsScreen navigate={navigate} userId={currentUserId} />;
       case 'home':
-        return userType === 'team' ? (
-          <TeamHomeScreen navigate={navigate} userId={currentUserId} />
-        ) : userType === 'venue' ? (
+        return userType === 'venue' ? (
           <VenuePanelScreen navigate={navigate} userId={currentUserId} />
         ) : (
           <HomeScreen navigate={navigate} userId={currentUserId} />
         );
       case 'venues':
-        return <VenuesScreen navigate={navigate} userType={userType} />;
+        return <VenuesScreen navigate={navigate} />;
       case 'venueDetail':
         return <VenueDetailScreen navigate={navigate} venueId={selectedVenueId} />;
       default:
-        return userType === 'team' ? (
-          <TeamHomeScreen navigate={navigate} userId={currentUserId} />
-        ) : (
-          <HomeScreen navigate={navigate} userId={currentUserId} />
-        );
+        return <HomeScreen navigate={navigate} userId={currentUserId} />;
     }
   };
 
@@ -562,7 +539,6 @@ function AppContent() {
                 : (screen as TabName)
             }
             onPress={navigate}
-            userType={userType}
           />
         )}
         {history.length > 0 && (

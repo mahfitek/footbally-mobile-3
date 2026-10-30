@@ -28,7 +28,7 @@ const RADIUS = CARD_RADIUS;
 const POSITIONS = ['Kaleci', 'Defans', 'Orta Saha', 'Forvet'];
 
 interface Props {
-  onLogin: (userType: 'player' | 'team') => void;
+  onLogin: () => void;
   onBack: () => void;
 }
 
@@ -36,7 +36,6 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
-  const [userType, setUserType] = useState<'player' | 'team'>('player');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -89,7 +88,7 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
       return;
     }
 
-    onLogin(userType);
+    onLogin();
   };
 
   const todayLabel = new Date().toLocaleDateString('tr-TR', {
@@ -120,23 +119,6 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                 <Text style={styles.cardBrand}>FOOTBALLY</Text>
               </View>
               <Text style={styles.cardLabel}>{t('register_newPlayerReg')}</Text>
-
-              <View style={styles.roleRow}>
-                <HapticTouchable
-                  onPress={() => setUserType('player')}
-                  style={[styles.roleTab, userType === 'player' && styles.roleTabActive]}
-                >
-                  <Text style={[styles.roleTitle, userType === 'player' && styles.roleTitleActive]}>{t('login_iAmPlayer')}</Text>
-                  <Text style={[styles.roleSub, userType === 'player' && styles.roleSubActive]}>{t('login_careerManagement')}</Text>
-                </HapticTouchable>
-                <HapticTouchable
-                  onPress={() => setUserType('team')}
-                  style={[styles.roleTab, userType === 'team' && styles.roleTabActive]}
-                >
-                  <Text style={[styles.roleTitle, userType === 'team' && styles.roleTitleActive]}>{t('login_iHaveTeam')}</Text>
-                  <Text style={[styles.roleSub, userType === 'team' && styles.roleSubActive]}>{t('login_findPlayersOpponents')}</Text>
-                </HapticTouchable>
-              </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>{t('register_fullName')}</Text>
@@ -344,41 +326,6 @@ const createStyles = (theme: Theme) =>
       marginBottom: 18,
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
-    },
-    roleRow: {
-      flexDirection: 'row',
-      marginBottom: 20,
-      borderRadius: RADIUS,
-      overflow: 'hidden',
-    },
-    roleTab: {
-      flex: 1,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    roleTabActive: {
-      backgroundColor: theme.gold,
-      borderColor: theme.gold,
-    },
-    roleTitle: {
-      fontFamily: FontFamily.display,
-      fontSize: 14,
-      letterSpacing: 1,
-      color: theme.text,
-    },
-    roleTitleActive: {
-      color: theme.bg,
-    },
-    roleSub: {
-      fontFamily: FontFamily.mono,
-      fontSize: 10,
-      color: theme.textMuted,
-      marginTop: 2,
-    },
-    roleSubActive: {
-      color: theme.bg,
     },
     inputGroup: {
       marginBottom: 16,

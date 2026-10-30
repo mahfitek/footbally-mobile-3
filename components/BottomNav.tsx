@@ -29,7 +29,6 @@ export type TabName =
 interface Props {
   active: TabName | null;
   onPress: (tab: TabName) => void;
-  userType?: 'player' | 'team' | 'venue';
 }
 
 interface Item {
@@ -38,10 +37,11 @@ interface Item {
   labelKey: 'home' | 'nav_matches' | 'nav_discover' | 'messages' | 'profile' | 'nav_team';
 }
 
-// Beş sekme, iki kullanıcı tipi için de aynı düzen: Ana Sayfa, Maçlar, Keşfet, Mesajlar, Profil.
+// Sabit beş sekme, tüm hesaplar için aynı: Ana Sayfa, Maçlar, Keşfet, Mesajlar, Profil.
+// Takım sahipleri de son sekme olarak Profil'i kullanır; takım ekranlarına Profil içinden erişilir.
 // Sekmeden çıkan ekranlara başka yollardan erişilir: Performans ve Fırsatlar (Ana Sayfa ızgarası),
-// Sahadan (Mesajlar içinden), Oyuncu/Takım ekranları (ilgili ana sayfalardan).
-const PLAYER_ITEMS: Item[] = [
+// Sahadan (Mesajlar içinden), takım ekranları (Profil menüsünden).
+const ITEMS: Item[] = [
   { tab: 'home', icon: 'home-outline', labelKey: 'home' },
   { tab: 'match', icon: 'football-outline', labelKey: 'nav_matches' },
   { tab: 'search', icon: 'compass-outline', labelKey: 'nav_discover' },
@@ -49,30 +49,19 @@ const PLAYER_ITEMS: Item[] = [
   { tab: 'profile', icon: 'person-outline', labelKey: 'profile' },
 ];
 
-const TEAM_ITEMS: Item[] = [
-  { tab: 'teamHome', icon: 'home-outline', labelKey: 'home' },
-  { tab: 'findOpponent', icon: 'football-outline', labelKey: 'nav_matches' },
-  { tab: 'findPlayer', icon: 'compass-outline', labelKey: 'nav_discover' },
-  { tab: 'messages', icon: 'chatbubble-outline', labelKey: 'messages' },
-  { tab: 'teamProfile', icon: 'shield-outline', labelKey: 'nav_team' },
-];
-
-const ALL_TABS: TabName[] = [
-  'home', 'match', 'search', 'messages', 'profile', 'teamHome', 'findOpponent', 'findPlayer', 'teamProfile',
-];
+const ALL_TABS: TabName[] = ITEMS.map((item) => item.tab);
 
 // Her sekmenin basma animasyonu için tek bir değer; ilk render'da bir kez oluşturulur.
 function createScaleValues(): Record<TabName, Animated.Value> {
   return Object.fromEntries(ALL_TABS.map((tab) => [tab, new Animated.Value(1)])) as Record<TabName, Animated.Value>;
 }
 
-export default function BottomNav({ active, onPress, userType = 'player' }: Props) {
+export default function BottomNav({ active, onPress }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const items = userType === 'team' ? TEAM_ITEMS : PLAYER_ITEMS;
   const [scales] = useState(createScaleValues);
 
   const loadUnreadMessages = async () => {
@@ -110,7 +99,7 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
 
   return (
     <View style={[styles.container, { height: NAV_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom + 4 }]}>
-      {items.map((item) => {
+      {ITEMS.map((item) => {
         const isActive = active === item.tab;
         const label = t(item.labelKey);
         return (

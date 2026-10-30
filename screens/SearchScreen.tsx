@@ -35,10 +35,9 @@ const getTabs = (t: (key: any) => string): { key: TabKey; label: string; icon: I
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
-  userType?: 'player' | 'team' | 'venue';
 }
 
-export default function SearchScreen({ navigate, userType }: Props) {
+export default function SearchScreen({ navigate }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const TABS = getTabs(t);
@@ -62,13 +61,14 @@ export default function SearchScreen({ navigate, userType }: Props) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const uid = session?.user?.id ?? null;
       setUserId(uid);
-      if (uid && userType === 'team') {
+      // Takım sahibi olmak hesap türü değildir; sahip olunan takım varsa rakip davet butonu gösterilir.
+      if (uid) {
         supabase.from('teams').select('id, name').eq('owner_id', uid).maybeSingle().then(({ data }) => {
           if (data) setMyTeam(data);
         });
       }
     });
-  }, [userType]);
+  }, []);
 
 
   const runSearch = async () => {
@@ -156,7 +156,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <HapticTouchable style={styles.backBtn} onPress={() => navigate(userType === 'team' ? 'teamHome' : 'home')}>
+        <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
           <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
         <TextInput
@@ -221,7 +221,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                       <Text style={styles.rowMeta}>{[tm.city, tm.league].filter(Boolean).join(' · ') || '-'}</Text>
                     </View>
                     <Text style={styles.scoreText}>{tm.rating}</Text>
-                    {userType === 'team' && myTeam && myTeam.id !== tm.id && (
+                    {myTeam && myTeam.id !== tm.id && (
                       <HapticTouchable style={styles.actionBtn} onPress={() => setChallengeTarget(tm)}>
                         <Text style={styles.actionBtnText}>{t('findOpponent_challenge')}</Text>
                       </HapticTouchable>
