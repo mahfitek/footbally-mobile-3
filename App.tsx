@@ -256,20 +256,26 @@ function AppContent() {
 
   // Android geri tuşu: geçmiş varsa önceki ekrana döner; geçmiş yoksa ve ana ekranda değilsek ana ekrana döner.
   // Böylece takım ekranlarından geri basmak uygulamayı kapatmaz. Ana ekranda sistem geri davranışı korunur.
+  const handleHardwareBack = (): boolean => {
+    if (history.length > 0) {
+      goBack();
+      return true;
+    }
+    if (screen !== 'home' && screen !== 'splash' && screen !== 'onboarding' && screen !== 'login') {
+      navigate('home');
+      return true;
+    }
+    return false;
+  };
+  // Dinleyici bir kez kaydedilir; her render'da en güncel işleyici ref üzerinden çağrılır.
+  const hardwareBackRef = useRef(handleHardwareBack);
   useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (history.length > 0) {
-        goBack();
-        return true;
-      }
-      if (screen !== 'home' && screen !== 'splash' && screen !== 'onboarding' && screen !== 'login') {
-        navigate('home');
-        return true;
-      }
-      return false;
-    });
+    hardwareBackRef.current = handleHardwareBack;
+  });
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => hardwareBackRef.current());
     return () => subscription.remove();
-  }, [history, screen, goBack, navigate]);
+  }, []);
 
   const savePushToken = async (userId: string) => {
     if (!pushTokenRef.current) return;
