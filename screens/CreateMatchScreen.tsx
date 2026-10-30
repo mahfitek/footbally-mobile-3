@@ -86,6 +86,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
   const [scope, setScope] = useState<MatchScope>({ kind: 'personal' });
   const [managedTeams, setManagedTeams] = useState<ManagedTeam[]>([]);
   const [teamsComplete, setTeamsComplete] = useState(true);
+  const [teamsLoaded, setTeamsLoaded] = useState(false);
   const { access: accountAccess } = useAccountAccess();
 
   // Yüklenirken `teamsComplete` true kalır; sonuç geldikten sonra güncellenir (senkron setState yok).
@@ -96,6 +97,7 @@ export default function CreateMatchScreen({ navigate }: Props) {
     const result = await fetchManagedTeams(supabase, uid, t('createMatch_unnamedTeam'));
     setManagedTeams(result.teams);
     setTeamsComplete(result.ok);
+    setTeamsLoaded(true);
   };
 
   // Ekran açılışında bir kez yüklenir. State yalnızca await'ten sonra yazılır (senkron setState yok).
@@ -228,7 +230,13 @@ export default function CreateMatchScreen({ navigate }: Props) {
                 </HapticTouchable>
               ))}
             </View>
+            <Text style={styles.scopeNote}>
+              {scope.kind === 'personal' ? t('createMatch_scopePersonalHint') : t('createMatch_scopeTeamHint')}
+            </Text>
             {!teamsComplete && <Text style={styles.scopeNote}>{t('createMatch_teamsUnavailable')}</Text>}
+            {teamsLoaded && teamsComplete && managedTeams.length === 0 && (
+              <Text style={styles.scopeNote}>{t('createMatch_noTeamsHint')}</Text>
+            )}
           </View>
 
           <View style={styles.inputGroup}>

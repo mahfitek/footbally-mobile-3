@@ -87,11 +87,16 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     : access?.verified && access.allowed && access.teamRestricted
       ? access.teamMessage
       : access?.message ?? t('settings_accountStatusChecking');
+  // "Kısıtlı" yalnızca kişisel hesap kısıtlıysa gösterilir; takım yasağı ya da profil eksikliği ayrı etiket alır.
   const statusLabel = statusClean
     ? t('settings_accountStatusActive')
     : access?.verified
-      ? t('settings_accountStatusRestricted')
-      : t('settings_accountStatusUnverified');
+      ? access.allowed
+        ? t('settings_accountStatusTeamRestricted')
+        : t('settings_accountStatusRestricted')
+      : access?.unverifiedReason === 'no_profile'
+        ? t('settings_accountStatusNoProfile')
+        : t('settings_accountStatusUnverified');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

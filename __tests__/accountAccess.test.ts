@@ -61,7 +61,17 @@ const legacyTeamRow = (overrides: Record<string, unknown> = {}) => ({
 
 const parse = (data: unknown) => parseAccountStatusRows(data, UID);
 
-const unverified = (reason: 'network' | 'timeout' | 'missing_rpc' | 'rpc_error' | 'no_profile' | 'malformed') => ({
+const UNVERIFIED_REASONS = [
+  'network',
+  'timeout',
+  'missing_rpc',
+  'permission_denied',
+  'rpc_error',
+  'no_profile',
+  'malformed',
+] as const;
+
+const unverified = (reason: (typeof UNVERIFIED_REASONS)[number]) => ({
   verified: false as const,
   reason,
 });
@@ -82,13 +92,13 @@ test('an unverified lookup keeps the session but closes protected writes', () =>
 });
 
 test('an unverified lookup never signs the user out', () => {
-  for (const reason of ['network', 'timeout', 'missing_rpc', 'rpc_error', 'no_profile', 'malformed'] as const) {
+  for (const reason of UNVERIFIED_REASONS) {
     assert.equal(mustSignOut(evaluateAccountAccess(unverified(reason))), false, reason);
   }
 });
 
 test('an unverified lookup never shows a ban message, whatever the reason', () => {
-  for (const reason of ['network', 'timeout', 'missing_rpc', 'rpc_error', 'no_profile', 'malformed'] as const) {
+  for (const reason of UNVERIFIED_REASONS) {
     const access = evaluateAccountAccess(unverified(reason));
     assert.equal(access.expiredBan, false, reason);
     assert.equal(access.teamRestricted, false, reason);
@@ -106,10 +116,36 @@ test('a missing RPC or a missing profile is not reported as a network problem', 
   assert.doesNotMatch(evaluateAccountAccess(unverified('no_profile')).message ?? '', /bağlantınızı/);
 });
 
-test('an unverified lookup tells the user to try again', () => {
-  for (const reason of ['network', 'timeout', 'missing_rpc', 'rpc_error', 'no_profile', 'malformed'] as const) {
+test('an unverified lookup tells the user to try again, except a missing profile which states its own case', () => {
+  for (const reason of UNVERIFIED_REASONS.filter((r) => r !== 'no_profile')) {
     assert.match(evaluateAccountAccess(unverified(reason)).message ?? '', /tekrar/, reason);
   }
+});
+
+test('each unverified reason has its own message, not one shared generic text', () => {
+  const messages = UNVERIFIED_REASONS.map((reason) => evaluateAccountAccess(unverified(reason)).message ?? '');
+  assert.ok(messages.every((m) => m.length > 0));
+  assert.equal(new Set(messages).size, UNVERIFIED_REASONS.length);
+});
+
+test('a missing profile shows the profile-not-created message and keeps the account open', () => {
+  const access = evaluateAccountAccess(unverified('no_profile'));
+  assert.equal(
+    access.message,
+    'Oyuncu profiliniz henüz oluşturulmamış. Hesabınız açık, ancak bazı işlemler geçici olarak kullanılamıyor.',
+  );
+  assert.equal(access.allowed, true);
+  assert.equal(access.profileWriteAllowed, false);
+});
+
+test('a missing RPC says it is not a restriction', () => {
+  assert.match(evaluateAccountAccess(unverified('missing_rpc')).message ?? '', /kısıtlama anlamına gelmez/);
+});
+
+test('a permission failure is reported as a permission problem, not a connection or server problem', () => {
+  const message = evaluateAccountAccess(unverified('permission_denied')).message ?? '';
+  assert.match(message, /yetki/);
+  assert.doesNotMatch(message, /bağlantınızı/);
 });
 
 // --- Hata sınıflandırması ---
@@ -123,8 +159,12 @@ test('a missing function (PGRST202 or 42883) is classified as missing_rpc', () =
   );
 });
 
-test('a permission or server error is an rpc_error, not a network error', () => {
-  assert.equal(classifyAccountStatusError({ code: '42501', message: 'permission denied' }), 'rpc_error');
+test('a permission error is permission_denied, not a network error', () => {
+  assert.equal(classifyAccountStatusError({ code: '42501', message: 'permission denied' }), 'permission_denied');
+  assert.equal(classifyAccountStatusError({ message: 'permission denied for table profiles' }), 'permission_denied');
+});
+
+test('other server errors are rpc_error, not a network or permission error', () => {
   assert.equal(classifyAccountStatusError({ code: 'XX000', message: 'internal' }), 'rpc_error');
 });
 
@@ -440,5 +480,5 @@ test('a non-missing v2 error is not replaced by v1 and stays unverified', async 
     return denied;
   });
   assert.deepEqual(calls, ['get_my_account_status_v2']);
-  assert.equal(classifyAccountStatusError(response.error ?? {}), 'rpc_error');
+  assert.equal(classifyAccountStatusError(response.error ?? {}), 'permission_denied');
 });

@@ -28,11 +28,19 @@ export interface AccountSubjectRow extends AccountBanFields {
  *  - network:      istek hiç ulaşmadı (çevrimdışı, DNS, bağlantı kopması)
  *  - timeout:      sunucu makul sürede yanıt vermedi
  *  - missing_rpc:  get_my_account_status fonksiyonu sunucuda yok
- *  - rpc_error:    RPC hata döndürdü (yetki, sunucu hatası vb.)
+ *  - permission_denied: RPC yetki hatası verdi (42501 / permission denied)
+ *  - rpc_error:    RPC diğer bir hata döndürdü (sunucu hatası vb.)
  *  - no_profile:   RPC başarılı yanıt verdi ama kullanıcının profil satırı yok
  *  - malformed:    yanıt bozuk, tanınmayan satır içeriyor veya kimliği eşleşmiyor
  */
-export type AccountUnverifiedReason = 'network' | 'timeout' | 'missing_rpc' | 'rpc_error' | 'no_profile' | 'malformed';
+export type AccountUnverifiedReason =
+  | 'network'
+  | 'timeout'
+  | 'missing_rpc'
+  | 'permission_denied'
+  | 'rpc_error'
+  | 'no_profile'
+  | 'malformed';
 
 export type AccountBanLookupResult =
   | { verified: true; profile: AccountBanFields; teams: AccountSubjectRow[] }
@@ -99,6 +107,8 @@ export function classifyAccountStatusError(error: { code?: string; message?: str
   if (isMissingRpc(error)) return 'missing_rpc';
   // supabase-js ağ hatalarında kod taşımaz; mesaj fetch/ağ kökenlidir.
   if (!error.code && /network|fetch|failed to|abort/i.test(error.message ?? '')) return 'network';
+  // 42501 = insufficient_privilege; PostgREST da yetkisiz çağrıda "permission denied" döner.
+  if (error.code === '42501' || /permission denied/i.test(error.message ?? '')) return 'permission_denied';
   return 'rpc_error';
 }
 
@@ -181,12 +191,31 @@ export function parseAccountStatusRows(data: unknown, userId: string): AccountBa
  *  - Doğrulanamama: oturum açık kalır, korunan yazmalar kapalıdır. Yasak mesajı ASLA gösterilmez.
  *  - Takım yasağı kişisel oturumu kapatmaz; takım yazmalarını kapatır.
  */
+/**
+ * Doğrulanamama nedeni için kullanıcı mesajı. Her neden ayrı metin alır; hepsi "kısıtlama" iddiası taşımaz.
+ * Yasak metinleri burada üretilmez (bkz. evaluateBanFields).
+ */
+function unverifiedMessage(reason: AccountUnverifiedReason): string {
+  switch (reason) {
+    case 'network':
+      return 'Hesap durumunuz doğrulanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+    case 'timeout':
+      return 'Hesap durumunuz zamanında doğrulanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+    case 'missing_rpc':
+      return 'Hesap durumu servisi bu sunucuda henüz etkin değil. Bu bir kısıtlama anlamına gelmez; daha sonra tekrar deneyin.';
+    case 'permission_denied':
+      return 'Hesap durumunuz sunucuda okunamadı (yetki hatası). Lütfen daha sonra tekrar deneyin.';
+    case 'rpc_error':
+      return 'Hesap durumunuz sunucuda doğrulanamadı. Lütfen daha sonra tekrar deneyin.';
+    case 'no_profile':
+      return 'Oyuncu profiliniz henüz oluşturulmamış. Hesabınız açık, ancak bazı işlemler geçici olarak kullanılamıyor.';
+    case 'malformed':
+      return 'Hesap durumunuz sunucudan beklenmeyen bir yanıtla geldi. Lütfen daha sonra tekrar deneyin.';
+  }
+}
+
 export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAccessResult {
   if (!lookup.verified) {
-    const message =
-      lookup.reason === 'network' || lookup.reason === 'timeout'
-        ? 'Hesap durumunuz doğrulanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.'
-        : 'Hesap durumunuz doğrulanamadı. Lütfen tekrar deneyin.';
     return {
       allowed: true,
       profileWriteAllowed: false,
@@ -195,7 +224,7 @@ export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAc
       unverifiedReason: lookup.reason,
       expiredBan: false,
       teamRestricted: false,
-      message,
+      message: unverifiedMessage(lookup.reason),
     };
   }
 

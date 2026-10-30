@@ -165,7 +165,7 @@ export default function SearchScreen({ navigate }: Props) {
           placeholderTextColor={theme.textSecondary}
           value={query}
           onChangeText={setQuery}
-          autoFocus
+          returnKeyType="search"
         />
       </View>
 
@@ -185,7 +185,7 @@ export default function SearchScreen({ navigate }: Props) {
       {loading ? (
         <ActivityIndicator color={theme.gold} style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {activeTab === 'players' && (
             players.length === 0 ? (
               <EmptyState icon="person-outline" title={t('search_emptyPlayers')} subtitle={t('search_tryDifferentSearch')} />
