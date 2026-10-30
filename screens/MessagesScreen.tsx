@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { notifyEvent } from '../lib/notify';
 import { MESSAGE_COLUMNS } from '../lib/columns';
+import { buildNameMap, displayName, partnerIdFor } from '../lib/chatNames';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
@@ -160,9 +161,11 @@ export default function MessagesScreen({ navigate }: Props) {
       return;
     }
 
+    // Karşı taraf kimliği boş ya da kullanıcı katılımcı değilse konuşma listelenmez (boş id'ye sorgu atılmaz).
     const otherIdByConv = new Map<string, string>();
     for (const c of convRows) {
-      otherIdByConv.set(String(c.id), c.participant_a === user.id ? c.participant_b : c.participant_a);
+      const partner = partnerIdFor(c, user.id);
+      if (partner) otherIdByConv.set(String(c.id), partner);
     }
     const convIds = convRows.map((c: any) => c.id);
 
@@ -182,6 +185,7 @@ export default function MessagesScreen({ navigate }: Props) {
 
     const groups = new Map<string, any[]>();
     for (const m of data) {
+      if (!otherIdByConv.has(String(m.conversation_id))) continue;
       const list = groups.get(String(m.conversation_id)) ?? [];
       list.push(m);
       groups.set(String(m.conversation_id), list);
@@ -189,7 +193,7 @@ export default function MessagesScreen({ navigate }: Props) {
 
     const otherIds = Array.from(groups.keys()).map((convId) => otherIdByConv.get(convId)!);
     const { data: otherProfiles } = await profiles.publicProfiles(otherIds, 'user_id, full_name');
-    const nameMap = new Map((otherProfiles ?? []).map((p: any) => [p.user_id, p.full_name]));
+    const nameMap = buildNameMap(otherProfiles);
 
     const conversations: ChatView[] = Array.from(groups.keys()).map((convId) => {
       const otherId = otherIdByConv.get(convId)!;
@@ -200,7 +204,7 @@ export default function MessagesScreen({ navigate }: Props) {
       const unread = msgs.filter((m) => !m.read && m.sender_user_id !== user.id).length;
       return {
         id: otherId,
-        name: nameMap.get(otherId) ?? t('common_defaultUser'),
+        name: displayName(otherId, nameMap, t('common_defaultUser')),
         preview: last.body,
         time: formatRelativeTime(last.created_at, t),
         unread,
