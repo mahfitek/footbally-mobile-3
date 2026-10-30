@@ -291,7 +291,7 @@ function AppContent() {
 
     // Açılıştaki kayıtlı oturumda ban kontrolü: yasaklıysa oturum kapatılır, doğrulanamazsa (örn. çevrimdışı) oturum korunur.
     const restoreStoredSession = async (session: Session) => {
-      const access = await checkAccountAccess();
+      const access = await checkAccountAccess(session.user.id);
       if (access.verified && !access.allowed) {
         sessionRef.current = null;
         setCurrentUserId(null);

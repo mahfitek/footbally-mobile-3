@@ -87,7 +87,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
   useEffect(() => {
     if (!userId) return;
-    fetchAccountBanRow().then((lookup) => {
+    fetchAccountBanRow(userId).then((lookup) => {
       const access = evaluateAccountAccess(lookup);
       setAccountStatus(access.allowed ? { ok: true } : { ok: false, detail: access.message });
     });

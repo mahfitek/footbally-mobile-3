@@ -76,7 +76,7 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
 
     const userId = data.user?.id;
     if (userId) {
-      const banLookup = await fetchAccountBanRow();
+      const banLookup = await fetchAccountBanRow(userId);
       const access = evaluateAccountAccess(banLookup);
       if (!access.allowed) {
         await supabase.auth.signOut();
@@ -84,8 +84,8 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
         Alert.alert(t('login_blocked'), access.message);
         return;
       }
-      if (access.expiredBan && banLookup.verified && banLookup.row) {
-        void clearExpiredBan(banLookup.row.table);
+      if (access.expiredBan) {
+        void clearExpiredBan();
       }
     }
 
