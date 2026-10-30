@@ -104,8 +104,8 @@ export default function TribunScreen({ navigate }: Props) {
     };
   }, [userId]);
 
+  // loading ilk değeri true; yükleme yalnızca mount'ta bir kez yapılır, bu yüzden effect içinde setLoading(true) gerekmez.
   const load = async () => {
-    setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
     if (!user) {
@@ -138,6 +138,8 @@ export default function TribunScreen({ navigate }: Props) {
   };
 
   useEffect(() => {
+    // Yükleme state'i ilk değeri true ve load tek sefer çağrılır; setState yalnızca await sonrası yapılır.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, []);
 

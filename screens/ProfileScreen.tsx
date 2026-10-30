@@ -169,10 +169,6 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   // yükleme gizlenir, Takip Et butonu gösterilir.
   const isOwnProfile = !currentUserId || !userId || userId === currentUserId;
 
-  useEffect(() => {
-    loadProfile();
-  }, [userId]);
-
   const loadProfile = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -660,6 +656,13 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     setDistrict(name);
     setOpenPicker(null);
   };
+
+  // Hook'lar erken dönüşlerden (loading, editMode) önce kalmalı. Yükleme state'i ilk değeri true; loadProfile ilk
+  // setState'i await'ten önce yapar, bu yüzden effect içindeki çağrı bilinçli.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProfile();
+  }, [userId]);
 
   if (loading) {
     return <LoadingScreen message={t('profile_loading')} />;
