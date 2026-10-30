@@ -8,7 +8,7 @@ import {
   type AccountBanLookupResult,
 } from './accountAccessRules';
 
-export { evaluateAccountAccess } from './accountAccessRules';
+export { evaluateAccountAccess, mustSignOut } from './accountAccessRules';
 export type {
   AccountAccessResult,
   AccountBanFields,
@@ -22,12 +22,13 @@ export type {
 const ACCOUNT_STATUS_TIMEOUT_MS = 6000;
 
 /**
- * Ban/status rows of the signed-in user (contract §4.2).
+ * Oturum açan kullanıcının hesap durumu (get_my_account_status, v1).
  *
- * Uses get_my_account_status(), which returns the caller's own profile row (`source = 'profile'`) and owned team
- * rows (`source = 'team'`) in no guaranteed order. The `teams` table is NOT read here.
- * Errors are classified (network, timeout, missing RPC, RPC error, malformed) and never treated as a ban.
- * A response that is not verified is never treated as a clean account.
+ * Yanıt profil satırı (`source = 'profile'`) ve sahip olunan takım satırlarını içerir; sıra garanti değildir.
+ * Her başarısız durum doğrulanamadı olarak döner ve yasak olarak yorumlanmaz. Tanı için yalnızca nedeni, HTTP
+ * durumunu ve satır sayılarını loglar; kullanıcı kimliği, e-posta ya da yanıt içeriği loglanmaz.
+ *
+ * TODO(v2): get_my_account_status_v2 canlıya çıkınca tercih edilecek; şimdilik yalnızca v1 kullanılır.
  */
 export async function fetchAccountBanRow(userId: string): Promise<AccountBanLookupResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -42,12 +43,20 @@ export async function fetchAccountBanRow(userId: string): Promise<AccountBanLook
       // Yalnızca istemci çağrısının kendisi fırlatırsa ağ hatası sayılır; ayrıştırma hataları burada değil.
       return { verified: false, reason: 'network' };
     }
-    const { data, error } = response;
-    if (error) return { verified: false, reason: classifyAccountStatusError(error) };
-    return parseAccountStatusRows(data, userId);
+    const { data, error, status } = response;
+    if (error) {
+      return { verified: false, reason: classifyAccountStatusError(error), httpStatus: status, detail: `code=${error.code ?? 'none'}` };
+    }
+    const parsed = parseAccountStatusRows(data, userId);
+    return parsed.verified ? parsed : { ...parsed, httpStatus: status };
   })();
   try {
-    return await Promise.race([lookup, timeout]);
+    const result = await Promise.race([lookup, timeout]);
+    if (!result.verified) {
+      // Tanı: yalnızca neden, HTTP durumu ve sayılar. Kişisel veri yok.
+      console.warn(`[account-status] unverified reason=${result.reason} http=${result.httpStatus ?? 'n/a'} ${result.detail ?? ''}`.trim());
+    }
+    return result;
   } finally {
     clearTimeout(timer);
   }

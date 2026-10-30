@@ -23,25 +23,40 @@ export interface AccountSubjectRow extends AccountBanFields {
 }
 
 /**
- * Doğrulanamama nedenleri. Hiçbiri kalıcı yasak anlamına gelmez; yalnızca korunan işlemler için
- * erişimin kapatıldığını ve kullanıcıya "tekrar deneyin" mesajı gösterileceğini belirtir.
+ * Doğrulanamama nedenleri. Hiçbiri kalıcı yasak anlamına gelmez; oturumu kapatmaz, yalnızca korunan yazma
+ * işlemlerini kapatır ve kullanıcıya yeniden deneme sunulur.
  *  - network:      istek hiç ulaşmadı (çevrimdışı, DNS, bağlantı kopması)
  *  - timeout:      sunucu makul sürede yanıt vermedi
  *  - missing_rpc:  get_my_account_status fonksiyonu sunucuda yok
  *  - rpc_error:    RPC hata döndürdü (yetki, sunucu hatası vb.)
- *  - malformed:    yanıt boş, bozuk, beklenen profil satırını içermiyor veya kimliği eşleşmiyor
+ *  - no_profile:   RPC başarılı yanıt verdi ama kullanıcının profil satırı yok
+ *  - malformed:    yanıt bozuk, tanınmayan satır içeriyor veya kimliği eşleşmiyor
  */
-export type AccountUnverifiedReason = 'network' | 'timeout' | 'missing_rpc' | 'rpc_error' | 'malformed';
+export type AccountUnverifiedReason = 'network' | 'timeout' | 'missing_rpc' | 'rpc_error' | 'no_profile' | 'malformed';
 
 export type AccountBanLookupResult =
-  | { verified: true; profile: AccountBanFields | null; teams: AccountSubjectRow[] }
-  | { verified: false; reason: AccountUnverifiedReason };
+  | { verified: true; profile: AccountBanFields; teams: AccountSubjectRow[] }
+  | {
+      verified: false;
+      reason: AccountUnverifiedReason;
+      /** Kişisel veri içermeyen tanı özeti (ör. "rows=0"); loglara yazılabilir. */
+      detail?: string;
+      httpStatus?: number;
+    };
 
 export interface AccountAccessResult {
-  /** Kişisel oturuma izin var mı. Takım yasağı bu alanı değiştirmez. */
+  /**
+   * Kişisel oturum devam edebilir mi. Yalnızca doğrulanmış kişisel yasak ya da pasiflik false yapar.
+   * Doğrulanamama oturumu kapatmaz; ekranlar okunabilir kalır.
+   */
   allowed: boolean;
+  /** Profil gibi korumalı yazma işlemleri için doğrulanmış temiz durum gerekir. */
+  profileWriteAllowed: boolean;
+  /** Takım yazma işlemleri: doğrulanmış temiz durum VE aktif takım yasağı yok. */
+  teamWriteAllowed: boolean;
   /** false ise hesap durumu sunucudan doğrulanamadı; yasak kararı verilmedi. */
   verified: boolean;
+  unverifiedReason?: AccountUnverifiedReason;
   /** Profil satırındaki süresi dolmuş geçici yasak; sunucuda temizlenmesi gerekir. */
   expiredBan: boolean;
   message?: string;
@@ -69,12 +84,7 @@ export function classifyAccountStatusError(error: { code?: string; message?: str
   return 'rpc_error';
 }
 
-const MALFORMED: AccountBanLookupResult = { verified: false, reason: 'malformed' };
-
-/**
- * Satırın tipi: canlı RPC `source`, eski şekil `subject_type` kullanır. İkisi de varsa aynı olmalıdır.
- * Tanınmayan ya da birbiriyle çelişen tip null döner.
- */
+/** Satırın tipi: canlı RPC `source`, eski şekil `subject_type` kullanır. İkisi de varsa aynı olmalıdır. */
 function readSubjectType(candidate: Record<string, unknown>): AccountSubjectType | null {
   const { source, subject_type: legacyType } = candidate;
   const isKnown = (value: unknown): value is AccountSubjectType => value === 'profile' || value === 'team';
@@ -104,16 +114,16 @@ function parseSubjectRow(raw: unknown): AccountSubjectRow | null {
 }
 
 /**
- * get_my_account_status yanıtını doğrular. Sonuç yalnızca tüm satırlar tanınır ve tam bir profil satırı varsa
- * doğrulanmış sayılır; aksi halde temiz hesap varsayılmaz.
- *  - Yanıt bir dizi ya da tek satır olabilir; sıra anlamsızdır, ilk satır ASLA tek başına karar değildir.
- *  - Tam olarak bir profil satırı şarttır. Null, boş, bozuk, profilsiz ya da birden çok profil satırı → malformed.
- *  - Profil satırında subject_id varsa oturumdaki kullanıcıyla eşleşmelidir; yoksa RPC'nin çağıranın kendi
- *    satırını döndürdüğüne güvenilir (canlı şekil).
- *  - Takım satırları takım kısıtlaması olarak okunur; hangi takıma ait olduğu bilinmez, kişisel oturumu kapatmaz.
+ * get_my_account_status yanıtını doğrular.
+ *  - Null ya da nesne olmayan yanıt: malformed (bozuk yanıt).
+ *  - Tanınmayan, eksik ya da çelişkili satır: malformed.
+ *  - Geçerli satırlar ama hiç profil satırı yok: no_profile (profil eksik, yanıt sağlam).
+ *  - Birden çok profil satırı, başka kullanıcıya ait profil satırı: malformed.
+ *  - Tam bir profil satırı: doğrulanmış. Takım satırları takım kısıtlamasıdır; kişisel oturumu kapatmaz.
+ *  - Sıra anlamsızdır; ilk satır tek başına karar değildir.
  */
 export function parseAccountStatusRows(data: unknown, userId: string): AccountBanLookupResult {
-  if (data === null || typeof data !== 'object') return MALFORMED;
+  if (data === null || typeof data !== 'object') return { verified: false, reason: 'malformed', detail: 'payload=invalid' };
   const rows: unknown[] = Array.isArray(data) ? data : [data];
 
   let profile: AccountBanFields | null = null;
@@ -122,10 +132,12 @@ export function parseAccountStatusRows(data: unknown, userId: string): AccountBa
 
   for (const raw of rows) {
     const row = parseSubjectRow(raw);
-    if (!row) return MALFORMED;
+    if (!row) return { verified: false, reason: 'malformed', detail: `rows=${rows.length} row=invalid` };
     if (row.subject_type === 'profile') {
       // Başka bir kullanıcının profil satırı asla bu kullanıcının kararına girmez.
-      if (row.subject_id !== null && row.subject_id !== userId) return MALFORMED;
+      if (row.subject_id !== null && row.subject_id !== userId) {
+        return { verified: false, reason: 'malformed', detail: 'profile_owner=mismatch' };
+      }
       profileRows += 1;
       profile = {
         account_status: row.account_status,
@@ -138,29 +150,45 @@ export function parseAccountStatusRows(data: unknown, userId: string): AccountBa
     }
   }
 
-  if (profileRows !== 1) return MALFORMED;
-  return { verified: true, profile, teams };
+  if (profileRows > 1) return { verified: false, reason: 'malformed', detail: `profile_rows=${profileRows}` };
+  if (profileRows === 0) {
+    return { verified: false, reason: 'no_profile', detail: `rows=${rows.length} team=${teams.length}` };
+  }
+  return { verified: true, profile: profile as AccountBanFields, teams };
 }
 
 /**
- * Fail closed for protected actions: an unverified status denies access, but never with a ban message.
- * A verified profile ban is shown with its reason; an expired temporary ban is allowed and flagged for clearing.
- * A team ban restricts team actions only and never blocks the personal session.
+ * Hesap durumu kararı.
+ *  - Doğrulanmış kişisel yasak ya da pasiflik: oturum kapatılır (allowed false). Yasak mesajı yalnızca burada gösterilir.
+ *  - Doğrulanamama: oturum açık kalır, korunan yazmalar kapalıdır. Yasak mesajı ASLA gösterilmez.
+ *  - Takım yasağı kişisel oturumu kapatmaz; takım yazmalarını kapatır.
  */
 export function evaluateAccountAccess(lookup: AccountBanLookupResult): AccountAccessResult {
   if (!lookup.verified) {
     const message =
       lookup.reason === 'network' || lookup.reason === 'timeout'
         ? 'Hesap durumunuz doğrulanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.'
-        : 'Hesap durumunuz şu anda doğrulanamadı. Lütfen daha sonra tekrar deneyin.';
-    return { allowed: false, verified: false, expiredBan: false, teamRestricted: false, message };
+        : 'Hesap durumunuz doğrulanamadı. Lütfen tekrar deneyin.';
+    return {
+      allowed: true,
+      profileWriteAllowed: false,
+      teamWriteAllowed: false,
+      verified: false,
+      unverifiedReason: lookup.reason,
+      expiredBan: false,
+      teamRestricted: false,
+      message,
+    };
   }
 
   const profileAccess = evaluateBanFields(lookup.profile);
   const activeTeamBan = lookup.teams.find((team) => isActiveBan(team));
+  const teamRestricted = !!activeTeamBan;
   return {
     ...profileAccess,
-    teamRestricted: !!activeTeamBan,
+    profileWriteAllowed: profileAccess.allowed,
+    teamWriteAllowed: profileAccess.allowed && !teamRestricted,
+    teamRestricted,
     // Hangi takım olduğu RPC'de yok; mesaj belirli bir takım adı iddia etmez.
     teamMessage: activeTeamBan ? banMessage(activeTeamBan, 'Sahip olduğunuz bir takım') : undefined,
   };
@@ -186,9 +214,7 @@ function banMessage(row: AccountBanFields, subject: string): string {
   return `${subject} askıya alınmıştır.${reasonSuffix}`;
 }
 
-function evaluateBanFields(row: AccountBanFields | null): Pick<AccountAccessResult, 'allowed' | 'verified' | 'expiredBan' | 'message'> {
-  if (!row) return { allowed: true, verified: true, expiredBan: false };
-
+function evaluateBanFields(row: AccountBanFields): Pick<AccountAccessResult, 'allowed' | 'verified' | 'expiredBan' | 'message'> {
   if (row.account_status === 'banned') {
     if (!isActiveBan(row)) return { allowed: true, verified: true, expiredBan: true };
     return { allowed: false, verified: true, expiredBan: false, message: banMessage(row, 'Hesabınız') };
@@ -204,4 +230,9 @@ function evaluateBanFields(row: AccountBanFields | null): Pick<AccountAccessResu
   }
 
   return { allowed: true, verified: true, expiredBan: false };
+}
+
+/** Oturumu kapatmayı gerektiren doğrulanmış durum: kişisel yasak ya da pasiflik. Doğrulanamama buna dahil değildir. */
+export function mustSignOut(access: AccountAccessResult): boolean {
+  return access.verified && !access.allowed;
 }
