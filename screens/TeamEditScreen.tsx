@@ -25,6 +25,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
+import { useAccountAccess, canWriteTeam } from '../lib/accountContext';
 
 const LEAGUES = ['Süper Amatör', 'Amatör', 'Bölgesel', 'İl Ligi', 'İlçe Ligi', 'Diğer'];
 const FORMATIONS = ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-3-2', '3-4-3'];
@@ -44,6 +45,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
+  const { access: accountAccess } = useAccountAccess();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
@@ -115,6 +117,14 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
   };
 
   const handleSave = async () => {
+    // Takım yazması: hesap durumu doğrulanmadıysa ya da takım yasaklıysa kaydedilmez.
+    if (!canWriteTeam(accountAccess)) {
+      setToast({
+        message: accountAccess?.teamRestricted && accountAccess.verified ? t('account_teamWriteBlocked') : t('account_writeBlocked'),
+        type: 'error',
+      });
+      return;
+    }
     if (!name.trim()) {
       setToast({ message: t('teamEdit_fillTeamName'), type: 'error' });
       return;

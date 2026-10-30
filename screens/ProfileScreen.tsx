@@ -41,6 +41,7 @@ import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
+import { useAccountAccess, canWriteProfile } from '../lib/accountContext';
 import PlayerShareCard from '../components/PlayerShareCard';
 import FadeInView from '../components/FadeInView';
 import StatCard from '../components/StatCard';
@@ -168,6 +169,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   // farklıysa "başkasının profili" moduna geçilir: düzenleme/avatar
   // yükleme gizlenir, Takip Et butonu gösterilir.
   const isOwnProfile = !currentUserId || !userId || userId === currentUserId;
+  const { access: accountAccess } = useAccountAccess();
 
   const loadProfile = async () => {
     setLoading(true);
@@ -413,6 +415,11 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   };
 
   const handleSave = async () => {
+    // Profil yazması: hesap durumu doğrulanmadan kaydedilmez (profil eksik olsa bile yazma sunucu tarafında yetkilidir).
+    if (!canWriteProfile(accountAccess)) {
+      Alert.alert(t('account_writeBlockedTitle'), t('account_writeBlocked'));
+      return;
+    }
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
