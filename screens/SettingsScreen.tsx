@@ -224,6 +224,11 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
         ]);
         return;
       }
+      if (outcome.status === 'blocked') {
+        const message = outcome.reason === 'owns_team' ? t('account_deleteBlockedOwnsTeam') : t('account_deleteBlockedAdmin');
+        Alert.alert(t('settings_deleteAccount'), message);
+        return;
+      }
       Alert.alert(t('settings_deleteAccount'), t('account_deleteFailed'));
     } finally {
       setDeleting(false);

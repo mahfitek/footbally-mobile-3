@@ -20,7 +20,7 @@ Bu dosya bir taslaktır. Formlara girilmeden önce her madde ilgili backend ve h
 | Gizlilik politikası | https://getfootbally.com/privacy |
 | Kullanım koşulları | https://getfootbally.com/terms |
 | Destek e-postası | info@getfootbally.com |
-| Hesap silme (uygulama içi) | Ayarlar → Hesabımı Sil. Sunucu `delete-account` fonksiyonu deploy edilene kadar "kullanılamıyor" gösterir. |
+| Hesap silme (uygulama içi) | Ayarlar → Hesabımı Sil. `delete-account` canlıda (v1, ACTIVE) ama mobil istek gövdesi (`confirm`) ve takım sahibi kontrolü canlı sürümle uyumlu değil; ayrıntı `MOBILE_BACKEND_CONTRACT.md` §3.1. Bu uyum sağlanana kadar uçtan uca silme doğrulanmış sayılmaz. |
 | Hesap silme (web) | Henüz yok. Google Play web üzerinden silme talebi yolu ister; bkz. §6. |
 
 ---
@@ -55,7 +55,7 @@ Toplanmayan veriler (kod incelendi):
 
 - Veri toplanıyor: **Evet**. Veri paylaşılıyor: **Evet** (aşağıdaki iki kalem).
 - Aktarım sırasında şifreleme: **Evet** (HTTPS).
-- Kullanıcı verisinin silinmesini isteyebilir: **Evet**, ancak yalnızca `delete-account` deploy edildikten sonra doğru olur. Önce bu işaretlenmemeli.
+- Kullanıcı verisinin silinmesini isteyebilir: **Evet**, ancak yalnızca uçtan uca çalıştığı doğrulandıktan sonra işaretlenmeli. 2026-11-02 itibarıyla canlı `delete-account` var, mobil uyumu bekliyor (bkz. §8 madde 1).
 
 | Veri türü | Toplanır | Paylaşılır | Amaç | İsteğe bağlı |
 |---|---|---|---|---|
@@ -145,7 +145,7 @@ Politika metni bu repoda değil; web tarafında yayınlanır. Aşağıdakilerin 
 
 | # | Engel | Neden önemli | Sahibi |
 |---|---|---|---|
-| 1 | `delete-account` Edge Function deploy edilmedi | App Store 5.1.1(v) ve Google Play hesap silme zorunluluğu; uygulama içi silme bu olmadan çalışmaz | Backend |
+| 1 | `delete-account` canlıda ama mobille uyumsuz: canlı `confirm: "DELETE"` istiyor (mobil göndermiyor), takım sahibi (`owns_team`) kontrolü canlıda yok, kaynak web repodakinden farklı | App Store 5.1.1(v) ve Google Play hesap silme zorunluluğu. Mobil `confirm` göndermeden silme başlamaz; takım kontrolü canlıya gelmeden `confirm` eklenmemeli | Backend + Mobil (karar bekliyor) |
 | 2 | `submit_report` RPC'si canlı değil | Kullanıcı içeriği için şikâyet yolu zorunlu (App Store 1.2). Mobil UI hazır, sunucu yok | Backend |
 | 3 | Kullanıcı engelleme özelliği yok | App Store 1.2: kötüye kullanan kullanıcıyı engelleme yöntemi gerekli. Hem UI hem `blocks` tablosu yok | Backend + Mobil |
 | 4 | Web tarafı hesap silme yolu yok | Google Play: uygulama dışından da silme talebi yolu ister | Web |

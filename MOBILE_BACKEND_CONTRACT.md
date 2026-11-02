@@ -64,7 +64,7 @@ Mobil, başka kullanıcı profilinde `profiles` tablosunu doğrudan okumaz (`__t
 |---|---|---|
 | `analyze-video` | Repoda var (`supabase/functions/analyze-video`) | `AIAnalysisScreen` çağırır. **Videoları Google Gemini API'ye gönderir.** Gizlilik politikası ve Data Safety'de belirtilmeli (bkz. `STORE_PREP.md`). |
 | `notify-event` | Repoda var + taslak migration `supabase/drafts/20261028c_notify_event_support.sql` | Push bildirimi. `service_role` yalnızca burada. Push token'lar Expo servisine iletilir. |
-| **`delete-account`** | **Yok — BLOKÖR** | App Store 5.1.1(v), Google Play hesap silme zorunluluğu. Sözleşme §3.1. |
+| **`delete-account`** | **Canlıda ACTIVE (v1, `verify_jwt: true`), ama mobille uyumsuz — BLOKÖR** | Canlı kod web repodaki sürümden farklı. Mobil `{}` gönderiyor, canlı `confirm: "DELETE"` istiyor (400). Canlı `owns_team` kontrolü yok. Ayrıntı §3.1 "Canlı durum". |
 | **`submit_report`** | **Yok — BLOKÖR** | Şikâyet RPC'si. Sözleşme §3.2. |
 
 ### 3.1 `delete-account` (bloker)
@@ -73,10 +73,19 @@ Mobil `supabase.functions.invoke('delete-account', { body: {} })` çağırır. `
 
 | Durum | Sunucu yanıtı | Mobil davranışı |
 |---|---|---|
-| Başarı | HTTP 200, gövde `{ "deleted": true }` | Oturum kapatılır, onboarding'e dönülür. |
+| Başarı | HTTP 200, gövde `{ "deleted": true }` (web sürümü) veya `{ "status": "deleted" \| "anonymized" }` (canlı sürüm) | Oturum kapatılır, onboarding'e dönülür. |
 | Fonksiyon yok | HTTP 404 (gateway) | "Uygulama içinden kullanılamıyor" + destek e-postası seçeneği. |
+| Yönetici hesabı | HTTP 409, `{ "error": "admin_account" }` | "Yönetici hesapları uygulama içinden silinemez" + destek adresi. |
+| Takım sahibi | HTTP 409, `{ "error": "owns_team" }` | "Önce takımlarını kaldırman gerekiyor." |
 | Diğer hata | 4xx/5xx veya ağ hatası | "Silinemedi, tekrar dene". |
-| 200 ama `deleted` yok | — | Başarı **sayılmaz** ("failed"). |
+| 200 ama onay alanı yok | — | Başarı **sayılmaz** ("failed"). |
+
+**Canlı durum (2026-11-02, salt okuma: `get_edge_function`, `list_edge_functions`):**
+- Canlı `delete-account` v1 `ACTIVE`, `verify_jwt: true`. Kaynağı web repodaki `supabase/functions/delete-account` ile **aynı değil**: canlı sürüm `account_deletion_*` RPC'lerini kullanmıyor ve `deleted: true` dönmüyor.
+- **Gövde:** canlı sürüm `{ "confirm": "DELETE" }` olmadan 400 `confirmation_required` döner. Mobil şu an `{}` gönderdiği için her silme isteği başarısız sayılır (veri silinmez).
+- **Başarı:** canlı sürüm `{ "status": "deleted" | "anonymized" }` döner. Mobil bunu başarı olarak kabul eder (`lib/accountDeletion.ts`). Mobil yalnızca `deleted` alanına bakan eski bir sürümle çalışsaydı, veri silinmiş olsa bile "başarısız" gösterirdi.
+- **Takım sahibi:** canlı sürümde `owns_team` kontrolü yok. Sahip olduğu takımı olan kullanıcı silinebilir; takım kayıtlarının akıbeti belirsiz. Web sürümü bu kontrolü içeriyor.
+- Mobil `confirm` alanını henüz göndermiyor: bu, canlıda gerçek silmeyi etkinleştirir. Takım sahibi kontrolü canlıya gelmeden yapılmamalı (karar bekliyor).
 
 Gereksinimler:
 - Yalnızca oturumdaki kullanıcının hesabı silinir (`auth.uid()` JWT'den). İstemciden `user_id` kabul edilmez.

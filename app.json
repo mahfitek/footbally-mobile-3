@@ -31,7 +31,8 @@
         "foregroundImage": "./assets/logo-icon-square.png",
         "backgroundColor": "#060A12"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": ["android.permission.SYSTEM_ALERT_WINDOW"]
     },
     "web": {
       "favicon": "./assets/favicon.png"

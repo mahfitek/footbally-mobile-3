@@ -21,6 +21,7 @@ import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { sendLocalNotification } from '../lib/notifications';
+import { AI_VIDEO_CONSENT, recordAiVideoConsent } from '../lib/consent';
 import Toast from '../components/Toast';
 
 const RADIUS = CARD_RADIUS;
@@ -72,7 +73,7 @@ interface Props {
 
 export default function AIAnalysisScreen({ navigate }: Props) {
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const ANALYZING_MESSAGES = getAnalyzingMessages(t);
   const HOW_IT_WORKS = getHowItWorks(t);
   const TRUST_INDICATORS = getTrustIndicators(t);
@@ -83,6 +84,7 @@ export default function AIAnalysisScreen({ navigate }: Props) {
   const [notFootballMessage, setNotFootballMessage] = useState('');
   const [messageIndex, setMessageIndex] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [aiConsentChecked, setAiConsentChecked] = useState(false);
 
   const [dotAnims] = useState(() => [new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]);
   const [scoreAnim] = useState(() => new Animated.Value(0));
@@ -258,6 +260,14 @@ export default function AIAnalysisScreen({ navigate }: Props) {
         return;
       }
 
+      // Rıza kaydı olmadan görüntü yüklenmez ve analyze-video çağrılmaz.
+      const consentRecorded = await recordAiVideoConsent(supabase);
+      if (!consentRecorded) {
+        setToast({ message: t('aiAnalysis_consentSaveFailed'), type: 'error' });
+        setStage('preview');
+        return;
+      }
+
       const minDelay = new Promise((resolve) => setTimeout(resolve, 3000));
 
       const work = async () => {
@@ -311,13 +321,14 @@ export default function AIAnalysisScreen({ navigate }: Props) {
   };
 
   const handleAnalyze = async () => {
-    if (!media || media.kind !== 'photo') return;
+    if (!media || media.kind !== 'photo' || !aiConsentChecked) return;
     await runAnalysis(media);
   };
 
   const handleReset = () => {
     setMedia(null);
     setResult(null);
+    setAiConsentChecked(false);
     setStage('idle');
   };
 
@@ -422,7 +433,24 @@ export default function AIAnalysisScreen({ navigate }: Props) {
             <View style={styles.previewNameWrap}>
               <Text style={styles.previewName} numberOfLines={1}>{media.fileName}</Text>
             </View>
-            <HapticTouchable style={styles.analyzeBtn} onPress={handleAnalyze}>
+            <HapticTouchable
+              style={styles.consentRow}
+              onPress={() => setAiConsentChecked((checked) => !checked)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: aiConsentChecked }}
+            >
+              <Ionicons
+                name={aiConsentChecked ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={aiConsentChecked ? theme.gold : theme.textMuted}
+              />
+              <Text style={styles.consentText}>{AI_VIDEO_CONSENT.text[lang]}</Text>
+            </HapticTouchable>
+            <HapticTouchable
+              style={[styles.analyzeBtn, !aiConsentChecked && styles.analyzeBtnDisabled]}
+              onPress={handleAnalyze}
+              disabled={!aiConsentChecked}
+            >
               <Text style={styles.analyzeBtnText}>{t('aiAnalysis_analyze')}</Text>
             </HapticTouchable>
             <HapticTouchable style={styles.retryBtn} onPress={handleReset}>
@@ -715,7 +743,10 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    analyzeBtnDisabled: { opacity: 0.4 },
     analyzeBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: Paper.ink },
+    consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 14 },
+    consentText: { flex: 1, fontSize: 12, lineHeight: 17, color: theme.textMuted },
     analyzingOverlay: {
       position: 'absolute',
       top: 0,
