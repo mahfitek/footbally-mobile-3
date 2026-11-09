@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { TEAM_COLUMNS } from '../lib/columns';
+import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
+import BottomSheet from '../components/BottomSheet';
 
 type TeamRecord = {
   id: string;
@@ -46,6 +53,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function TeamStatsScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,10 +67,6 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
   const [opponentGoalsInput, setOpponentGoalsInput] = useState('0');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
-
-  useEffect(() => {
-    loadAll();
-  }, [userId]);
 
   const resolveUserId = async () => {
     if (userId) return userId;
@@ -125,8 +129,8 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       status: c.status,
       challenger_goals: c.challenger_goals,
       opponent_goals: c.opponent_goals,
-      challengerName: c.challenger?.name ?? 'Takım',
-      opponentName: c.opponent?.name ?? 'Takım',
+      challengerName: c.challenger?.name ?? t('teamStats_defaultTeamName'),
+      opponentName: c.opponent?.name ?? t('teamStats_defaultTeamName'),
     }));
 
     const today = todayStr();
@@ -156,13 +160,10 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       return;
     }
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name')
-      .in('user_id', members.map((m: any) => m.user_id));
-    const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.full_name]));
+    const { data: memberProfiles } = await profiles.publicProfiles(members.map((m: any) => m.user_id), 'user_id, full_name');
+    const nameMap = new Map((memberProfiles ?? []).map((p: any) => [p.user_id, p.full_name]));
 
-    setScorers(members.map((m: any) => ({ user_id: m.user_id, full_name: nameMap.get(m.user_id) ?? 'Oyuncu', goals: m.goals ?? 0 })));
+    setScorers(members.map((m: any) => ({ user_id: m.user_id, full_name: nameMap.get(m.user_id) ?? t('match_defaultPlayerName'), goals: m.goals ?? 0 })));
   };
 
   const onRefresh = () => {
@@ -190,10 +191,13 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       const [{ data: challengerTeam }, { data: opponentTeam }] = await Promise.all([
-        supabase.from('teams').select('*').eq('id', scoreTarget.challenger_team_id).maybeSingle(),
-        supabase.from('teams').select('*').eq('id', scoreTarget.opponent_team_id).maybeSingle(),
+        supabase.from('teams').select(TEAM_COLUMNS).eq('id', scoreTarget.challenger_team_id).maybeSingle(),
+        supabase.from('teams').select(TEAM_COLUMNS).eq('id', scoreTarget.opponent_team_id).maybeSingle(),
       ]);
 
+      // teams.clean_sheets canlı şemada yok (bkz. pending missing columns; kullanıcı ertelemiş).
+      // Sorguya eklenmez: eklenirse takım yüklemesi tümden kırılır. Yalnızca tip açıklanır.
+      type CleanSheetsRow = { clean_sheets?: number | null };
       const updates: { id: string; wins: number; losses: number; draws: number; goals_scored: number; goals_conceded: number; clean_sheets: number }[] = [];
       if (challengerTeam) {
         const won = challengerGoals > opponentGoals;
@@ -205,7 +209,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
           draws: (challengerTeam.draws ?? 0) + (drew ? 1 : 0),
           goals_scored: (challengerTeam.goals_scored ?? 0) + challengerGoals,
           goals_conceded: (challengerTeam.goals_conceded ?? 0) + opponentGoals,
-          clean_sheets: (challengerTeam.clean_sheets ?? 0) + (opponentGoals === 0 ? 1 : 0),
+          clean_sheets: ((challengerTeam as CleanSheetsRow).clean_sheets ?? 0) + (opponentGoals === 0 ? 1 : 0),
         });
       }
       if (opponentTeam) {
@@ -218,7 +222,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
           draws: (opponentTeam.draws ?? 0) + (drew ? 1 : 0),
           goals_scored: (opponentTeam.goals_scored ?? 0) + opponentGoals,
           goals_conceded: (opponentTeam.goals_conceded ?? 0) + challengerGoals,
-          clean_sheets: (opponentTeam.clean_sheets ?? 0) + (challengerGoals === 0 ? 1 : 0),
+          clean_sheets: ((opponentTeam as CleanSheetsRow).clean_sheets ?? 0) + (challengerGoals === 0 ? 1 : 0),
         });
       }
 
@@ -238,15 +242,19 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         )
       );
 
-      setToast({ message: 'Maç sonucu kaydedildi', type: 'success' });
+      setToast({ message: t('match_resultSaveSuccess'), type: 'success' });
       setScoreTarget(null);
       loadAll();
     } catch (err) {
       if (__DEV__) console.log('Skor kaydedilemedi:', err);
-      setToast({ message: 'Skor kaydedilemedi', type: 'error' });
+      setToast({ message: t('teamStats_scoreSaveFailed'), type: 'error' });
     }
     setSaving(false);
   };
+
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
 
   if (loading) {
     return (
@@ -263,7 +271,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
   if (!team) {
     return (
       <SafeAreaView style={styles.safe}>
-        <EmptyState icon="📈" title="Henüz takımın yok" subtitle="Takım profilini oluşturarak başla" actionLabel="Takım Oluştur" onAction={() => navigate('teamEdit')} />
+        <EmptyState icon="trending-up-outline" title={t('teamHome_noTeamTitle')} subtitle={t('teamSquad_noTeamSub')} actionLabel={t('teamHome_createTeam')} onAction={() => navigate('teamEdit')} />
       </SafeAreaView>
     );
   }
@@ -274,10 +282,10 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>İstatistikler</Text>
-        <View style={{ width: 44 }} />
+        <Text style={styles.title}>{t('teamStats_title')}</Text>
+        <View style={{ width: 42 }} />
       </View>
 
       <ScrollView
@@ -287,10 +295,10 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
       >
         <View style={styles.statsRow}>
           {[
-            { value: String(totalMatches), label: 'Maç' },
-            { value: String(team.wins), label: 'Galibiyet' },
-            { value: String(team.draws), label: 'Beraberlik' },
-            { value: String(team.losses), label: 'Mağlubiyet' },
+            { value: String(totalMatches), label: t('teamProfile_statMatches') },
+            { value: String(team.wins), label: t('teamProfile_statWins') },
+            { value: String(team.draws), label: t('teamProfile_statDraws') },
+            { value: String(team.losses), label: t('teamProfile_statLosses') },
           ].map((s) => (
             <View key={s.label} style={styles.statCard}>
               <Text style={styles.statValue}>{s.value}</Text>
@@ -300,30 +308,30 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Gol İstatistikleri</Text>
+          <Text style={styles.cardTitle}>{t('teamStats_goalStatsTitle')}</Text>
           <View style={styles.goalsRow}>
             <View style={styles.goalsItem}>
               <Text style={styles.goalsValue}>{team.goals_scored}</Text>
-              <Text style={styles.goalsLabel}>Atılan Gol</Text>
+              <Text style={styles.goalsLabel}>{t('teamStats_goalsScored')}</Text>
             </View>
             <View style={styles.goalsItem}>
               <Text style={styles.goalsValue}>{team.goals_conceded}</Text>
-              <Text style={styles.goalsLabel}>Yenen Gol</Text>
+              <Text style={styles.goalsLabel}>{t('teamStats_goalsConceded')}</Text>
             </View>
             <View style={styles.goalsItem}>
               <Text style={styles.goalsValue}>{team.clean_sheets}</Text>
-              <Text style={styles.goalsLabel}>Gol Yemeden</Text>
+              <Text style={styles.goalsLabel}>{t('teamStats_cleanSheets')}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Son 5 Maç Formu</Text>
-            <Text style={styles.upcomingText}>{upcomingCount} yaklaşan maç</Text>
+            <Text style={styles.cardTitle}>{t('teamStats_last5FormTitle')}</Text>
+            <Text style={styles.upcomingText}>{upcomingCount} {t('teamStats_upcomingSuffix')}</Text>
           </View>
           {form.length === 0 ? (
-            <Text style={styles.emptyHint}>Henüz tamamlanmış maç verisi yok</Text>
+            <Text style={styles.emptyHint}>{t('teamStats_noCompletedMatches')}</Text>
           ) : (
             <View style={styles.formRow}>
               {form.map((r, i) => (
@@ -331,9 +339,9 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
                   key={i}
                   style={[
                     styles.formPill,
-                    r === 'W' && { backgroundColor: hexToRgba(theme.success, 0.2) },
-                    r === 'L' && { backgroundColor: hexToRgba(theme.error, 0.2) },
-                    r === 'D' && { backgroundColor: hexToRgba(theme.textSecondary, 0.2) },
+                    r === 'W' && { borderColor: theme.success },
+                    r === 'L' && { borderColor: theme.error },
+                    r === 'D' && { borderColor: theme.border },
                   ]}
                 >
                   <Text style={styles.formPillText}>{r}</Text>
@@ -344,15 +352,15 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Gol Kralları</Text>
+          <Text style={styles.cardTitle}>{t('teamStats_topScorersTitle')}</Text>
           {scorers.length === 0 ? (
-            <Text style={styles.emptyHint}>Henüz gol verisi girilmedi</Text>
+            <Text style={styles.emptyHint}>{t('teamStats_noGoalData')}</Text>
           ) : (
             scorers.map((s, i) => (
               <View key={s.user_id} style={styles.scorerRow}>
                 <Text style={styles.scorerRank}>{i + 1}</Text>
                 <Text style={styles.scorerName}>{s.full_name}</Text>
-                <Text style={styles.scorerGoals}>{s.goals} gol</Text>
+                <Text style={styles.scorerGoals}>{s.goals} {t('teamStats_goalsSuffix')}</Text>
               </View>
             ))
           )}
@@ -360,7 +368,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
 
         {scorable.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Kabul Edilen Maçlar</Text>
+            <Text style={styles.cardTitle}>{t('teamStats_acceptedMatchesTitle')}</Text>
             {scorable.map((c) => (
               <View key={c.id} style={styles.scorableRow}>
                 <View style={{ flex: 1 }}>
@@ -368,7 +376,7 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
                   <Text style={styles.scorableMeta}>{c.date} · {c.time}</Text>
                 </View>
                 <HapticTouchable style={styles.scoreEntryBtn} onPress={() => openScoreEntry(c)}>
-                  <Text style={styles.scoreEntryBtnText}>Skor Gir</Text>
+                  <Text style={styles.scoreEntryBtnText}>{t('teamStats_enterScore')}</Text>
                 </HapticTouchable>
               </View>
             ))}
@@ -376,43 +384,39 @@ export default function TeamStatsScreen({ navigate, userId }: Props) {
         )}
       </ScrollView>
 
-      <Modal visible={!!scoreTarget} animationType="slide" transparent onRequestClose={() => setScoreTarget(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Maç Sonucu</Text>
-            <Text style={styles.scorableMeta}>{scoreTarget?.challengerName} vs {scoreTarget?.opponentName}</Text>
+      <BottomSheet visible={!!scoreTarget} onClose={() => setScoreTarget(null)} theme={theme}>
+        <Text style={styles.modalTitle}>{t('teamStats_matchResultTitle')}</Text>
+        <Text style={styles.scorableMeta}>{scoreTarget?.challengerName} vs {scoreTarget?.opponentName}</Text>
 
-            <View style={styles.scoreInputRow}>
-              <View style={styles.scoreInputCol}>
-                <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.challengerName}</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  keyboardType="number-pad"
-                  value={challengerGoalsInput}
-                  onChangeText={setChallengerGoalsInput}
-                />
-              </View>
-              <Text style={styles.scoreDash}>—</Text>
-              <View style={styles.scoreInputCol}>
-                <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.opponentName}</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  keyboardType="number-pad"
-                  value={opponentGoalsInput}
-                  onChangeText={setOpponentGoalsInput}
-                />
-              </View>
-            </View>
-
-            <HapticTouchable style={styles.saveBtn} onPress={submitScore} disabled={saving}>
-              {saving ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
-            </HapticTouchable>
-            <HapticTouchable style={styles.cancelBtn} onPress={() => setScoreTarget(null)}>
-              <Text style={styles.cancelBtnText}>Vazgeç</Text>
-            </HapticTouchable>
+        <View style={styles.scoreInputRow}>
+          <View style={styles.scoreInputCol}>
+            <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.challengerName}</Text>
+            <TextInput
+              style={styles.scoreInput}
+              keyboardType="number-pad"
+              value={challengerGoalsInput}
+              onChangeText={setChallengerGoalsInput}
+            />
+          </View>
+          <Text style={styles.scoreDash}>—</Text>
+          <View style={styles.scoreInputCol}>
+            <Text style={styles.scoreInputLabel} numberOfLines={1}>{scoreTarget?.opponentName}</Text>
+            <TextInput
+              style={styles.scoreInput}
+              keyboardType="number-pad"
+              value={opponentGoalsInput}
+              onChangeText={setOpponentGoalsInput}
+            />
           </View>
         </View>
-      </Modal>
+
+        <HapticTouchable style={styles.saveBtn} onPress={submitScore} disabled={saving}>
+          {saving ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.saveBtnText}>{t('match_save')}</Text>}
+        </HapticTouchable>
+        <HapticTouchable style={styles.cancelBtn} onPress={() => setScoreTarget(null)}>
+          <Text style={styles.cancelBtnText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
@@ -431,48 +435,47 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     backBtn: {
-      width: 44, height: 44,
+      width: 42, height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
     statCard: {
       flex: 1,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingVertical: 14,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    statValue: { fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold },
+    statValue: { fontFamily: FontFamily.display, fontSize: 17, color: theme.goldDark },
     statLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
     },
     cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
-    upcomingText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.gold },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 16, color: theme.text, marginBottom: 16, letterSpacing: 0.5 },
+    upcomingText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     goalsRow: { flexDirection: 'row', justifyContent: 'space-around' },
     goalsItem: { alignItems: 'center' },
-    goalsValue: { fontFamily: FontFamily.monoMedium, fontSize: 24, color: theme.gold },
+    goalsValue: { fontFamily: FontFamily.display, fontSize: 22, color: theme.goldDark },
     goalsLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 4 },
     formRow: { flexDirection: 'row', gap: 8 },
-    formPill: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    formPill: { width: 30, height: 30, borderRadius: RADIUS, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     formPillText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
-    emptyHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary },
+    emptyHint: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     scorerRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -481,9 +484,9 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
-    scorerRank: { width: 20, fontFamily: FontFamily.monoMedium, fontSize: 14, color: theme.gold },
+    scorerRank: { width: 20, fontFamily: FontFamily.monoMedium, fontSize: 14, color: theme.goldDark },
     scorerName: { flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
-    scorerGoals: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.gold },
+    scorerGoals: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.goldDark },
     scorableRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -495,43 +498,43 @@ const createStyles = (theme: Theme) =>
     scorableTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
     scorableMeta: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 },
     scoreEntryBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
-    scoreEntryBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
+    scoreEntryBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       paddingBottom: 36,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, marginBottom: 6, letterSpacing: 0.5 },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 6, letterSpacing: 0.5 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 20, marginBottom: 20 },
     scoreInputCol: { alignItems: 'center', width: 100 },
-    scoreInputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.textSecondary, marginBottom: 8, textAlign: 'center' },
+    scoreInputLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, marginBottom: 8, textAlign: 'center' },
     scoreInput: {
       width: 64,
       height: 56,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
       color: theme.text,
-      fontFamily: FontFamily.monoMedium,
-      fontSize: 24,
+      fontFamily: FontFamily.display,
+      fontSize: 22,
       textAlign: 'center',
     },
     scoreDash: { fontFamily: FontFamily.mono, fontSize: 20, color: theme.textSecondary, marginTop: 20 },
-    saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center' },
-    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#000' },
+    saveBtn: { height: 52, borderRadius: RADIUS, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center' },
+    saveBtnText: { fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 0.5, color: Paper.ink },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
+    cancelBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
   });

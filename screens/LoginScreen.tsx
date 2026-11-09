@@ -10,69 +10,79 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { fetchAccountBanRow, evaluateAccountAccess, clearExpiredBan } from '../lib/accountAccess';
+import { translateAuthError } from '../lib/authErrors';
+import { requestPasswordReset } from '../lib/authFlows';
 import HapticTouchable from '../components/HapticTouchable';
 import FadeInView from '../components/FadeInView';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'Invalid login credentials': 'Email veya şifre hatalı',
-};
-
-const translateError = (message: string) => ERROR_MESSAGES[message] ?? message;
+const RADIUS = CARD_RADIUS;
 
 interface Props {
-  onLogin: (userType: 'player' | 'team') => void;
-  onRegister: (userType: 'player' | 'team') => void;
+  onLogin: () => void;
+  onRegister: () => void;
 }
 
 export default function LoginScreen({ onLogin, onRegister }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
-  const [userType, setUserType] = useState<'player' | 'team'>('player');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  // Gönderim başarısızsa "gönderildi" gösterilmez. Hesap varlığı sızdırılmaz: başarılı yanıt aynıdır.
+  const handleForgot = async () => {
+    setLoading(true);
+    const outcome = await requestPasswordReset(supabase, email);
+    setLoading(false);
+    if (outcome.status === 'invalid_email') {
+      Alert.alert(t('login_errorTitle'), t('login_emailRequired'));
+      return;
+    }
+    if (outcome.status === 'failed') {
+      Alert.alert(t('login_errorTitle'), t('auth_resetFailed'));
+      return;
+    }
+    setResetSent(true);
+  };
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      Alert.alert('Hata', 'Lütfen email adresinizi girin');
+      Alert.alert(t('login_errorTitle'), t('login_emailRequired'));
       return;
     }
     if (!password) {
-      Alert.alert('Hata', 'Lütfen şifrenizi girin');
+      Alert.alert(t('login_errorTitle'), t('login_passwordRequired'));
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setLoading(false);
-      Alert.alert('Giriş Hatası', translateError(error.message));
+      Alert.alert(t('login_error'), translateAuthError(error.message, t));
       return;
     }
 
-    const userId = data.user?.id;
-    if (userId) {
-      const banRow = await fetchAccountBanRow(userId);
-      const access = evaluateAccountAccess(banRow);
-      if (!access.allowed) {
-        await supabase.auth.signOut();
-        setLoading(false);
-        Alert.alert('Giriş Engellendi', access.message);
-        return;
-      }
-      if (access.expiredBan && banRow) {
-        void clearExpiredBan(userId, banRow.table);
-      }
-    }
-
+    // Hesap durumu (yasak/pasiflik) App tarafında kontrol edilir: doğrulanmış yasaklı hesap oturumdan çıkarılır,
+    // doğrulanamayan hesap ise oturumda kalır ve korunan işlemler kapalı başlar.
     setLoading(false);
-    onLogin(userType);
+    onLogin();
   };
+
+  const todayLabel = new Date().toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 
   return (
     <KeyboardAvoidingView
@@ -81,114 +91,110 @@ export default function LoginScreen({ onLogin, onRegister }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Hero */}
-        <View style={styles.hero}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.heroEmoji}>⚽</Text>
-          <View style={styles.stadiumLights} />
+        {/* Seri no / tarih şeridi */}
+        <View style={styles.topStrip}>
+          <Text style={styles.topStripText}>TFF-LC-2026-08149</Text>
+          <Text style={styles.topStripText}>{todayLabel}</Text>
         </View>
 
-        {/* Logo */}
-        <View style={[styles.logoWrap, { backgroundColor: 'transparent' }]}>
-          <Image
-            source={require('../assets/logo-text.png')}
-            style={{ width: 260, height: 70, resizeMode: 'contain', backgroundColor: 'transparent' }}
-          />
-          <Text style={styles.logoSub}>KARİYERİNİ BAŞLAT</Text>
-        </View>
+        {/* Lisans kartı */}
+        <FadeInView style={styles.cardWrap} translateY={20} duration={280}>
+          <View style={styles.card}>
+            <View style={styles.crestRow}>
+              <Image source={require('../assets/logo-icon-square.png')} style={styles.crest} />
+              <Text style={styles.cardBrand}>FOOTBALLY</Text>
+            </View>
+            <Text style={styles.cardLabel}>{t('login_licenseLabel')}</Text>
 
-        {/* Form */}
-        <FadeInView style={styles.form} translateY={20} duration={280}>
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
-            <HapticTouchable
-              onPress={() => setUserType('player')}
-              style={{
-                flex: 1, padding: 16, borderRadius: 16, alignItems: 'center',
-                backgroundColor: userType === 'player' ? theme.gold : theme.card,
-                borderWidth: 1.5,
-                borderColor: userType === 'player' ? theme.gold : theme.border,
-              }}>
-              <Text style={{ fontSize: 28, marginBottom: 6 }}>⚽</Text>
-              <Text style={{ color: userType === 'player' ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }}>Oyuncuyum</Text>
-              <Text style={{ color: userType === 'player' ? '#000' : theme.textSecondary, fontFamily: FontFamily.body, fontSize: 11, marginTop: 2 }}>Kariyer yönetimi</Text>
-            </HapticTouchable>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>{t('login_emailLabel')}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="scout@footbally.app"
+                placeholderTextColor={theme.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
 
-            <HapticTouchable
-              onPress={() => setUserType('team')}
-              style={{
-                flex: 1, padding: 16, borderRadius: 16, alignItems: 'center',
-                backgroundColor: userType === 'team' ? theme.gold : theme.card,
-                borderWidth: 1.5,
-                borderColor: userType === 'team' ? theme.gold : theme.border,
-              }}>
-              <Text style={{ fontSize: 28, marginBottom: 6 }}>🏟️</Text>
-              <Text style={{ color: userType === 'team' ? '#000' : theme.text, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }}>Takımım Var</Text>
-              <Text style={{ color: userType === 'team' ? '#000' : theme.textSecondary, fontFamily: FontFamily.body, fontSize: 11, marginTop: 2 }}>Oyuncu & rakip bul</Text>
-            </HapticTouchable>
-          </View>
+            {!forgotMode && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('login_passwordLabel')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor={theme.textMuted}
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>E-POSTA</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="scout@footbally.app"
-              placeholderTextColor={theme.textSecondary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
+                <HapticTouchable
+                  style={[styles.btnGold, loading && styles.btnGoldDisabled]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={theme.bg} />
+                  ) : (
+                    <Text style={styles.btnGoldText}>{t('login_signIn')}</Text>
+                  )}
+                </HapticTouchable>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>ŞİFRE</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor={theme.textSecondary}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
-
-          <HapticTouchable
-            style={[styles.btnGold, loading && styles.btnGoldDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.btnGoldText}>Giriş Yap</Text>
+                <HapticTouchable style={styles.forgotLink} onPress={() => { setForgotMode(true); setResetSent(false); }} disabled={loading}>
+                  <Text style={styles.registerLink}>{t('auth_forgotPassword')}</Text>
+                </HapticTouchable>
+              </>
             )}
-          </HapticTouchable>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>veya</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social */}
-          <View style={styles.socialRow}>
-            <HapticTouchable style={styles.socialBtn} onPress={() => onLogin(userType)}>
-              <Text style={styles.socialBtnText}>🌐  Google</Text>
-            </HapticTouchable>
-            <HapticTouchable style={styles.socialBtn} onPress={() => onLogin(userType)}>
-              <Text style={styles.socialBtnText}>🍎  Apple</Text>
-            </HapticTouchable>
-          </View>
-
-          {/* Register */}
-          <View style={styles.registerRow}>
-            <Text style={styles.registerText}>Hesabın yok mu? </Text>
-            <HapticTouchable onPress={() => onRegister(userType)} disabled={loading}>
-              <Text style={styles.registerLink}>Hesap Oluştur</Text>
-            </HapticTouchable>
+            {forgotMode && (
+              <>
+                <Text style={styles.resetHint}>{resetSent ? t('auth_resetSent') : t('auth_resetHint')}</Text>
+                {!resetSent && (
+                  <HapticTouchable
+                    style={[styles.btnGold, loading && styles.btnGoldDisabled]}
+                    onPress={handleForgot}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color={theme.bg} />
+                    ) : (
+                      <Text style={styles.btnGoldText}>{t('auth_sendResetLink')}</Text>
+                    )}
+                  </HapticTouchable>
+                )}
+                <HapticTouchable style={styles.forgotLink} onPress={() => { setForgotMode(false); setResetSent(false); }}>
+                  <Text style={styles.registerLink}>{t('auth_backToLogin')}</Text>
+                </HapticTouchable>
+              </>
+            )}
           </View>
         </FadeInView>
+
+        {/* Register */}
+        <View style={styles.registerRow}>
+          <Text style={styles.registerText}>{t('login_noAccount')}</Text>
+          <HapticTouchable onPress={() => onRegister()} disabled={loading}>
+            <Text style={styles.registerLink}>{t('login_createAccount')}</Text>
+          </HapticTouchable>
+        </View>
+
+        {/* Şartlar + Gizlilik */}
+        <Text style={styles.legalText}>
+          {t('login_legalPrefix')}
+          <Text style={styles.legalLink} onPress={() => Linking.openURL('https://getfootbally.com/terms')}>
+            {t('login_terms')}
+          </Text>
+          {t('login_and')}
+          <Text style={styles.legalLink} onPress={() => Linking.openURL('https://getfootbally.com/privacy')}>
+            {t('login_privacy')}
+          </Text>
+          {t('login_legalSuffix')}
+        </Text>
 
       </ScrollView>
     </KeyboardAvoidingView>
@@ -204,82 +210,97 @@ const createStyles = (theme: Theme) =>
     scroll: {
       flexGrow: 1,
     },
-    hero: {
-      height: 220,
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-    },
-    heroGlow: {
-      position: 'absolute',
-      bottom: 0,
-      width: 200,
-      height: 80,
-      borderRadius: 100,
-      backgroundColor: hexToRgba(theme.gold, 0.06),
-    },
-    stadiumLights: {
-      position: 'absolute',
-      top: 20,
-      width: '80%',
-      height: 1,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-    },
-    heroEmoji: {
-      fontSize: 80,
-    },
-    logoWrap: {
-      alignItems: 'center',
-      marginBottom: 32,
-    },
-    logoSub: {
-      fontFamily: FontFamily.display,
-      fontSize: 14,
-      color: theme.textSecondary,
-      letterSpacing: 4,
-      marginTop: 4,
-    },
-    form: {
+    topStrip: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
       paddingHorizontal: 24,
-      paddingBottom: 40,
+      paddingTop: 18,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      marginBottom: 22,
+    },
+    topStripText: {
+      fontFamily: FontFamily.mono,
+      fontSize: 11,
+      color: theme.textSecondary,
+      letterSpacing: 1,
+    },
+    cardWrap: {
+      paddingHorizontal: 24,
+    },
+    card: {
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      padding: 22,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    crestRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    crest: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      resizeMode: 'contain',
+    },
+    cardBrand: {
+      fontFamily: FontFamily.display,
+      fontSize: 20,
+      letterSpacing: 2,
+      color: theme.text,
+    },
+    cardLabel: {
+      fontFamily: FontFamily.mono,
+      fontSize: 11,
+      letterSpacing: 1,
+      color: theme.goldDark,
+      paddingBottom: 14,
+      marginBottom: 18,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
     },
     inputGroup: {
       marginBottom: 16,
     },
     inputLabel: {
       fontFamily: FontFamily.mono,
-      fontSize: 11,
-      color: theme.textSecondary,
+      fontSize: 10,
+      color: theme.textMuted,
       letterSpacing: 1,
       marginBottom: 8,
     },
     input: {
-      height: 52,
-      backgroundColor: theme.card2,
-      borderRadius: 16,
-      paddingHorizontal: 16,
+      height: 48,
+      backgroundColor: theme.bg,
+      borderRadius: RADIUS,
+      paddingHorizontal: 14,
       color: theme.text,
-      fontFamily: FontFamily.body,
-      fontSize: 15,
+      fontFamily: FontFamily.mono,
+      fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     btnGold: {
-      height: 56,
+      height: 52,
       backgroundColor: theme.gold,
-      borderRadius: 24,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 8,
-      marginBottom: 20,
+      marginBottom: 18,
     },
     btnGoldDisabled: {
       opacity: 0.6,
     },
     btnGoldText: {
-      fontFamily: FontFamily.bodySemiBold,
-      fontSize: 16,
-      color: '#000',
+      fontFamily: FontFamily.display,
+      fontSize: 15,
+      color: theme.bg,
       letterSpacing: 1,
     },
     divider: {
@@ -294,43 +315,61 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.border,
     },
     dividerText: {
-      fontFamily: FontFamily.body,
-      fontSize: 12,
-      color: theme.textSecondary,
+      fontFamily: FontFamily.mono,
+      fontSize: 10,
+      color: theme.textMuted,
+      letterSpacing: 1,
     },
     socialRow: {
       flexDirection: 'row',
-      gap: 12,
-      marginBottom: 24,
+      gap: 10,
     },
     socialBtn: {
       flex: 1,
-      height: 52,
-      backgroundColor: theme.card2,
-      borderRadius: 16,
+      height: 46,
+      flexDirection: 'row',
+      gap: 8,
+      backgroundColor: 'transparent',
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
     socialBtnText: {
-      fontFamily: FontFamily.bodySemiBold,
-      fontSize: 14,
+      fontFamily: FontFamily.mono,
+      fontSize: 12,
       color: theme.text,
     },
     registerRow: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
+      marginTop: 22,
     },
     registerText: {
-      fontFamily: FontFamily.body,
-      fontSize: 14,
+      fontFamily: FontFamily.mono,
+      fontSize: 12,
       color: theme.textSecondary,
     },
     registerLink: {
-      fontFamily: FontFamily.bodySemiBold,
-      fontSize: 14,
-      color: theme.gold,
+      fontFamily: FontFamily.mono,
+      fontSize: 12,
+      color: theme.goldDark,
+    },
+    forgotLink: { alignSelf: 'center', marginTop: 14, paddingVertical: 6 },
+    resetHint: { fontFamily: FontFamily.body, fontSize: 14, color: theme.textSecondary, lineHeight: 20, marginBottom: 12 },
+    legalText: {
+      fontFamily: FontFamily.mono,
+      fontSize: 10.5,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 17,
+      paddingHorizontal: 32,
+      marginTop: 10,
+      marginBottom: 30,
+    },
+    legalLink: {
+      color: theme.goldDark,
     },
   });

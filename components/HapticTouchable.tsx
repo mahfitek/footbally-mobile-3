@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { Animated, GestureResponderEvent, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -10,7 +10,7 @@ export default function HapticTouchable({
   onPressOut,
   ...rest
 }: TouchableOpacityProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
 
   const handlePressIn = (e: GestureResponderEvent) => {
     Animated.timing(scale, { toValue: 0.98, duration: 80, useNativeDriver: true }).start();

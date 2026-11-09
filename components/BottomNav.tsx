@@ -1,87 +1,91 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { Theme, CARD_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
+// Navbar'ın alt safe-area dışındaki yüksekliği; Sahadan giriş çubuğu bunu boşluk olarak kullanır.
+export const NAV_BAR_HEIGHT = 64;
+
+// Sekme anahtarı = ekran adı. App.tsx aktif sekmeyi `screen` değerinden okur, bu yüzden eşleşmeleri korunmalı.
 export type TabName =
   | 'home'
-  | 'activities'
-  | 'footbally'
+  | 'match'
+  | 'search'
   | 'messages'
   | 'profile'
-  | 'findPlayer'
+  | 'teamHome'
   | 'findOpponent'
-  | 'teamSquad'
-  | 'teamProfile'
-  | 'teamHome';
+  | 'findPlayer'
+  | 'teamProfile';
 
 interface Props {
-  active: TabName;
+  active: TabName | null;
   onPress: (tab: TabName) => void;
-  userType?: 'player' | 'team';
 }
 
-const PLAYER_ITEMS: { tab: TabName; icon: string; label: string }[] = [
-  { tab: 'home', icon: '🏠', label: 'Ana Sayfa' },
-  { tab: 'activities', icon: '⚡', label: 'Aktiviteler' },
-  { tab: 'messages', icon: '💬', label: 'Mesajlar' },
-  { tab: 'profile', icon: '👤', label: 'Profil' },
+interface Item {
+  tab: TabName;
+  icon: IoniconName;
+  labelKey: 'home' | 'nav_matches' | 'nav_discover' | 'messages' | 'profile' | 'nav_team';
+}
+
+// Sabit beş sekme, tüm hesaplar için aynı: Ana Sayfa, Maçlar, Keşfet, Mesajlar, Profil.
+// Takım sahipleri de son sekme olarak Profil'i kullanır; takım ekranlarına Profil içinden erişilir.
+// Sekmeden çıkan ekranlara başka yollardan erişilir: Performans ve Fırsatlar (Ana Sayfa ızgarası),
+// Sahadan (Mesajlar içinden), takım ekranları (Profil menüsünden).
+const ITEMS: Item[] = [
+  { tab: 'home', icon: 'home-outline', labelKey: 'home' },
+  { tab: 'match', icon: 'football-outline', labelKey: 'nav_matches' },
+  { tab: 'search', icon: 'compass-outline', labelKey: 'nav_discover' },
+  { tab: 'messages', icon: 'chatbubble-outline', labelKey: 'messages' },
+  { tab: 'profile', icon: 'person-outline', labelKey: 'profile' },
 ];
 
-const TEAM_ITEMS: { tab: TabName; icon: string; label: string }[] = [
-  { tab: 'teamHome', icon: '🏠', label: 'Ana Sayfa' },
-  { tab: 'findPlayer', icon: '🔍', label: 'Oyuncu Bul' },
-  { tab: 'teamSquad', icon: '📋', label: 'Kadro' },
-  { tab: 'teamProfile', icon: '🏟️', label: 'Takım' },
-];
+const ALL_TABS: TabName[] = ITEMS.map((item) => item.tab);
 
-const PLAYER_TABS: TabName[] = ['home', 'activities', 'footbally', 'messages', 'profile'];
-const TEAM_TABS: TabName[] = ['teamHome', 'findPlayer', 'findOpponent', 'teamSquad', 'teamProfile'];
+// Her sekmenin basma animasyonu için tek bir değer; ilk render'da bir kez oluşturulur.
+function createScaleValues(): Record<TabName, Animated.Value> {
+  return Object.fromEntries(ALL_TABS.map((tab) => [tab, new Animated.Value(1)])) as Record<TabName, Animated.Value>;
+}
 
-export default function BottomNav({ active, onPress, userType = 'player' }: Props) {
+export default function BottomNav({ active, onPress }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const isTeam = userType === 'team';
-  const PLAYER_LABELS: Record<string, string> = {
-    home: t('home'),
-    activities: t('activities'),
-    messages: t('messages'),
-    profile: t('profile'),
-  };
-  const items = (isTeam ? TEAM_ITEMS : PLAYER_ITEMS).map((item) =>
-    isTeam ? item : { ...item, label: PLAYER_LABELS[item.tab] ?? item.label }
-  );
-  const centerTab: TabName = isTeam ? 'findOpponent' : 'footbally';
-  const allTabs = isTeam ? TEAM_TABS : PLAYER_TABS;
-  const scales = useRef(
-    allTabs.reduce((acc, tab) => {
-      acc[tab] = new Animated.Value(1);
-      return acc;
-    }, {} as Record<TabName, Animated.Value>)
-  ).current;
-
-  useEffect(() => {
-    if (isTeam) return;
-    loadUnreadMessages();
-  }, [active, isTeam]);
+  const [scales] = useState(createScaleValues);
 
   const loadUnreadMessages = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) return;
-    const { count } = await supabase
-      .from('messages')
-      .select('id', { count: 'exact' })
-      .eq('receiver_id', user.id)
-      .eq('read', false);
-    setUnreadMessages(count ?? 0);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) return;
+      // messages tablosunda alıcı kolonu yok; karşı tarafın gönderdiği okunmamış mesajlar sayılır.
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .neq('sender_user_id', user.id)
+        .eq('read', false);
+      setUnreadMessages(count ?? 0);
+    } catch {
+      // Rozet bilgisi yardımcıdır; okunamazsa sekme yine çalışır.
+    }
   };
+
+  // Sekme değişince okunmamış sayısı yenilenir; yükleme asenkrondur, setState effect'in senkron gövdesinde değildir.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadUnreadMessages();
+  }, [active]);
 
   const handlePress = (tab: TabName) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -94,57 +98,41 @@ export default function BottomNav({ active, onPress, userType = 'player' }: Prop
   };
 
   return (
-    <View style={styles.container}>
-      {items.slice(0, 2).map((item) => (
-        <TouchableOpacity key={item.tab} style={styles.item} activeOpacity={0.7} onPress={() => handlePress(item.tab)}>
-          <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
-            <View style={styles.dotSlot}>
-              {active === item.tab && <View style={styles.activeDot} />}
-            </View>
-            <View style={styles.iconWrap}>
-              <Text style={[styles.icon, active === item.tab && styles.iconActive]}>{item.icon}</Text>
-              {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.label, active === item.tab && styles.labelActive]}>{item.label}</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      ))}
-
-      <TouchableOpacity style={styles.centerBtn} activeOpacity={0.7} onPress={() => handlePress(centerTab)}>
-        <Animated.View style={{ transform: [{ scale: scales[centerTab] }] }}>
-          {isTeam ? (
-            <Text style={styles.centerBtnIcon}>⚔️</Text>
-          ) : (
-            <Image
-              source={require('../assets/logo-icon.png')}
-              style={{ width: 36, height: 36, resizeMode: 'contain' }}
-            />
-          )}
-        </Animated.View>
-      </TouchableOpacity>
-
-      {items.slice(2).map((item) => (
-        <TouchableOpacity key={item.tab} style={styles.item} activeOpacity={0.7} onPress={() => handlePress(item.tab)}>
-          <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
-            <View style={styles.dotSlot}>
-              {active === item.tab && <View style={styles.activeDot} />}
-            </View>
-            <View style={styles.iconWrap}>
-              <Text style={[styles.icon, active === item.tab && styles.iconActive]}>{item.icon}</Text>
-              {!isTeam && item.tab === 'messages' && unreadMessages > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.label, active === item.tab && styles.labelActive]}>{item.label}</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      ))}
+    <View style={[styles.container, { height: NAV_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom + 4 }]}>
+      {ITEMS.map((item) => {
+        const isActive = active === item.tab;
+        const label = t(item.labelKey);
+        return (
+          <TouchableOpacity
+            key={item.tab}
+            style={styles.item}
+            activeOpacity={0.7}
+            onPress={() => handlePress(item.tab)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={label}
+          >
+            <Animated.View style={[styles.itemContent, { transform: [{ scale: scales[item.tab] }] }]}>
+              <View style={styles.dotSlot}>
+                {isActive && <View style={styles.activeDot} />}
+              </View>
+              <View style={styles.iconWrap}>
+                <Ionicons
+                  name={item.icon}
+                  size={isActive ? 24 : 21}
+                  color={isActive ? theme.gold : theme.textSecondary}
+                />
+                {item.tab === 'messages' && unreadMessages > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.label, isActive && styles.labelActive]} numberOfLines={1}>{label}</Text>
+            </Animated.View>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -156,14 +144,11 @@ const createStyles = (theme: Theme) =>
       bottom: 0,
       left: 0,
       right: 0,
-      height: 80,
       backgroundColor: theme.tabBar,
       borderTopWidth: 1,
-      borderTopColor: hexToRgba(theme.gold, 0.15),
+      borderTopColor: theme.border,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-around',
-      paddingBottom: 16,
       paddingHorizontal: 8,
     },
     item: {
@@ -184,14 +169,14 @@ const createStyles = (theme: Theme) =>
       borderRadius: 3,
       backgroundColor: theme.gold,
     },
-    icon: { fontSize: 22 },
-    iconActive: { fontSize: 26 },
     iconWrap: { position: 'relative' },
     badge: {
       position: 'absolute',
-      top: -4, right: -10,
-      minWidth: 16, height: 16,
-      borderRadius: 8,
+      top: -4,
+      right: -10,
+      minWidth: 16,
+      height: 16,
+      borderRadius: CARD_RADIUS - 3,
       paddingHorizontal: 3,
       backgroundColor: theme.error,
       alignItems: 'center',
@@ -200,27 +185,12 @@ const createStyles = (theme: Theme) =>
     badgeText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
     label: {
       fontFamily: FontFamily.body,
-      fontSize: 10,
-      color: theme.textSecondary,
+      fontSize: 11,
+      color: theme.textMuted,
     },
+    // Seçili sekme: zümrüt vurgu; küçük metin olduğu için koyu ton (4.5:1 üzeri).
     labelActive: {
       fontFamily: FontFamily.bodySemiBold,
-      color: theme.gold,
+      color: theme.goldDark,
     },
-    centerBtn: {
-      width: 56,
-      height: 56,
-      borderRadius: 18,
-      backgroundColor: theme.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 0,
-      alignSelf: 'center',
-      shadowColor: theme.gold,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.4,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    centerBtnIcon: { fontSize: 26 },
   });

@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba } from '../constants/theme';
+import { CARD_RADIUS } from '../constants/theme';
 
 interface Props {
   height?: number;
@@ -10,7 +10,7 @@ interface Props {
 
 export default function SkeletonCard({ height = 80, style }: Props) {
   const { theme } = useTheme();
-  const opacity = useRef(new Animated.Value(0.3)).current;
+  const [opacity] = useState(() => new Animated.Value(0.3));
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -28,10 +28,10 @@ export default function SkeletonCard({ height = 80, style }: Props) {
       style={[
         {
           height,
-          borderRadius: 20,
+          borderRadius: CARD_RADIUS,
           backgroundColor: theme.card,
           borderWidth: 1,
-          borderColor: hexToRgba(theme.gold, 0.15),
+          borderColor: theme.border,
           opacity,
         },
         style,

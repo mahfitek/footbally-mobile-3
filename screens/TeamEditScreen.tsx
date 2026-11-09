@@ -11,15 +11,21 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { TEAM_COLUMNS } from '../lib/columns';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
+import { useAccountAccess, canWriteTeam } from '../lib/accountContext';
 
 const LEAGUES = ['Süper Amatör', 'Amatör', 'Bölgesel', 'İl Ligi', 'İlçe Ligi', 'Diğer'];
 const FORMATIONS = ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-3-2', '3-4-3'];
@@ -37,7 +43,9 @@ interface Props {
 
 export default function TeamEditScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
+  const { access: accountAccess } = useAccountAccess();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
@@ -56,10 +64,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
   const [neededPositions, setNeededPositions] = useState<string[]>([]);
   const [whatsappLink, setWhatsappLink] = useState('');
   const [contactNumber, setContactNumber] = useState('');
+  // Mevcut takımın kimliği. Güncelleme bu id ile yapılır; yükleme başarısızsa yeni takım oluşturulmaz.
+  const [teamId, setTeamId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useEffect(() => {
-    loadTeam();
-  }, [userId]);
 
   const resolveUserId = async () => {
     if (userId) return userId;
@@ -75,9 +83,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       return;
     }
 
-    const { data, error } = await supabase.from('teams').select('*').eq('owner_id', uid).maybeSingle();
+    const { data, error } = await supabase.from('teams').select(TEAM_COLUMNS).eq('owner_id', uid).maybeSingle();
 
     if (data) {
+      setTeamId(data.id);
       setName(data.name || '');
       setCity(data.city || '');
       setDistrict(data.district || '');
@@ -91,11 +100,17 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       setNeededPositions(data.needed_positions || []);
       setWhatsappLink(data.whatsapp_link || '');
       setContactNumber(data.contact_number || '');
-    } else if (error && __DEV__) {
-      console.log('Takım yüklenemedi:', error);
+    } else if (error) {
+      // Okuma başarısızsa mevcut takım var sayılır ve kaydetme kapatılır; böylece ikinci takım oluşturulmaz.
+      setLoadFailed(true);
+      if (__DEV__) console.log('Takım yüklenemedi:', error);
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadTeam();
+  }, [userId]);
 
   const toggleFromList = (list: string[], setList: (v: string[]) => void, value: string) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -108,8 +123,16 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
   };
 
   const handleSave = async () => {
+    // Takım yazması: hesap durumu doğrulanmadıysa ya da takım yasaklıysa kaydedilmez.
+    if (!canWriteTeam(accountAccess)) {
+      setToast({
+        message: accountAccess?.teamRestricted && accountAccess.verified ? t('account_teamWriteBlocked') : t('account_writeBlocked'),
+        type: 'error',
+      });
+      return;
+    }
     if (!name.trim()) {
-      setToast({ message: 'Lütfen takım adını girin', type: 'error' });
+      setToast({ message: t('teamEdit_fillTeamName'), type: 'error' });
       return;
     }
 
@@ -118,7 +141,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       const uid = await resolveUserId();
       if (__DEV__) console.log('TeamEditScreen save - userId:', uid);
       if (!uid) {
-        setToast({ message: 'Kullanıcı oturumu bulunamadı. Çıkış yapıp tekrar giriş deneyin.', type: 'error' });
+        setToast({ message: t('teamEdit_noSession'), type: 'error' });
         setSaving(false);
         return;
       }
@@ -139,41 +162,57 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
         contact_number: contactNumber.trim() || null,
       };
 
-      const { data: updated, error: updateError } = await supabase
-        .from('teams')
-        .update(payload)
-        .eq('owner_id', uid)
-        .select();
-
-      if (updateError) {
-        if (__DEV__) console.log('Takım kaydedilemedi:', updateError);
-        setToast({ message: 'Takım kaydedilemedi', type: 'error' });
-        setSaving(false);
-        return;
-      }
-
-      if (!updated || updated.length === 0) {
-        const { error: insertError } = await supabase.from('teams').insert({ owner_id: uid, ...payload });
-        if (insertError) {
-          if (__DEV__) console.log('Takım oluşturulamadı:', insertError);
-          setToast({ message: 'Takım oluşturulamadı', type: 'error' });
+      // Mevcut takım varsa id ile güncellenir. Güncelleme 0 satır dönerse (RLS, yasak vb.) yeni takım
+      // oluşturulmaz: hata gösterilir. Yalnızca hiç takım yoksa (yükleme başarılı, kayıt yok) yeni takım açılır.
+      if (teamId || loadFailed) {
+        if (!teamId) {
+          setToast({ message: t('teamEdit_saveFailed'), type: 'error' });
           setSaving(false);
           return;
         }
+        const { data: updated, error: updateError } = await supabase
+          .from('teams')
+          .update(payload)
+          .eq('id', teamId)
+          .select('id');
+
+        if (updateError || !updated || updated.length === 0) {
+          if (__DEV__) console.log('Takım kaydedilemedi:', updateError);
+          setToast({ message: t('teamEdit_saveFailed'), type: 'error' });
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { data: created, error: insertError } = await supabase
+          .from('teams')
+          .insert({ owner_id: uid, ...payload })
+          .select('id')
+          .single();
+        if (insertError) {
+          if (__DEV__) console.log('Takım oluşturulamadı:', insertError);
+          // 42501: hesap kısıtlıysa takım oluşturulamaz (restrictive RLS).
+          setToast({
+            message: insertError.code === '42501' ? t('account_writeBlocked') : t('teamEdit_createFailed'),
+            type: 'error',
+          });
+          setSaving(false);
+          return;
+        }
+        setTeamId(created.id);
       }
 
-      setToast({ message: 'Takım profili kaydedildi', type: 'success' });
-      sendLocalNotification('Takım Güncellendi 🏟️', 'Takım profiliniz başarıyla kaydedildi.');
+      setToast({ message: t('teamEdit_saveSuccess'), type: 'success' });
+      sendLocalNotification(t('teamEdit_updatedNotifTitle'), t('teamEdit_updatedNotifBody'));
       setTimeout(() => navigate('teamProfile'), 800);
     } catch (err) {
       if (__DEV__) console.log('Takım kaydedilirken beklenmeyen hata:', err);
-      setToast({ message: 'Beklenmeyen bir hata oluştu', type: 'error' });
+      setToast({ message: t('findOpponent_unexpectedError'), type: 'error' });
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <LoadingScreen message="Takım profili yükleniyor..." />;
+    return <LoadingScreen message={t('teamProfile_loading')} />;
   }
 
   return (
@@ -181,45 +220,47 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamProfile')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Takım Profili</Text>
+          <Text style={styles.title}>{t('teamEdit_title')}</Text>
           <HapticTouchable onPress={handleSave} disabled={saving} style={styles.saveBtn}>
-            {saving ? <ActivityIndicator color={theme.gold} /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
+            {saving ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.saveBtnText}>{t('match_save')}</Text>}
           </HapticTouchable>
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>TAKIM ADI</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_nameLabel')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Örn. Kadıköy FC"
+              placeholder={t('teamEdit_namePlaceholder')}
               placeholderTextColor={theme.textSecondary}
             />
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>ŞEHİR</Text>
-              <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'city' ? null : 'city')}>
+              <Text style={styles.inputLabel}>{t('createMatch_cityLabel')}</Text>
+              <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'city' ? null : 'city')}>
                 <Text style={city ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {city || 'Şehir seçin'} {openPicker === 'city' ? '▲' : '▼'}
+                  {city || t('createMatch_citySelect')}
                 </Text>
+                <Ionicons name={openPicker === 'city' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.inputLabel}>İLÇE</Text>
+              <Text style={styles.inputLabel}>{t('createMatch_districtLabel')}</Text>
               <TouchableOpacity
-                style={[styles.input, !city && styles.inputDisabled]}
+                style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, !city && styles.inputDisabled]}
                 onPress={() => city && setOpenPicker(openPicker === 'district' ? null : 'district')}
                 disabled={!city}
               >
                 <Text style={district ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {district || 'İlçe seçin'} {openPicker === 'district' ? '▲' : '▼'}
+                  {district || t('createMatch_districtSelect')}
                 </Text>
+                <Ionicons name={openPicker === 'district' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -255,9 +296,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>LİG / KATEGORİ</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'league' ? null : 'league')}>
-              <Text style={styles.inputValueText}>{league} {openPicker === 'league' ? '▲' : '▼'}</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_leagueLabel')}</Text>
+            <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'league' ? null : 'league')}>
+              <Text style={styles.inputValueText}>{league}</Text>
+              <Ionicons name={openPicker === 'league' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           {openPicker === 'league' && (
@@ -272,9 +314,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>KURULUŞ YILI</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'year' ? null : 'year')}>
-              <Text style={styles.inputValueText}>{foundedYear} {openPicker === 'year' ? '▲' : '▼'}</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_foundedYearLabel')}</Text>
+            <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'year' ? null : 'year')}>
+              <Text style={styles.inputValueText}>{foundedYear}</Text>
+              <Ionicons name={openPicker === 'year' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           {openPicker === 'year' && (
@@ -295,23 +338,23 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>SAHA ADI / TESİSİ</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_groundLabel')}</Text>
             <TextInput
               style={styles.input}
               value={groundName}
               onChangeText={setGroundName}
-              placeholder="Örn. Kadıköy Halı Saha"
+              placeholder={t('teamEdit_groundPlaceholder')}
               placeholderTextColor={theme.textSecondary}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>TAKIM AÇIKLAMASI</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_descriptionLabel')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Takımınızı tanıtın"
+              placeholder={t('teamEdit_descriptionPlaceholder')}
               placeholderTextColor={theme.textSecondary}
               multiline
               numberOfLines={4}
@@ -319,7 +362,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>OYUN STİLİ</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_playingStyleLabel')}</Text>
             <View style={styles.pillsWrap}>
               {PLAYING_STYLES.map((s) => (
                 <HapticTouchable
@@ -334,9 +377,10 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>DİZİLİŞ</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setOpenPicker(openPicker === 'formation' ? null : 'formation')}>
-              <Text style={styles.inputValueText}>{formation} {openPicker === 'formation' ? '▲' : '▼'}</Text>
+            <Text style={styles.inputLabel}>{t('teamProfile_formation')}</Text>
+            <TouchableOpacity style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setOpenPicker(openPicker === 'formation' ? null : 'formation')}>
+              <Text style={styles.inputValueText}>{formation}</Text>
+              <Ionicons name={openPicker === 'formation' ? 'chevron-up' : 'chevron-down'} size={13} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           {openPicker === 'formation' && (
@@ -351,7 +395,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>MAÇ GÜNLERİ</Text>
+            <Text style={styles.inputLabel}>{t('teamProfile_matchDays')}</Text>
             <View style={styles.pillsWrap}>
               {DAYS.map((d) => (
                 <HapticTouchable
@@ -366,7 +410,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>ARANAN POZİSYONLAR</Text>
+            <Text style={styles.inputLabel}>{t('teamProfile_wantedPositions')}</Text>
             <View style={styles.pillsWrap}>
               {POSITIONS.map((p) => (
                 <HapticTouchable
@@ -381,7 +425,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>WHATSAPP GRUBU LİNKİ (OPSİYONEL)</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_whatsappLabel')}</Text>
             <TextInput
               style={styles.input}
               value={whatsappLink}
@@ -393,7 +437,7 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>İLETİŞİM NUMARASI (OPSİYONEL)</Text>
+            <Text style={styles.inputLabel}>{t('teamEdit_contactLabel')}</Text>
             <TextInput
               style={styles.input}
               value={contactNumber}
@@ -402,6 +446,16 @@ export default function TeamEditScreen({ navigate, userId }: Props) {
               placeholderTextColor={theme.textSecondary}
               keyboardType="phone-pad"
             />
+          </View>
+
+          {/* Katılım ayarı: teams üzerinde karşılığı olan bir alan ve API henüz canlıda yok.
+              Değiştirilemez; alan ve kayıt yolu eklenince etkinleştirilecek. Düzenleme yalnızca
+              owner_id ile sınırlı olduğundan sahip dışı kullanıcı bu ekrandan takımı değiştiremez. */}
+          <View style={styles.inputGroup}>
+            <View style={styles.joinRow}>
+              <Text style={styles.inputLabel}>{t('teamEdit_joinOpenLabel')}</Text>
+              <Text style={styles.joinHint}>{t('settings_comingSoonTitle')}</Text>
+            </View>
           </View>
 
           <View style={{ height: 40 }} />
@@ -424,55 +478,64 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    saveBtn: { padding: 8, minWidth: 44, alignItems: 'flex-end' },
-    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.gold },
+    title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
+    saveBtn: {
+      height: 36,
+      minWidth: 72,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: theme.gold,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Paper.ink },
     content: { paddingHorizontal: 16, paddingBottom: 60 },
     row: { flexDirection: 'row', gap: 12 },
     half: { flex: 1 },
     inputGroup: { marginBottom: 16 },
-    inputLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 1, marginBottom: 8 },
+    inputLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 8 },
+    joinRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    joinHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary },
     input: {
       height: 48,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       justifyContent: 'center',
       color: theme.text,
-      fontFamily: FontFamily.body,
+      fontFamily: FontFamily.mono,
       fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    inputDisabled: { opacity: 0.5 },
-    inputValueText: { fontFamily: FontFamily.body, color: theme.text, fontSize: 14 },
-    inputPlaceholderText: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 14 },
+    inputDisabled: { backgroundColor: theme.card2 },
+    inputValueText: { fontFamily: FontFamily.mono, color: theme.text, fontSize: 14 },
+    inputPlaceholderText: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 14 },
     textArea: { height: 100, paddingTop: 12, textAlignVertical: 'top' },
     pillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stylePill: {
       paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     stylePillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    stylePillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted },
-    stylePillTextActive: { color: '#000' },
+    stylePillText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    stylePillTextActive: { color: Paper.ink },
     inlinePicker: {
       backgroundColor: theme.card2,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       marginTop: -8,
       marginBottom: 16,
       borderWidth: 1,
@@ -488,6 +551,6 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.border,
       justifyContent: 'space-between',
     },
-    listRowText: { fontFamily: FontFamily.body, fontSize: 15, color: theme.text },
-    checkmark: { fontSize: 15, color: theme.gold, fontWeight: '700' },
+    listRowText: { fontFamily: FontFamily.mono, fontSize: 14, color: theme.text },
+    checkmark: { fontSize: 15, color: theme.goldDark, fontWeight: '700' },
   });

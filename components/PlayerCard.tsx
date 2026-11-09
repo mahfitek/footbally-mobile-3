@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import FadeInView from './FadeInView';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { hexToRgba, Theme, CARD_RADIUS, SOFT_SHADOW } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 
@@ -45,10 +45,11 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 14,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: CARD_RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
+      ...SOFT_SHADOW,
     },
     avatar: {
       width: 52,
@@ -66,13 +67,13 @@ const createStyles = (theme: Theme) =>
     meta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
     contactBtn: {
       alignSelf: 'flex-start',
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: hexToRgba(theme.goldDark, 0.1),
       borderWidth: 1,
       borderColor: theme.gold,
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
-    score: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
+    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.goldDark },
+    score: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.goldDark },
   });

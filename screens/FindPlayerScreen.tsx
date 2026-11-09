@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { sendLocalNotification } from '../lib/notifications';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
@@ -145,10 +149,12 @@ type FilterKey = 'city' | 'district' | 'position' | null;
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
+  onBack?: () => void;
 }
 
-export default function FindPlayerScreen({ navigate }: Props) {
+export default function FindPlayerScreen({ navigate, onBack }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -176,29 +182,54 @@ export default function FindPlayerScreen({ navigate }: Props) {
   };
 
   const handleInvite = (player: FakePlayer) => {
-    setToast({ message: `${player.full_name} adlı oyuncuya davet gönderildi`, type: 'success' });
-    sendLocalNotification('Davet Gönderildi 📨', `${player.full_name} oyuncusuna takım daveti gönderildi.`);
+    setToast({ message: `${player.full_name} ${t('findPlayer_inviteSentToast')}`, type: 'success' });
+    sendLocalNotification(t('findPlayer_inviteSentTitle'), `${player.full_name} ${t('findPlayer_inviteSentBody')}`);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <HapticTouchable style={styles.backBtn} onPress={() => navigate('teamHome')}>
-          <Text style={styles.backIcon}>←</Text>
+        <HapticTouchable style={styles.backBtn} onPress={() => (onBack ? onBack() : navigate('teamHome'))}>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
-        <Text style={styles.title}>Oyuncu Bul</Text>
-        <Text style={styles.count}>{filteredPlayers.length} oyuncu</Text>
+        <Text style={styles.title}>{t('findPlayer_title')}</Text>
+        <Text style={styles.count}>{filteredPlayers.length} {t('findPlayer_countSuffix')}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {(selectedCity || selectedDistrict || selectedPositions.length > 0) && (
+          <View style={styles.activeChipsRow}>
+            {selectedCity && (
+              <HapticTouchable style={styles.activeChip} onPress={() => { setSelectedCity(''); setSelectedDistrict(''); }}>
+                <Ionicons name="location" size={12} color={theme.gold} />
+                <Text style={styles.activeChipText}>{selectedCity}</Text>
+                <Ionicons name="close" size={13} color={theme.textSecondary} />
+              </HapticTouchable>
+            )}
+            {selectedDistrict && (
+              <HapticTouchable style={styles.activeChip} onPress={() => setSelectedDistrict('')}>
+                <Ionicons name="location" size={12} color={theme.gold} />
+                <Text style={styles.activeChipText}>{selectedDistrict}</Text>
+                <Ionicons name="close" size={13} color={theme.textSecondary} />
+              </HapticTouchable>
+            )}
+            {selectedPositions.map((pos) => (
+              <HapticTouchable key={pos} style={styles.activeChip} onPress={() => togglePosition(pos)}>
+                <Text style={styles.activeChipText}>{pos}</Text>
+                <Ionicons name="close" size={13} color={theme.textSecondary} />
+              </HapticTouchable>
+            ))}
+          </View>
+        )}
+
         <HapticTouchable
           style={[styles.filterBtn, { borderColor: selectedCity ? theme.gold : theme.border }]}
           onPress={() => setOpenFilter(openFilter === 'city' ? null : 'city')}
         >
           <Text style={[styles.filterBtnText, { color: selectedCity ? theme.gold : theme.textSecondary }]}>
-            📍 {selectedCity || 'Şehir Seç'}
+            {selectedCity || t('findPlayer_selectCity')}
           </Text>
-          <Text style={styles.chevron}>{openFilter === 'city' ? '▲' : '▼'}</Text>
+          <Ionicons name={openFilter === 'city' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
         </HapticTouchable>
 
         {openFilter === 'city' && (
@@ -212,7 +243,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
                   setOpenFilter(null);
                 }}
               >
-                <Text style={styles.dropdownAllText}>Tümü (Şehir Seçme)</Text>
+                <Text style={styles.dropdownAllText}>{t('findPlayer_allCities')}</Text>
               </HapticTouchable>
               {TURKEY_CITIES.map((c) => (
                 <HapticTouchable
@@ -239,9 +270,9 @@ export default function FindPlayerScreen({ navigate }: Props) {
               onPress={() => setOpenFilter(openFilter === 'district' ? null : 'district')}
             >
               <Text style={[styles.filterBtnText, { color: selectedDistrict ? theme.gold : theme.textSecondary }]}>
-                🗺️ {selectedDistrict || 'İlçe Seç (Opsiyonel)'}
+                {selectedDistrict || t('findPlayer_selectDistrict')}
               </Text>
-              <Text style={styles.chevron}>{openFilter === 'district' ? '▲' : '▼'}</Text>
+              <Ionicons name={openFilter === 'district' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
             </HapticTouchable>
 
             {openFilter === 'district' && (
@@ -254,7 +285,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
                       setOpenFilter(null);
                     }}
                   >
-                    <Text style={styles.dropdownAllText}>Tümü (İlçe Seçme)</Text>
+                    <Text style={styles.dropdownAllText}>{t('findPlayer_allDistricts')}</Text>
                   </HapticTouchable>
                   {(TURKEY_CITIES.find((c) => c.name === selectedCity)?.districts ?? []).map((d) => (
                     <HapticTouchable
@@ -280,9 +311,9 @@ export default function FindPlayerScreen({ navigate }: Props) {
           onPress={() => setOpenFilter(openFilter === 'position' ? null : 'position')}
         >
           <Text style={[styles.filterBtnText, { color: selectedPositions.length > 0 ? theme.gold : theme.textSecondary }]}>
-            ⚽ {selectedPositions.length > 0 ? `${selectedPositions.length} pozisyon seçildi` : 'Pozisyon Seç'}
+            {selectedPositions.length > 0 ? `${selectedPositions.length} ${t('findPlayer_positionsSelected')}` : t('findPlayer_selectPosition')}
           </Text>
-          <Text style={styles.chevron}>{openFilter === 'position' ? '▲' : '▼'}</Text>
+          <Ionicons name={openFilter === 'position' ? 'chevron-up' : 'chevron-down'} size={14} color={theme.textSecondary} />
         </HapticTouchable>
 
         {openFilter === 'position' && (
@@ -309,7 +340,7 @@ export default function FindPlayerScreen({ navigate }: Props) {
               ))}
               {selectedPositions.length > 0 && (
                 <HapticTouchable style={styles.clearPositionsBtn} onPress={() => setSelectedPositions([])}>
-                  <Text style={styles.clearText}>Seçimi Temizle</Text>
+                  <Text style={styles.clearText}>{t('findPlayer_clearSelection')}</Text>
                 </HapticTouchable>
               )}
             </ScrollView>
@@ -318,52 +349,52 @@ export default function FindPlayerScreen({ navigate }: Props) {
 
         {(selectedCity || selectedPositions.length > 0) && (
           <HapticTouchable style={styles.clearAllBtn} onPress={clearFilters}>
-            <Text style={styles.clearText}>✕ Filtreleri Temizle</Text>
+            <Text style={styles.clearText}>{t('findPlayer_clearFilters')}</Text>
           </HapticTouchable>
         )}
 
         {filteredPlayers.length === 0 ? (
-          <EmptyState icon="🔍" title="Oyuncu bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="search-outline" title={t('findPlayer_notFound')} subtitle={t('findPlayer_tryDifferentFilters')} />
         ) : (
           filteredPlayers.map((player) => (
             <View key={player.id} style={styles.playerCard}>
               <View style={styles.playerHeader}>
                 <View style={[styles.avatar, { borderColor: player.isPremium ? theme.gold : theme.border }]}>
-                  <Text style={{ fontSize: 26 }}>⚽</Text>
+                  <Ionicons name="person-outline" size={24} color={theme.gold} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={styles.playerName}>{player.full_name}</Text>
-                    {player.isPremium && <Text style={{ fontSize: 12 }}>⭐</Text>}
+                    {player.isPremium && <Ionicons name="star" size={12} color={theme.gold} />}
                   </View>
                   <Text style={styles.playerPosition}>{player.position}</Text>
-                  <Text style={styles.playerLocation}>📍 {player.city} · {player.district}</Text>
+                  <Text style={styles.playerLocation}>{player.city} · {player.district}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.playerScore}>{player.score}</Text>
-                  <Text style={styles.scoreLabel}>SKOR</Text>
+                  <Text style={styles.scoreLabel}>{t('findPlayer_score')}</Text>
                 </View>
               </View>
 
               <View style={styles.infoPills}>
                 <View style={styles.infoPill}>
-                  <Text style={styles.infoPillText}>🎂 {player.age} yaş</Text>
+                  <Text style={styles.infoPillText}>{player.age} {t('findPlayer_age')}</Text>
                 </View>
                 <View style={styles.infoPill}>
-                  <Text style={styles.infoPillText}>👟 {player.foot}</Text>
+                  <Text style={styles.infoPillText}>{player.foot}</Text>
                 </View>
                 {player.club && (
                   <View style={styles.infoPill}>
-                    <Text style={styles.infoPillText}>🏟️ {player.club}</Text>
+                    <Text style={styles.infoPillText}>{player.club}</Text>
                   </View>
                 )}
               </View>
 
               <View style={styles.statsBlock}>
                 {[
-                  { label: 'HIZ', value: player.stats.hiz },
-                  { label: 'PAS', value: player.stats.pas },
-                  { label: 'ŞUT', value: player.stats.sut },
+                  { label: t('findPlayer_statSpeed'), value: player.stats.hiz },
+                  { label: t('findPlayer_statPass'), value: player.stats.pas },
+                  { label: t('findPlayer_statShot'), value: player.stats.sut },
                 ].map((stat) => (
                   <View key={stat.label} style={styles.statRow}>
                     <Text style={styles.statLabel}>{stat.label}</Text>
@@ -378,17 +409,17 @@ export default function FindPlayerScreen({ navigate }: Props) {
               <View style={styles.actionsRow}>
                 {player.price > 0 ? (
                   <View style={styles.pricedBadge}>
-                    <Text style={styles.pricedBadgeLabel}>💰 Ücretli Oyuncu</Text>
+                    <Text style={styles.pricedBadgeLabel}>{t('findPlayer_paidPlayer')}</Text>
                     <Text style={styles.pricedBadgeValue}>₺{player.price}/ay</Text>
                   </View>
                 ) : (
                   <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeLabel}>✓ Ücretsiz Oyuncu</Text>
-                    <Text style={styles.freeBadgeValue}>Serbest Transfer</Text>
+                    <Text style={styles.freeBadgeLabel}>{t('findPlayer_freePlayer')}</Text>
+                    <Text style={styles.freeBadgeValue}>{t('findPlayer_freeAgent')}</Text>
                   </View>
                 )}
                 <HapticTouchable style={styles.inviteBtn} onPress={() => handleInvite(player)}>
-                  <Text style={styles.inviteBtnText}>📨 Davet Et</Text>
+                  <Text style={styles.inviteBtnText}>{t('findPlayer_invite')}</Text>
                 </HapticTouchable>
               </View>
             </View>
@@ -412,34 +443,45 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 16,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 },
-    count: { color: theme.gold, fontSize: 13, marginLeft: 'auto', fontFamily: FontFamily.mono },
+    title: { color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 },
+    count: { color: theme.goldDark, fontSize: 12, marginLeft: 'auto', fontFamily: FontFamily.mono },
     content: { paddingHorizontal: 16, paddingBottom: 40 },
+    activeChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+    activeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: hexToRgba(theme.gold, 0.12),
+      borderWidth: 1,
+      borderColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    activeChipText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.text },
     filterBtn: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       padding: 14,
       marginBottom: 8,
       borderWidth: 1,
     },
-    filterBtnText: { fontSize: 14, fontFamily: FontFamily.bodySemiBold },
-    chevron: { color: theme.textSecondary },
+    filterBtnText: { fontSize: 14, fontFamily: FontFamily.mono },
     dropdown: {
       backgroundColor: theme.card2,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       marginBottom: 8,
       borderWidth: 1,
       borderColor: theme.border,
@@ -453,28 +495,28 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
     },
-    dropdownAllText: { color: theme.gold, fontSize: 14, fontFamily: FontFamily.bodySemiBold },
-    dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.body },
-    checkmark: { color: theme.gold, fontWeight: '700' },
-    categoryLabel: { color: theme.gold, padding: 10, fontFamily: FontFamily.monoMedium, fontSize: 12 },
+    dropdownAllText: { color: theme.goldDark, fontSize: 14, fontFamily: FontFamily.mono },
+    dropdownRowText: { color: theme.text, fontSize: 14, fontFamily: FontFamily.mono },
+    checkmark: { color: theme.goldDark, fontWeight: '700' },
+    categoryLabel: { color: theme.goldDark, padding: 10, fontFamily: FontFamily.monoMedium, fontSize: 12 },
     pillsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, paddingBottom: 8, gap: 6 },
     positionPill: {
       paddingHorizontal: 10,
       paddingVertical: 6,
-      borderRadius: 8,
+      borderRadius: RADIUS,
       backgroundColor: theme.bg,
       borderWidth: 1,
       borderColor: theme.border,
     },
     positionPillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    positionPillText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.text },
-    positionPillTextActive: { color: '#000' },
+    positionPillText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.text },
+    positionPillTextActive: { color: Paper.ink },
     clearPositionsBtn: { margin: 12, padding: 10, alignItems: 'center' },
     clearAllBtn: { padding: 8, alignItems: 'center', marginBottom: 8 },
-    clearText: { color: theme.error, fontSize: 13, fontFamily: FontFamily.bodySemiBold },
+    clearText: { color: theme.error, fontSize: 13, fontFamily: FontFamily.mono },
     playerCard: {
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       padding: 16,
       marginBottom: 12,
       borderWidth: 1,
@@ -482,60 +524,60 @@ const createStyles = (theme: Theme) =>
     },
     playerHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
     avatar: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1.5,
+      borderWidth: 1,
     },
     playerName: { color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold },
-    playerPosition: { color: theme.gold, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 },
-    playerLocation: { color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.body },
-    playerScore: { color: theme.gold, fontSize: 26, fontFamily: FontFamily.monoMedium },
+    playerPosition: { color: theme.goldDark, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 },
+    playerLocation: { color: theme.textSecondary, fontSize: 12, fontFamily: FontFamily.mono },
+    playerScore: { color: theme.goldDark, fontSize: 24, fontFamily: FontFamily.display },
     scoreLabel: { color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.mono },
     infoPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-    infoPill: { backgroundColor: theme.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+    infoPill: { backgroundColor: theme.bg, borderRadius: RADIUS, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: theme.border },
     infoPillText: { color: theme.textSecondary, fontSize: 11, fontFamily: FontFamily.mono },
     statsBlock: { gap: 4, marginBottom: 12 },
     statRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     statLabel: { color: theme.textSecondary, fontSize: 10, fontFamily: FontFamily.mono, width: 28 },
-    statTrack: { flex: 1, height: 4, backgroundColor: theme.border, borderRadius: 2 },
-    statFill: { height: 4, backgroundColor: theme.gold, borderRadius: 2 },
+    statTrack: { flex: 1, height: 4, backgroundColor: theme.border },
+    statFill: { height: 4, backgroundColor: theme.gold },
     statValue: { color: theme.text, fontSize: 10, fontFamily: FontFamily.monoMedium, width: 24 },
     actionsRow: { flexDirection: 'row', gap: 8 },
     pricedBadge: {
       flex: 1,
-      backgroundColor: hexToRgba(theme.gold, 0.08),
-      borderRadius: 12,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
       padding: 10,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.2),
+      borderColor: theme.gold,
     },
-    pricedBadgeLabel: { color: theme.gold, fontSize: 11, fontFamily: FontFamily.monoMedium },
-    pricedBadgeValue: { color: theme.gold, fontSize: 13, fontFamily: FontFamily.monoMedium },
+    pricedBadgeLabel: { color: theme.goldDark, fontSize: 11, fontFamily: FontFamily.monoMedium },
+    pricedBadgeValue: { color: theme.goldDark, fontSize: 13, fontFamily: FontFamily.monoMedium },
     freeBadge: {
       flex: 1,
-      backgroundColor: hexToRgba(theme.success, 0.08),
-      borderRadius: 12,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
       padding: 10,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.success, 0.2),
+      borderColor: theme.success,
     },
     freeBadgeLabel: { color: theme.success, fontSize: 11, fontFamily: FontFamily.monoMedium },
     freeBadgeValue: { color: theme.success, fontSize: 12, fontFamily: FontFamily.mono },
     inviteBtn: {
       flex: 1,
       backgroundColor: theme.gold,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       padding: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    inviteBtnText: { color: '#000', fontSize: 13, fontFamily: FontFamily.bodySemiBold },
+    inviteBtnText: { color: Paper.ink, fontSize: 13, fontFamily: FontFamily.display, letterSpacing: 0.5 },
   });

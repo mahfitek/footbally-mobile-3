@@ -8,21 +8,27 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { profiles } from '../lib/profiles';
+import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
+import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
+
 const filters = ['Tümü', 'Forvet', 'Orta Saha', 'Defans', 'Kaleci'];
 
 type PlayerView = {
   id: string;
-  emoji: string;
   name: string;
   position: string;
   age: number | string;
@@ -34,14 +40,14 @@ type ScoutViewer = {
   id: string;
   name: string;
   role: string;
-  avatar: string;
+  icon: IoniconName;
   online: boolean;
 };
 
 const SCOUT_VIEWERS: ScoutViewer[] = [
-  { id: 'v1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', avatar: '🏟️', online: true },
-  { id: 'v2', name: 'Hans Mueller', role: 'Bundesliga Scout', avatar: '🌍', online: false },
-  { id: 'v3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', avatar: '⚡', online: true },
+  { id: 'v1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', icon: 'business-outline', online: true },
+  { id: 'v2', name: 'Hans Mueller', role: 'Bundesliga Scout', icon: 'globe-outline', online: false },
+  { id: 'v3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', icon: 'flash-outline', online: true },
 ];
 
 const MIN_AGE = 14;
@@ -53,6 +59,7 @@ interface Props {
 
 export default function ScoutScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tümü');
@@ -64,26 +71,32 @@ export default function ScoutScreen({ navigate }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
-  const [viewerName, setViewerName] = useState('');
+  const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
+  const [isPremium, setIsPremium] = useState(false);
+  const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
+  const isPremiumActive = isPremium && (!premiumUntil || new Date(premiumUntil) > new Date());
+  const FREE_PREVIEW_COUNT = 2;
 
-  useEffect(() => {
-    loadPlayers();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      setViewerId(session.user.id);
-      supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
-        .then(({ data }) => setViewerName(data?.full_name ?? ''));
-    });
-  }, []);
+  const requestConnection = async (player: PlayerView) => {
+    if (!viewerId || player.id === viewerId || requestedIds.has(player.id)) return;
+    const { error } = await supabase
+      .from('connections')
+      .insert({ requester_id: viewerId, target_id: player.id, status: 'pending' });
 
-  const recordProfileView = (player: PlayerView) => {
-    if (player.id === viewerId) return;
-    supabase.from('profile_views').insert({ viewer_id: viewerId, viewed_user_id: player.id, viewer_name: viewerName || 'Bir scout' });
-    notifyUser(player.id, '👁️', `${viewerName || 'Bir scout'} profilini inceledi`, 'profile', 'Profilin İncelendi');
+    if (error) {
+      if (error.code === '23505') {
+        setRequestedIds((prev) => new Set(prev).add(player.id));
+        setToast({ message: t('scout_alreadyRequested'), type: 'error' });
+      } else {
+        if (__DEV__) console.log('Bağlantı isteği gönderilemedi:', error);
+        setToast({ message: t('scout_requestFailed'), type: 'error' });
+      }
+      return;
+    }
+
+    setRequestedIds((prev) => new Set(prev).add(player.id));
+    notifyEvent({ kind: 'connection_request', targetUserId: player.id });
+    setToast({ message: t('scout_requestSent'), type: 'success' });
   };
 
   const onRefresh = () => {
@@ -93,8 +106,8 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const loadPlayers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
+      const { data, error } = await profiles
+        .publicTable()
         .select('user_id, full_name, position, age, city, score')
         .order('score', { ascending: false });
 
@@ -105,8 +118,7 @@ export default function ScoutScreen({ navigate }: Props) {
         setPlayers(
           (data ?? []).map((p: any) => ({
             id: p.user_id,
-            emoji: '👤',
-            name: p.full_name ?? 'İsimsiz Oyuncu',
+            name: p.full_name ?? t('teamProfile_unnamedPlayer'),
             position: p.position ?? '-',
             age: p.age ?? '-',
             city: p.city ?? '-',
@@ -122,12 +134,23 @@ export default function ScoutScreen({ navigate }: Props) {
     setRefreshing(false);
   };
 
+  useEffect(() => {
+    loadPlayers();
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) return;
+      setViewerId(session.user.id);
+      const status = await fetchPremiumStatus(session.user.id).catch(() => INACTIVE_PREMIUM);
+      setIsPremium(status.active);
+      setPremiumUntil(status.until);
+    });
+  }, []);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <View style={styles.backBtn} />
-          <Text style={styles.title}>Scout Paneli</Text>
+          <Text style={styles.title}>{t('scout_title')}</Text>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
           <SkeletonCard height={84} />
@@ -154,7 +177,7 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const handleNearbyMatchesPress = () => {
     setNearbyOnly((prev) => !prev);
-    setToast({ message: 'Konum tabanlı maç eşleştirmesi yakında aktif olacak', type: 'success' });
+    setToast({ message: t('scout_nearbyComingSoon'), type: 'success' });
   };
 
   const adjustAge = (index: 0 | 1, delta: number) => {
@@ -187,20 +210,20 @@ export default function ScoutScreen({ navigate }: Props) {
       >
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Scout Paneli</Text>
+          <Text style={styles.title}>{t('scout_title')}</Text>
         </View>
 
         {/* Beni İnceleyen Scoutlar */}
         <View style={styles.viewersHeader}>
           <Text style={styles.viewersHeaderText}>
-            👁️ {SCOUT_VIEWERS.length} scout bu hafta profilini inceledi
+            {SCOUT_VIEWERS.length} {t('scout_scoutsViewedProfile')}
           </Text>
           <HapticTouchable onPress={() => setOnlineScoutsOnly((prev) => !prev)}>
             <View style={[styles.onlineToggle, onlineScoutsOnly && styles.onlineToggleActive]}>
               <Text style={[styles.onlineToggleText, onlineScoutsOnly && styles.onlineToggleTextActive]}>
-                Online Scoutlar
+                {t('scout_onlineScouts')}
               </Text>
             </View>
           </HapticTouchable>
@@ -208,13 +231,14 @@ export default function ScoutScreen({ navigate }: Props) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={styles.viewersRow}
         >
           {visibleScoutViewers.map((s) => (
             <View key={s.id} style={styles.viewerCard}>
               <View style={styles.viewerAvatarWrap}>
                 <View style={styles.viewerAvatar}>
-                  <Text style={{ fontSize: 20 }}>{s.avatar}</Text>
+                  <Ionicons name={s.icon} size={19} color={theme.gold} />
                 </View>
                 {s.online && <View style={styles.viewerOnlineDot} />}
               </View>
@@ -224,17 +248,17 @@ export default function ScoutScreen({ navigate }: Props) {
                 style={styles.viewerMsgBtn}
                 onPress={() => navigate('chat', { id: s.id, name: s.name })}
               >
-                <Text style={styles.viewerMsgBtnText}>Mesaj Gönder</Text>
+                <Text style={styles.viewerMsgBtnText}>{t('scout_sendMessage')}</Text>
               </HapticTouchable>
             </View>
           ))}
         </ScrollView>
 
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Oyuncu ara: İsim, pozisyon, şehir..."
+            placeholder={t('scout_searchPlaceholder')}
             placeholderTextColor={theme.textSecondary}
             value={search}
             onChangeText={setSearch}
@@ -244,6 +268,7 @@ export default function ScoutScreen({ navigate }: Props) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={styles.filters}
         >
           <HapticTouchable
@@ -251,7 +276,7 @@ export default function ScoutScreen({ navigate }: Props) {
             onPress={handleNearbyMatchesPress}
           >
             <Text style={[styles.pillText, nearbyOnly && styles.pillTextActive]}>
-              📍 Yakınımdaki Maçlar
+              {t('scout_nearbyMatches')}
             </Text>
           </HapticTouchable>
           {filters.map((f) => (
@@ -268,7 +293,7 @@ export default function ScoutScreen({ navigate }: Props) {
         </ScrollView>
 
         <View style={styles.ageRangeCard}>
-          <Text style={styles.ageRangeLabel}>YAŞ ARALIĞI</Text>
+          <Text style={styles.ageRangeLabel}>{t('scout_ageRange')}</Text>
           <View style={styles.ageRangeRow}>
             <View style={styles.ageStepper}>
               <HapticTouchable style={styles.ageStepBtn} onPress={() => adjustAge(0, -1)}>
@@ -294,36 +319,63 @@ export default function ScoutScreen({ navigate }: Props) {
 
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
-            <Text style={styles.aiIcon}>🤖</Text>
-            <Text style={styles.aiLabel}>AI ÖNERİSİ</Text>
+            <Ionicons name="hardware-chip-outline" size={15} color={theme.gold} />
+            <Text style={styles.aiLabel}>{t('scout_aiSuggestion')}</Text>
           </View>
-          <Text style={styles.aiText}>Henüz yeterli veri yok</Text>
+          <Text style={styles.aiText}>{t('scout_notEnoughData')}</Text>
         </View>
 
         {filteredPlayers.length === 0 ? (
-          <EmptyState icon="🔍" title="Oyuncu bulunamadı" subtitle="Farklı filtreler deneyin" />
+          <EmptyState icon="search-outline" title={t('scout_notFound')} subtitle={t('scout_tryDifferentFilters')} />
         ) : (
           <View style={styles.list}>
-            {filteredPlayers.map((p) => (
-              <HapticTouchable key={p.id} style={styles.playerCard} onPress={() => recordProfileView(p)}>
+            {(isPremiumActive ? filteredPlayers : filteredPlayers.slice(0, FREE_PREVIEW_COUNT)).map((p) => (
+              <HapticTouchable key={p.id} style={styles.playerCard}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarEmoji}>{p.emoji}</Text>
+                  <Ionicons name="person-outline" size={22} color={theme.gold} />
                 </View>
                 <View style={styles.playerInfo}>
                   <Text style={styles.playerName}>{p.name}</Text>
                   <Text style={styles.playerMeta}>
-                    {p.position} · {p.age} yaş · {p.city}
+                    {p.position} · {p.age} {t('teamProfile_ageSuffix')} · {p.city}
                   </Text>
-                  <HapticTouchable
-                    style={styles.contactBtn}
-                    onPress={() => navigate('chat', { id: p.id, name: p.name })}
-                  >
-                    <Text style={styles.contactBtnText}>İletişim Kur</Text>
-                  </HapticTouchable>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    <HapticTouchable
+                      style={styles.contactBtn}
+                      onPress={() => navigate('chat', { id: p.id, name: p.name })}
+                    >
+                      <Text style={styles.contactBtnText}>{t('scout_contact')}</Text>
+                    </HapticTouchable>
+                    <HapticTouchable
+                      style={[styles.contactBtn, requestedIds.has(p.id) && styles.contactBtnDisabled]}
+                      onPress={() => requestConnection(p)}
+                      disabled={requestedIds.has(p.id)}
+                    >
+                      <Text style={styles.contactBtnText}>
+                        {requestedIds.has(p.id) ? t('scout_requestedLabel') : t('scout_requestConnection')}
+                      </Text>
+                    </HapticTouchable>
+                  </View>
                 </View>
                 <Text style={styles.playerScore}>{p.score}</Text>
               </HapticTouchable>
             ))}
+
+            {!isPremiumActive && filteredPlayers.length > FREE_PREVIEW_COUNT && (
+              <View style={styles.lockedCard}>
+                <View style={styles.lockedIconWrap}>
+                  <Ionicons name="lock-closed" size={20} color={theme.gold} />
+                </View>
+                <Text style={styles.lockedBadge}>{t('scout_premiumRequired')}</Text>
+                <Text style={styles.lockedTitle}>+{filteredPlayers.length - FREE_PREVIEW_COUNT} {t('scout_morePlayersLocked')}</Text>
+                <Text style={styles.lockedSubtitle}>
+                  {t('scout_lockedSubtitle')}
+                </Text>
+                <HapticTouchable style={styles.lockedBtn} onPress={() => navigate('premium')}>
+                  <Text style={styles.lockedBtnText}>{t('scout_upgrade')}</Text>
+                </HapticTouchable>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -350,17 +402,16 @@ const createStyles = (theme: Theme) =>
       paddingBottom: 20,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
-    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, letterSpacing: 0.5 },
     viewersHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -368,23 +419,23 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 12,
     },
-    viewersHeaderText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, flex: 1 },
+    viewersHeaderText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, flex: 1 },
     onlineToggle: {
       paddingHorizontal: 12,
       paddingVertical: 6,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     onlineToggleActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    onlineToggleText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.textSecondary },
-    onlineToggleTextActive: { color: '#000' },
+    onlineToggleText: { fontFamily: FontFamily.monoMedium, fontSize: 10, color: theme.textSecondary },
+    onlineToggleTextActive: { color: Paper.ink },
     viewersRow: { paddingHorizontal: 24, gap: 12, marginBottom: 24 },
     viewerCard: {
       width: 140,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 14,
       alignItems: 'center',
       borderWidth: 1,
@@ -392,14 +443,12 @@ const createStyles = (theme: Theme) =>
     },
     viewerAvatarWrap: { position: 'relative', marginBottom: 8 },
     viewerAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 42,
+      height: 42,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
     viewerOnlineDot: {
       position: 'absolute',
@@ -413,79 +462,77 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.card,
     },
     viewerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.text, textAlign: 'center' },
-    viewerRole: { fontFamily: FontFamily.body, fontSize: 10, color: theme.textSecondary, textAlign: 'center', marginTop: 2, marginBottom: 10 },
+    viewerRole: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textMuted, textAlign: 'center', marginTop: 2, marginBottom: 10 },
     viewerMsgBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
-    viewerMsgBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: theme.gold },
+    viewerMsgBtnText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.goldDark },
     ageRangeCard: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    ageRangeLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary, letterSpacing: 1, marginBottom: 12 },
+    ageRangeLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 12 },
     ageRangeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
     ageRangeDash: { color: theme.textSecondary, fontSize: 14 },
     ageStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     ageStepBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 30,
+      height: 30,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    ageStepBtnText: { fontSize: 16, fontWeight: '700', color: theme.gold },
+    ageStepBtnText: { fontSize: 16, fontWeight: '700', color: theme.goldDark },
     ageStepValue: { fontFamily: FontFamily.monoMedium, fontSize: 15, color: theme.text, width: 28, textAlign: 'center' },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
       marginHorizontal: 24,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       height: 48,
       borderWidth: 1,
       borderColor: theme.border,
       marginBottom: 18,
     },
-    searchIcon: { fontSize: 15, marginRight: 10 },
-    searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, color: theme.text },
+    searchInput: { flex: 1, fontFamily: FontFamily.mono, fontSize: 14, color: theme.text },
     filters: { paddingHorizontal: 24, gap: 10, marginBottom: 20 },
     pill: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     pillActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    pillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
-    pillTextActive: { color: '#000' },
+    pillText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    pillTextActive: { color: Paper.ink },
     aiCard: {
       marginHorizontal: 24,
       marginBottom: 24,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.gold,
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    aiIcon: { fontSize: 16 },
-    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
+    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.goldDark, letterSpacing: 1.5 },
     aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     list: { paddingHorizontal: 24, gap: 14 },
     playerCard: {
@@ -493,34 +540,72 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 14,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
     },
     avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    avatarEmoji: { fontSize: 24 },
     playerInfo: { flex: 1 },
     playerName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, marginBottom: 2 },
-    playerMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
+    playerMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 10 },
     contactBtn: {
       alignSelf: 'flex-start',
-      backgroundColor: hexToRgba(theme.gold, 0.12),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    contactBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.gold },
-    playerScore: { fontFamily: FontFamily.monoMedium, fontSize: 22, color: theme.gold },
+    contactBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
+    contactBtnDisabled: { borderColor: theme.border, backgroundColor: theme.card2 },
+    playerScore: { fontFamily: FontFamily.display, fontSize: 20, color: theme.goldDark },
+    lockedCard: {
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    lockedIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: hexToRgba(theme.gold, 0.16),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    lockedBadge: {
+      fontFamily: FontFamily.monoMedium,
+      fontSize: 10,
+      letterSpacing: 1.5,
+      color: theme.goldDark,
+      marginBottom: 8,
+    },
+    lockedTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: theme.text, marginBottom: 6, textAlign: 'center' },
+    lockedSubtitle: {
+      fontFamily: FontFamily.body,
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      lineHeight: 19,
+      marginBottom: 18,
+    },
+    lockedBtn: {
+      backgroundColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      paddingHorizontal: 24,
+      paddingVertical: 13,
+    },
+    lockedBtnText: { fontFamily: FontFamily.display, fontSize: 13, color: theme.bg, letterSpacing: 1 },
   });

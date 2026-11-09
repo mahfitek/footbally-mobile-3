@@ -1,90 +1,84 @@
 import { supabase } from './supabase';
+import { profiles } from './profiles';
+import {
+  callAccountStatusRpc,
+  classifyAccountStatusError,
+  evaluateAccountAccess,
+  parseAccountStatusRows,
+  type AccountAccessResult,
+  type AccountBanLookupResult,
+  type StatusRpcResponse,
+} from './accountAccessRules';
 
-export interface AccountBanFields {
-  account_status: string;
-  banned_until: string | null;
-  ban_is_permanent: boolean | null;
-  ban_reason: string | null;
-}
+export { evaluateAccountAccess, mustSignOut, renderAccountMessage } from './accountAccessRules';
+export type {
+  AccountAccessResult,
+  AccountMessage,
+  AccountBanFields,
+  AccountBanLookupResult,
+  AccountSubjectRow,
+  AccountSubjectType,
+  AccountUnverifiedReason,
+} from './accountAccessRules';
 
-export interface AccountBanLookup extends AccountBanFields {
-  table: 'profiles' | 'teams';
-}
+// Açılışta ağ yavaşsa kullanıcı sonsuza kadar splash'te beklemesin; süre dolunca doğrulanamadı sayılır.
+const ACCOUNT_STATUS_TIMEOUT_MS = 6000;
 
-export interface AccountAccessResult {
-  allowed: boolean;
-  expiredBan: boolean;
-  message?: string;
-}
-
-const TURKISH_MONTHS = [
-  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-];
-
-// Formatted manually (not toLocaleDateString) so the tr-TR output is guaranteed
-// regardless of whether the device's Hermes build includes full ICU data.
-function formatDate(d: Date): string {
-  return `${d.getDate()} ${TURKISH_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-export function evaluateAccountAccess(row: AccountBanFields | null | undefined): AccountAccessResult {
-  if (!row) return { allowed: true, expiredBan: false };
-
-  if (row.account_status === 'banned') {
-    const permanent = !!row.ban_is_permanent;
-    const until = row.banned_until ? new Date(row.banned_until) : null;
-    const expired = !permanent && until !== null && until.getTime() <= Date.now();
-    if (expired) return { allowed: true, expiredBan: true };
-    const reasonSuffix = row.ban_reason ? ` Sebep: ${row.ban_reason}` : '';
-    const message = permanent
-      ? `Hesabınız kalıcı olarak yasaklanmıştır.${reasonSuffix}`
-      : `Hesabınız ${formatDate(until!)} tarihine kadar askıya alınmıştır.${reasonSuffix}`;
-    return { allowed: false, expiredBan: false, message };
+/**
+ * Oturum açan kullanıcının hesap durumu.
+ *
+ * Önce get_my_account_status_v2 denenir (takım satırlarında gerçek team_id döner). Sunucuda v2 yoksa
+ * (PGRST202 / 42883) v1 (get_my_account_status) kullanılır; v1 takım satırlarında id vermez, ama ban kararı
+ * için yeterlidir. Diğer her hata doğrulanamadı olarak döner; yasak olarak yorumlanmaz.
+ *
+ * Yanıt profil satırı (`source` / `subject_type` = 'profile') ve takım satırlarını içerir; sıra garanti değildir.
+ * Tanı için yalnızca nedeni, HTTP durumunu ve satır sayılarını loglar; kullanıcı kimliği, e-posta ya da yanıt
+ * içeriği loglanmaz.
+ */
+export async function fetchAccountBanRow(userId: string): Promise<AccountBanLookupResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<AccountBanLookupResult>((resolve) => {
+    timer = setTimeout(() => resolve({ verified: false, reason: 'timeout' }), ACCOUNT_STATUS_TIMEOUT_MS);
+  });
+  const lookup = (async (): Promise<AccountBanLookupResult> => {
+    let response: StatusRpcResponse;
+    try {
+      response = await callAccountStatusRpc((fn) => supabase.rpc(fn));
+    } catch {
+      // Yalnızca istemci çağrısının kendisi fırlatırsa ağ hatası sayılır; ayrıştırma hataları burada değil.
+      return { verified: false, reason: 'network' };
+    }
+    const { data, error, status } = response;
+    if (error) {
+      return { verified: false, reason: classifyAccountStatusError(error), httpStatus: status, detail: `code=${error.code ?? 'none'}` };
+    }
+    const parsed = parseAccountStatusRows(data, userId);
+    return parsed.verified ? parsed : { ...parsed, httpStatus: status };
+  })();
+  try {
+    const result = await Promise.race([lookup, timeout]);
+    if (!result.verified) {
+      // Tanı: yalnızca neden, HTTP durumu ve sayılar. Kişisel veri yok.
+      console.warn(`[account-status] unverified reason=${result.reason} http=${result.httpStatus ?? 'n/a'} ${result.detail ?? ''}`.trim());
+    }
+    return result;
+  } finally {
+    clearTimeout(timer);
   }
-
-  if (row.account_status === 'inactive') {
-    return {
-      allowed: false,
-      expiredBan: false,
-      message: 'Hesabınız şu anda pasif durumda. Aktif hale getirilmesi için destek ile iletişime geçin.',
-    };
-  }
-
-  return { allowed: true, expiredBan: false };
 }
 
-/** Looks up ban/status fields for a user's profile row, falling back to their team row (owner_id). */
-export async function fetchAccountBanRow(userId: string): Promise<AccountBanLookup | null> {
-  const { data: profileRow } = await supabase
-    .from('profiles')
-    .select('account_status,banned_until,ban_is_permanent,ban_reason')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (profileRow) return { ...(profileRow as AccountBanFields), table: 'profiles' };
-
-  const { data: teamRow } = await supabase
-    .from('teams')
-    .select('account_status,banned_until,ban_is_permanent,ban_reason')
-    .eq('owner_id', userId)
-    .maybeSingle();
-  if (teamRow) return { ...(teamRow as AccountBanFields), table: 'teams' };
-
-  return null;
+/** Oturum açan kullanıcının erişim kararı: ban kontrolü + doğrulama durumu. */
+export async function checkAccountAccess(userId: string): Promise<AccountAccessResult> {
+  return evaluateAccountAccess(await fetchAccountBanRow(userId));
 }
 
-/** Self-heals a lapsed temporary ban back to active status. */
-export async function clearExpiredBan(userId: string, table: 'profiles' | 'teams'): Promise<void> {
-  const column = table === 'profiles' ? 'user_id' : 'owner_id';
-  await supabase
-    .from(table)
-    .update({
-      account_status: 'active',
-      banned_until: null,
-      ban_is_permanent: false,
-      ban_reason: null,
-      banned_by: null,
-      banned_at: null,
-    })
-    .eq(column, userId);
+/**
+ * Süresi dolmuş geçici profil yasağını temizler (yalnızca sunucu RPC'si ban kolonlarını değiştirir).
+ *
+ * Takım: istemci `teams` ban kolonlarını YAZMAZ. Aksi halde yasaklı bir takım sahibi, RLS izin verirse
+ * kendi yasağını kaldırabilirdi. Süresi dolmuş yasak zaten evaluateAccountAccess ile izin verilir.
+ * Takım için sunucu RPC'si MOBILE_BACKEND_CONTRACT.md §4.2'de istenmiştir.
+ */
+export async function clearExpiredBan(): Promise<void> {
+  await profiles.clearExpiredBan();
 }

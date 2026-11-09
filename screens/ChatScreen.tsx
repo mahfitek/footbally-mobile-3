@@ -8,22 +8,30 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { profiles } from '../lib/profiles';
+import { notifyEvent } from '../lib/notify';
+import { moderateMessage } from '../lib/security';
+import { MESSAGE_COLUMNS } from '../lib/columns';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
 
 type MessageRow = {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
+  id: string | number;
+  conversation_id: string | number;
+  sender_user_id: string;
+  body: string;
   created_at: string;
   read: boolean;
 };
@@ -34,16 +42,18 @@ const formatTime = (iso: string) => {
 };
 
 interface Props {
-  navigate: (screen: string) => void;
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
   otherUserId: string;
   otherUserName: string;
 }
 
 export default function ChatScreen({ navigate, otherUserId, otherUserName }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | number | null>(null);
   const [myName, setMyName] = useState('');
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [text, setText] = useState('');
@@ -53,20 +63,12 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     position: string | null;
     avatar_url: string | null;
   } | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
-  useEffect(() => {
-    loadMessages();
-    loadOtherProfile();
-  }, []);
 
   const loadOtherProfile = async () => {
     if (!otherUserId) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, position, avatar_url')
-      .eq('user_id', otherUserId)
-      .single();
+    const { data, error } = await profiles.publicProfile(otherUserId, 'full_name, position, avatar_url');
     if (error) {
       if (__DEV__) console.log('Kullanıcı profili yüklenemedi:', error);
       return;
@@ -75,22 +77,17 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
   };
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !conversationId) return;
 
     const channel = supabase
-      .channel(`messages-${userId}-${otherUserId}`)
+      .channel(`messages-${conversationId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const m = payload.new as MessageRow;
-          const inThread =
-            (m.sender_id === userId && m.receiver_id === otherUserId) ||
-            (m.sender_id === otherUserId && m.receiver_id === userId);
-          if (!inThread) return;
-
           setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]));
-          if (m.receiver_id === userId) {
+          if (m.sender_user_id !== userId) {
             supabase.from('messages').update({ read: true }).eq('id', m.id);
           }
         }
@@ -100,7 +97,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, otherUserId]);
+  }, [userId, conversationId]);
 
   const loadMessages = async () => {
     setLoading(true);
@@ -111,19 +108,46 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       return;
     }
     setUserId(user.id);
-    supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    profiles
+      .ownProfile('full_name')
       .then(({ data }) => setMyName(data?.full_name ?? ''));
+
+    // Kendi hesabıyla ya da kimliksiz sohbet açılmaz: bu, kendini karşı taraf gösteren bir konuşma üretir.
+    if (!otherUserId || otherUserId === user.id) {
+      setToast({ message: t('chat_cannotMessageSelf'), type: 'error' });
+      setLoading(false);
+      return;
+    }
+
+    const { data: existingConv } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(
+        `and(participant_a.eq.${user.id},participant_b.eq.${otherUserId}),and(participant_a.eq.${otherUserId},participant_b.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    let convId = existingConv?.id;
+    if (!convId) {
+      const { data: newConv, error: convError } = await supabase
+        .from('conversations')
+        .insert({ participant_a: user.id, participant_b: otherUserId })
+        .select('id')
+        .single();
+      if (convError) {
+        if (__DEV__) console.log('Sohbet oluşturulamadı:', convError);
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+      convId = newConv.id;
+    }
+    setConversationId(convId);
 
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
-      .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-      )
+      .select(MESSAGE_COLUMNS)
+      .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -132,7 +156,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     } else {
       setMessages(data ?? []);
       const unreadIds = (data ?? [])
-        .filter((m: any) => !m.read && m.receiver_id === user.id)
+        .filter((m: any) => !m.read && m.sender_user_id !== user.id)
         .map((m: any) => m.id);
       if (unreadIds.length > 0) {
         supabase.from('messages').update({ read: true }).in('id', unreadIds);
@@ -141,29 +165,42 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
     setLoading(false);
   };
 
+  useEffect(() => {
+    loadMessages();
+    loadOtherProfile();
+  }, []);
+
   const handleSend = async () => {
     const content = text.trim();
-    if (!content || !userId) return;
+    if (!content || !userId || !conversationId) return;
+
+    const moderation = moderateMessage(content);
+    if (!moderation.allowed) {
+      setToast({ message: t(moderation.reasonKey), type: 'error' });
+      return;
+    }
+
     setText('');
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ sender_id: userId, receiver_id: otherUserId, content })
+      .insert({ conversation_id: conversationId, sender_user_id: userId, body: content })
       .select()
       .single();
 
     if (error) {
       if (__DEV__) console.log('Mesaj gönderilemedi:', error);
-      setToast({ message: 'Mesaj gönderilemedi', type: 'error' });
+      setToast({ message: t('chat_sendFailed'), type: 'error' });
       setText(content);
     } else if (data) {
       setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
-      notifyUser(otherUserId, '💬', `${myName || 'Bir kullanıcı'} sana mesaj gönderdi`, 'chat', 'Yeni Mesaj 💬');
+      supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
+      notifyEvent({ kind: 'chat_message', messageId: data.id });
     }
   };
 
   if (loading) {
-    return <LoadingScreen message="Sohbet yükleniyor..." />;
+    return <LoadingScreen message={t('chat_loading')} />;
   }
 
   return (
@@ -174,23 +211,30 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
       >
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('messages')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
           <View style={styles.avatar}>
             {otherProfile?.avatar_url ? (
               <Image source={{ uri: otherProfile.avatar_url }} style={styles.avatarImage} />
             ) : (
-              <Text style={styles.avatarEmoji}>👤</Text>
+              <Ionicons name="person-outline" size={17} color={theme.gold} />
             )}
           </View>
           <View style={styles.titleWrap}>
             <Text style={styles.title} numberOfLines={1}>
-              {otherProfile?.full_name || otherUserName || 'Kullanıcı'}
+              {otherProfile?.full_name || otherUserName || t('common_defaultUser')}
             </Text>
             {otherProfile?.position && (
               <Text style={styles.subtitle} numberOfLines={1}>{otherProfile.position}</Text>
             )}
           </View>
+          <HapticTouchable
+            style={styles.reportBtn}
+            accessibilityLabel={t('report_entryAction')}
+            onPress={() => navigate('report', { type: 'profile', id: otherUserId, name: otherProfile?.full_name || otherUserName })}
+          >
+            <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+          </HapticTouchable>
         </View>
 
         <ScrollView
@@ -202,12 +246,14 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
         >
           {messages.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>💬</Text>
-              <Text style={styles.emptyText}>Henüz mesaj yok, ilk mesajı sen gönder</Text>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="chatbubble-outline" size={22} color={theme.gold} />
+              </View>
+              <Text style={styles.emptyText}>{t('chat_emptyText')}</Text>
             </View>
           ) : (
             messages.map((m) => {
-              const mine = m.sender_id === userId;
+              const mine = m.sender_user_id === userId;
               return (
                 <View
                   key={m.id}
@@ -215,7 +261,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
                 >
                   <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
                     <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
-                      {m.content}
+                      {m.body}
                     </Text>
                   </View>
                   <Text style={styles.bubbleTime}>{formatTime(m.created_at)}</Text>
@@ -228,7 +274,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
-            placeholder="Mesaj yaz..."
+            placeholder={t('chat_placeholder')}
             placeholderTextColor={theme.textSecondary}
             value={text}
             onChangeText={setText}
@@ -239,7 +285,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
             onPress={handleSend}
             disabled={!text.trim()}
           >
-            <Text style={styles.sendBtnText}>➤</Text>
+            <Ionicons name="send" size={16} color={text.trim() ? Paper.ink : theme.textMuted} />
           </HapticTouchable>
         </View>
       </KeyboardAvoidingView>
@@ -258,6 +304,16 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.bg },
     container: { flex: 1 },
+    reportBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.card,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -269,31 +325,29 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.border,
     },
     backBtn: {
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
     avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       backgroundColor: theme.card,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    avatarEmoji: { fontSize: 18 },
-    avatarImage: { width: 40, height: 40, borderRadius: 20 },
+    avatarImage: { width: 38, height: 38, borderRadius: RADIUS },
     titleWrap: { flex: 1 },
-    title: { fontSize: 16, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
-    subtitle: { fontSize: 11, color: theme.gold, fontFamily: FontFamily.mono, marginTop: 1 },
+    title: { fontSize: 15, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
+    subtitle: { fontSize: 11, color: theme.goldDark, fontFamily: FontFamily.mono, marginTop: 1 },
     messagesContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16, flexGrow: 1 },
     empty: {
       flex: 1,
@@ -301,26 +355,36 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       paddingTop: 60,
     },
-    emptyIcon: { fontSize: 48, marginBottom: 16, color: theme.gold },
-    emptyText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.bodySemiBold, textAlign: 'center' },
+    emptyIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptyText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.mono, textAlign: 'center' },
     bubbleWrap: { marginBottom: 14, maxWidth: '78%' },
     bubbleWrapMine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
     bubbleWrapOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
     bubble: {
-      borderRadius: 18,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 11,
     },
-    bubbleMine: { backgroundColor: theme.gold, borderTopRightRadius: 4 },
+    bubbleMine: { backgroundColor: theme.gold, borderBottomRightRadius: 2 },
     bubbleOther: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 4,
+      borderBottomLeftRadius: 2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     bubbleText: { fontSize: 14, fontFamily: FontFamily.body, color: theme.text, lineHeight: 19 },
-    bubbleTextMine: { color: '#000' },
-    bubbleTime: { fontSize: 10, fontFamily: FontFamily.mono, color: theme.textSecondary, marginTop: 4, marginHorizontal: 4 },
+    bubbleTextMine: { color: Paper.ink },
+    bubbleTime: { fontSize: 11, fontFamily: FontFamily.body, color: theme.textMuted, marginTop: 4, marginHorizontal: 4 },
     inputBar: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -335,7 +399,7 @@ const createStyles = (theme: Theme) =>
       minHeight: 44,
       maxHeight: 110,
       backgroundColor: theme.card2,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 10,
       color: theme.text,
@@ -347,11 +411,11 @@ const createStyles = (theme: Theme) =>
     sendBtn: {
       width: 44,
       height: 44,
-      borderRadius: 14,
+      borderRadius: 22,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sendBtnDisabled: { backgroundColor: hexToRgba(theme.gold, 0.4) },
-    sendBtnText: { fontSize: 16, color: '#000', fontWeight: '700' },
+    // Pasif gönderme: opacity yerine gri zemin; ikon da okunur gri tonda kalır.
+    sendBtnDisabled: { backgroundColor: theme.border },
   });

@@ -1,6 +1,6 @@
 import { Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { Theme } from '../constants/theme';
+import { Theme, BUTTON_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 
@@ -31,8 +31,8 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     btn: {
       width: '100%',
-      height: 56,
-      borderRadius: 24,
+      height: 52,
+      borderRadius: BUTTON_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -41,18 +41,19 @@ const createStyles = (theme: Theme) =>
     },
     btnOutline: {
       backgroundColor: 'transparent',
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.gold,
     },
     text: {
-      fontFamily: FontFamily.bodySemiBold,
-      fontSize: 16,
+      fontFamily: FontFamily.display,
+      fontSize: 15,
       letterSpacing: 1,
     },
     textFilled: {
-      color: '#000',
+      color: Paper.ink,
     },
+    // Beyaz zeminde küçük metin için 4.5:1 kontrastı sağlayan koyu yeşil ton.
     textOutline: {
-      color: theme.gold,
+      color: theme.goldDark,
     },
   });

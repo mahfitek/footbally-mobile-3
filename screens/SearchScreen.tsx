@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { sendMatchChallenge } from '../lib/challenges';
+import { sanitizeSearchTerm } from '../lib/security';
 import { sendLocalNotification } from '../lib/notifications';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
+import BottomSheet from '../components/BottomSheet';
+
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 type PlayerResult = { user_id: string; full_name: string; position: string | null; city: string | null; score: number };
 type TeamResult = { id: string; name: string; city: string | null; league: string | null; rating: number };
@@ -18,20 +26,21 @@ type OpportunityResult = { id: string | number; title: string; subtitle: string;
 
 type TabKey = 'players' | 'teams' | 'matches' | 'opportunities';
 
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'players', label: 'Oyuncular', icon: '👤' },
-  { key: 'teams', label: 'Takımlar', icon: '🏟️' },
-  { key: 'matches', label: 'Maçlar', icon: '⚽' },
-  { key: 'opportunities', label: 'Fırsatlar', icon: '⚡' },
+const getTabs = (t: (key: any) => string): { key: TabKey; label: string; icon: IoniconName }[] => [
+  { key: 'players', label: t('search_tabPlayers'), icon: 'person-outline' },
+  { key: 'teams', label: t('search_tabTeams'), icon: 'business-outline' },
+  { key: 'matches', label: t('search_tabMatches'), icon: 'football-outline' },
+  { key: 'opportunities', label: t('search_tabOpportunities'), icon: 'flash-outline' },
 ];
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
-  userType?: 'player' | 'team';
 }
 
-export default function SearchScreen({ navigate, userType }: Props) {
+export default function SearchScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const TABS = getTabs(t);
   const styles = createStyles(theme);
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('players');
@@ -52,26 +61,22 @@ export default function SearchScreen({ navigate, userType }: Props) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const uid = session?.user?.id ?? null;
       setUserId(uid);
-      if (uid && userType === 'team') {
+      // Takım sahibi olmak hesap türü değildir; sahip olunan takım varsa rakip davet butonu gösterilir.
+      if (uid) {
         supabase.from('teams').select('id, name').eq('owner_id', uid).maybeSingle().then(({ data }) => {
           if (data) setMyTeam(data);
         });
       }
     });
-  }, [userType]);
+  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => runSearch(), 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, activeTab]);
 
   const runSearch = async () => {
     setLoading(true);
-    const q = query.trim();
+    const q = sanitizeSearchTerm(query.trim());
     try {
       if (activeTab === 'players') {
-        let req = supabase.from('profiles').select('user_id, full_name, position, city, score').order('score', { ascending: false }).limit(20);
+        let req = profiles.publicTable().select('user_id, full_name, position, city, score').order('score', { ascending: false }).limit(20);
         if (q) req = req.or(`full_name.ilike.%${q}%,position.ilike.%${q}%,city.ilike.%${q}%`);
         const { data } = await req;
         setPlayers((data ?? []) as PlayerResult[]);
@@ -98,16 +103,22 @@ export default function SearchScreen({ navigate, userType }: Props) {
     setLoading(false);
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => runSearch(), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, activeTab]);
+
   const handleJoinMatch = async (match: MatchResult) => {
     if (!userId || match.creator_id === userId) return;
     const { error } = await supabase.from('match_applications').insert({ match_id: match.id, user_id: userId, status: 'applied' });
     if (error) {
-      setToast({ message: 'Katılım kaydedilemedi', type: 'error' });
+      setToast({ message: t('match_joinFailed'), type: 'error' });
       return;
     }
     setJoinedMatchIds((prev) => ({ ...prev, [match.id]: true }));
-    setToast({ message: 'Maça başvurunuz alındı', type: 'success' });
-    sendLocalNotification('Maça Katıldın! ⚽', `${match.title} maçına başvurun alındı.`);
+    setToast({ message: t('match_joinSuccess'), type: 'success' });
+    sendLocalNotification(t('search_joinedNotifTitle'), `${match.title} ${t('match_joinedNotifBody')}`);
   };
 
   const handleApplyOpportunity = async (op: OpportunityResult) => {
@@ -115,8 +126,8 @@ export default function SearchScreen({ navigate, userType }: Props) {
       await supabase.from('match_applications').insert({ user_id: userId, opportunity_id: op.id, status: 'applied' });
     }
     setAppliedIds((prev) => ({ ...prev, [String(op.id)]: true }));
-    setToast({ message: 'Başvurunuz alındı', type: 'success' });
-    sendLocalNotification('Başvuru Alındı! 🎯', 'Başvurunuz iletildi.');
+    setToast({ message: t('activities_applySuccess'), type: 'success' });
+    sendLocalNotification(t('activities_applyNotifTitle'), t('search_applyNotifBodyShort'));
   };
 
   const sendChallenge = async () => {
@@ -135,37 +146,38 @@ export default function SearchScreen({ navigate, userType }: Props) {
     );
     setSending(false);
     if (error) {
-      setToast({ message: 'Davet gönderilemedi', type: 'error' });
+      setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
       return;
     }
-    setToast({ message: 'Davet gönderildi', type: 'success' });
+    setToast({ message: t('findOpponent_inviteSentToast'), type: 'success' });
     setChallengeTarget(null);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <HapticTouchable style={styles.backBtn} onPress={() => navigate(userType === 'team' ? 'teamHome' : 'home')}>
-          <Text style={styles.backIcon}>←</Text>
+        <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
+          <Ionicons name="chevron-back" size={17} color={theme.text} />
         </HapticTouchable>
         <TextInput
           style={styles.searchInput}
-          placeholder="Ara..."
+          placeholder={t('search_placeholder')}
           placeholderTextColor={theme.textSecondary}
           value={query}
           onChangeText={setQuery}
-          autoFocus
+          returnKeyType="search"
         />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-        {TABS.map((t) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={styles.tabsScroll}>
+        {TABS.map((tab) => (
           <HapticTouchable
-            key={t.key}
-            style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
-            onPress={() => setActiveTab(t.key)}
+            key={tab.key}
+            style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
+            onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>{t.icon} {t.label}</Text>
+            <Ionicons name={tab.icon} size={13} color={activeTab === tab.key ? Paper.ink : theme.textMuted} />
+            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
           </HapticTouchable>
         ))}
       </ScrollView>
@@ -173,22 +185,22 @@ export default function SearchScreen({ navigate, userType }: Props) {
       {loading ? (
         <ActivityIndicator color={theme.gold} style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {activeTab === 'players' && (
             players.length === 0 ? (
-              <EmptyState icon="👤" title="Oyuncu bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="person-outline" title={t('search_emptyPlayers')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {players.map((p) => (
                   <View key={p.user_id} style={styles.row}>
-                    <View style={styles.avatar}><Text style={{ fontSize: 20 }}>👤</Text></View>
+                    <View style={styles.avatar}><Ionicons name="person-outline" size={19} color={theme.gold} /></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{p.full_name || 'Oyuncu'}</Text>
+                      <Text style={styles.rowTitle}>{p.full_name || t('match_defaultPlayerName')}</Text>
                       <Text style={styles.rowMeta}>{[p.position, p.city].filter(Boolean).join(' · ') || '-'}</Text>
                     </View>
                     <Text style={styles.scoreText}>{p.score}</Text>
                     <HapticTouchable style={styles.actionBtn} onPress={() => navigate('chat', { id: p.user_id, name: p.full_name })}>
-                      <Text style={styles.actionBtnText}>Mesaj Gönder</Text>
+                      <Text style={styles.actionBtnText}>{t('scout_sendMessage')}</Text>
                     </HapticTouchable>
                   </View>
                 ))}
@@ -198,20 +210,20 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'teams' && (
             teams.length === 0 ? (
-              <EmptyState icon="🏟️" title="Takım bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="business-outline" title={t('search_emptyTeams')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {teams.map((tm) => (
                   <View key={tm.id} style={styles.row}>
-                    <View style={styles.avatar}><Text style={{ fontSize: 20 }}>🏟️</Text></View>
+                    <View style={styles.avatar}><Ionicons name="business-outline" size={19} color={theme.gold} /></View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>{tm.name}</Text>
                       <Text style={styles.rowMeta}>{[tm.city, tm.league].filter(Boolean).join(' · ') || '-'}</Text>
                     </View>
                     <Text style={styles.scoreText}>{tm.rating}</Text>
-                    {userType === 'team' && myTeam && myTeam.id !== tm.id && (
+                    {myTeam && myTeam.id !== tm.id && (
                       <HapticTouchable style={styles.actionBtn} onPress={() => setChallengeTarget(tm)}>
-                        <Text style={styles.actionBtnText}>Maça Davet Et</Text>
+                        <Text style={styles.actionBtnText}>{t('findOpponent_challenge')}</Text>
                       </HapticTouchable>
                     )}
                   </View>
@@ -222,7 +234,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'matches' && (
             matches.length === 0 ? (
-              <EmptyState icon="⚽" title="Maç bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="football-outline" title={t('search_emptyMatches')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {matches.map((m) => {
@@ -230,7 +242,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                   const mine = m.creator_id === userId;
                   return (
                     <View key={m.id} style={styles.row}>
-                      <View style={styles.avatar}><Text style={{ fontSize: 20 }}>⚽</Text></View>
+                      <View style={styles.avatar}><Ionicons name="football-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{m.title}</Text>
                         <Text style={styles.rowMeta}>{m.date} · {m.time} · {m.location}</Text>
@@ -241,7 +253,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                           onPress={() => handleJoinMatch(m)}
                           disabled={joined}
                         >
-                          <Text style={styles.actionBtnText}>{joined ? '✓ Katıldın' : 'Katıl'}</Text>
+                          <Text style={styles.actionBtnText}>{joined ? t('search_joined') : t('match_join')}</Text>
                         </HapticTouchable>
                       )}
                     </View>
@@ -253,14 +265,14 @@ export default function SearchScreen({ navigate, userType }: Props) {
 
           {activeTab === 'opportunities' && (
             opportunities.length === 0 ? (
-              <EmptyState icon="⚡" title="Fırsat bulunamadı" subtitle="Farklı bir arama dene" />
+              <EmptyState icon="flash-outline" title={t('search_emptyOpportunities')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
                 {opportunities.map((op) => {
                   const applied = appliedIds[String(op.id)];
                   return (
                     <View key={op.id} style={styles.row}>
-                      <View style={styles.avatar}><Text style={{ fontSize: 20 }}>⚡</Text></View>
+                      <View style={styles.avatar}><Ionicons name="flash-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{op.title}</Text>
                         <Text style={styles.rowMeta} numberOfLines={1}>{op.subtitle} · {op.location}</Text>
@@ -270,7 +282,7 @@ export default function SearchScreen({ navigate, userType }: Props) {
                         onPress={() => handleApplyOpportunity(op)}
                         disabled={applied}
                       >
-                        <Text style={styles.actionBtnText}>{applied ? '✓ Başvuruldu' : 'Başvur'}</Text>
+                        <Text style={[styles.actionBtnText, applied && styles.actionBtnTextDone]}>{applied ? t('activities_applied') : t('activities_apply')}</Text>
                       </HapticTouchable>
                     </View>
                   );
@@ -281,20 +293,16 @@ export default function SearchScreen({ navigate, userType }: Props) {
         </ScrollView>
       )}
 
-      <Modal visible={!!challengeTarget} animationType="slide" transparent onRequestClose={() => setChallengeTarget(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{challengeTarget?.name} takımına davet gönder</Text>
-            <Text style={styles.rowMeta}>Bugün · 20:00 · Konum daha sonra belirlenecek. Detayları Rakip Bul ekranından düzenleyebilirsin.</Text>
-            <HapticTouchable style={[styles.saveBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
-              {sending ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Davet Gönder</Text>}
-            </HapticTouchable>
-            <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
-              <Text style={styles.cancelBtnText}>Vazgeç</Text>
-            </HapticTouchable>
-          </View>
-        </View>
-      </Modal>
+      <BottomSheet visible={!!challengeTarget} onClose={() => setChallengeTarget(null)} theme={theme}>
+        <Text style={styles.modalTitle}>{t('search_challengeModalPrefix')}{challengeTarget?.name}{t('search_challengeModalSuffix')}</Text>
+        <Text style={styles.rowMeta}>{t('search_challengeModalBody')}</Text>
+        <HapticTouchable style={[styles.saveBtn, sending && { opacity: 0.6 }]} onPress={sendChallenge} disabled={sending}>
+          {sending ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>{t('findOpponent_sendInvite')}</Text>}
+        </HapticTouchable>
+        <HapticTouchable style={styles.cancelBtn} onPress={() => setChallengeTarget(null)}>
+          <Text style={styles.cancelBtnText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
@@ -308,83 +316,83 @@ const createStyles = (theme: Theme) =>
     backBtn: {
       width: 44, height: 44,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 18, color: theme.text },
     searchInput: {
       flex: 1,
       height: 48,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       paddingHorizontal: 16,
       color: theme.text,
-      fontFamily: FontFamily.body,
-      fontSize: 15,
+      fontFamily: FontFamily.mono,
+      fontSize: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     tabsScroll: { paddingHorizontal: 16, gap: 8, marginBottom: 12 },
     tabBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
       paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     tabBtnActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    tabText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textMuted },
-    tabTextActive: { color: '#000' },
+    tabText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    tabTextActive: { color: Paper.ink },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       backgroundColor: theme.card,
-      borderRadius: 18,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     avatar: {
-      width: 44, height: 44,
-      borderRadius: 22,
+      width: 42, height: 42,
+      borderRadius: 21,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    rowMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    scoreText: { fontFamily: FontFamily.monoMedium, fontSize: 15, color: theme.gold },
+    rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
+    rowMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, marginTop: 3 },
+    scoreText: { fontFamily: FontFamily.display, fontSize: 16, color: theme.goldDark },
+    // Birincil aksiyon dolu zümrüt; uygulanmış durum sakin gri.
     actionBtn: {
-      backgroundColor: hexToRgba(theme.gold, 0.12),
-      borderWidth: 1,
-      borderColor: theme.gold,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
+      backgroundColor: theme.gold,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
     },
-    actionBtnDone: { backgroundColor: hexToRgba(theme.success, 0.12), borderColor: theme.success },
-    actionBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.gold },
+    actionBtnDone: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.border },
+    actionBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: Paper.ink },
+    actionBtnTextDone: { color: theme.textMuted },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       paddingBottom: 36,
       borderWidth: 1,
       borderColor: theme.border,
       gap: 8,
     },
-    modalTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, marginBottom: 4, letterSpacing: 0.5 },
-    saveBtn: { height: 54, borderRadius: 18, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-    saveBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: '#000' },
+    modalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, marginBottom: 4, letterSpacing: 0.5 },
+    saveBtn: { height: 52, borderRadius: RADIUS, backgroundColor: theme.gold, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+    saveBtnText: { fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 1, color: Paper.ink },
     cancelBtn: { alignItems: 'center', paddingVertical: 14 },
-    cancelBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.textSecondary },
+    cancelBtnText: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
   });

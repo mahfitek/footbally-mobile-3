@@ -1,0 +1,3 @@
+-- TAŞINDI: bu migration artık tek resmî migration klasöründe: web repo supabase/migrations/20261026101200_add_social_saha.sql
+-- Mobil repodan migration çalıştırılmaz. Bu dosya yalnızca geçmiş ve referans içindir (aynı SQL iki kez uygulanmasın diye bırakıldı).
+-- Eski içerik git geçmişinde korunur.

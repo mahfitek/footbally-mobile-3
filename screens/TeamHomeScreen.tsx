@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { TranslationKey } from '../lib/i18n';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { notifyUser } from '../lib/notify';
+import { notifyEvent } from '../lib/notify';
+import { joinTeam, extractTeamIdFromJoinUrl } from '../lib/teamJoin';
 import EmptyState from '../components/EmptyState';
+import StatCard from '../components/StatCard';
+import SectionHeader from '../components/SectionHeader';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
+import TournamentTeaser from '../components/TournamentTeaser';
+import VenuesTeaser from '../components/VenuesTeaser';
+import BottomSheet from '../components/BottomSheet';
+
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 type TeamInfo = {
   id: string;
@@ -35,85 +46,76 @@ type PendingChallenge = {
 
 type ActivityItem = {
   id: string;
-  icon: string;
+  icon: IoniconName;
   text: string;
   time: string;
   sortKey: number;
 };
 
-const ACTIONS = [
+// Takımların asıl ihtiyacı: rakip ve maç bulmak — diğer kısayollardan daha
+// büyük/belirgin kartlarla üstte gösterilir.
+const getTeamDiscoverItems = (t: (key: TranslationKey) => string): { key: string; icon: IoniconName; title: string; sub: string; screen: string; colorKey: 'gold' | 'purple' }[] => [
+  { key: 'opponentSeekers', icon: 'shield-outline', title: t('discover_opponentSeekers'), sub: t('discover_opponentSeekersSub'), screen: 'findOpponent', colorKey: 'purple' },
+  { key: 'matchSeekers', icon: 'football-outline', title: t('discover_matchSeekers'), sub: t('discover_matchSeekersSubTeam'), screen: 'match', colorKey: 'gold' },
+];
+
+const getActions = (t: (key: TranslationKey) => string): { icon: IoniconName; title: string; sub: string; screen: string; accent: 'gold' | 'error' | 'success' }[] => [
   {
-    icon: '🔍',
-    title: 'Oyuncu Bul',
-    sub: 'Takımına yeni yetenek ekle',
+    icon: 'search-outline',
+    title: t('teamAction_findPlayer'),
+    sub: t('teamAction_findPlayerSub'),
     screen: 'findPlayer',
-    accent: 'gold' as const,
+    accent: 'gold',
   },
   {
-    icon: '⚔️',
-    title: 'Rakip Bul',
-    sub: 'Maç ayarla, rekabet et',
+    icon: 'shield-outline',
+    title: t('teamAction_findOpponent'),
+    sub: t('teamAction_findOpponentSub'),
     screen: 'findOpponent',
-    accent: 'error' as const,
+    accent: 'error',
   },
   {
-    icon: '👥',
-    title: 'Kadroyu Yönet',
-    sub: 'Diziliş ve oyuncular',
+    icon: 'people-outline',
+    title: t('teamAction_squad'),
+    sub: t('teamAction_squadSub'),
     screen: 'teamSquad',
-    accent: 'gold' as const,
+    accent: 'gold',
   },
   {
-    icon: '📊',
-    title: 'Maç Analizi',
-    sub: 'İstatistik ve performans',
+    icon: 'bar-chart-outline',
+    title: t('teamAction_matchAnalysis'),
+    sub: t('teamAction_matchAnalysisSub'),
     screen: 'teamProfile',
-    accent: 'success' as const,
+    accent: 'success',
   },
   {
-    icon: '📈',
-    title: 'İstatistikler',
-    sub: 'Form, gol krallığı, seri',
+    icon: 'trending-up-outline',
+    title: t('teamAction_stats'),
+    sub: t('teamAction_statsSub'),
     screen: 'teamStats',
-    accent: 'gold' as const,
+    accent: 'gold',
+  },
+  {
+    icon: 'megaphone-outline',
+    title: t('sahadan_gridTitle'),
+    sub: t('sahadan_gridSub'),
+    screen: 'tribun',
+    accent: 'gold',
   },
 ];
 
-function StatCard({ value, label }: { value: string; label: string }) {
-  const { theme } = useTheme();
-  return (
-    <View style={{
-      flex: 1,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-    }}>
-      <Text style={{ fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold }}>{value}</Text>
-      <Text style={{ fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 }}>{label}</Text>
-    </View>
-  );
-}
-
-function ActionCard({ item, theme, onPress }: { item: typeof ACTIONS[number]; theme: Theme; onPress: () => void }) {
+function ActionCard({ item, theme, onPress }: { item: ReturnType<typeof getActions>[number]; theme: Theme; onPress: () => void }) {
   const accentColor = theme[item.accent];
   return (
     <HapticTouchable style={styles.gridCardWrap} onPress={onPress}>
-      <LinearGradient
-        colors={[theme.card2, hexToRgba(accentColor, 0.16)]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.gridCard, { borderColor: hexToRgba(accentColor, 0.3) }]}
-      >
-        <View style={[styles.gridIconWrap, { backgroundColor: hexToRgba(accentColor, 0.16) }]}>
-          <Text style={styles.gridIcon}>{item.icon}</Text>
+      <View style={[styles.gridCard, { backgroundColor: theme.card, borderColor: accentColor }]}>
+        <View style={[styles.gridIconWrap, { backgroundColor: theme.card2 }]}>
+          <Ionicons name={item.icon} size={19} color={accentColor} />
         </View>
         <Text style={[styles.gridTitle, { color: theme.text }]}>{item.title}</Text>
         <Text style={[styles.gridSub, { color: theme.textSecondary }]}>{item.sub}</Text>
-        <Text style={[styles.gridArrow, { color: accentColor }]}>→</Text>
-      </LinearGradient>
+        <Ionicons name="chevron-forward" size={15} color={accentColor} style={{ marginTop: 10 }} />
+      </View>
     </HapticTouchable>
   );
 }
@@ -125,6 +127,8 @@ interface Props {
 
 export default function TeamHomeScreen({ navigate, userId }: Props) {
   const { theme } = useTheme();
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === 'tr' ? 'tr-TR' : 'en-US';
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,16 +139,45 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
   const [pendingChallenges, setPendingChallenges] = useState<PendingChallenge[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
 
-  useEffect(() => {
+
+  const handleJoinByCode = async () => {
+    const raw = joinCode.trim();
+    if (!raw) return;
+    const uid = resolvedUserId ?? userId;
+    if (!uid) {
+      Alert.alert(t('login_errorTitle'), t('teamHome_mustSignIn'));
+      return;
+    }
+    const teamId = extractTeamIdFromJoinUrl(raw) ?? raw;
+    setJoining(true);
+    const { error, alreadyMember } = await joinTeam(teamId, uid);
+    setJoining(false);
+    if (error) {
+      Alert.alert(t('teamHome_joinFailed'), t('teamHome_invalidCode'));
+      return;
+    }
+    setShowJoinModal(false);
+    setJoinCode('');
+    Alert.alert(
+      alreadyMember ? t('teamHome_alreadyOnSquad') : t('teamHome_joinedTeam'),
+      alreadyMember ? t('teamHome_alreadyOnSquadBody') : t('teamHome_joinedTeamBody')
+    );
     loadAll();
-  }, [userId]);
+  };
 
   const loadAll = async () => {
     setLoading(true);
     await loadTeam();
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
 
   const loadTeam = async () => {
     let uid = userId;
@@ -189,7 +222,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
       data.map((c: any) => ({
         id: c.id,
         challenger_team_id: c.challenger_team_id,
-        challengerName: c.challenger?.name ?? 'Rakip Takım',
+        challengerName: c.challenger?.name ?? t('teamHome_defaultOpponentName'),
         date: c.date,
         time: c.time,
         location: c.location,
@@ -223,27 +256,12 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           city: team.city || challenge.location,
           required_players: players * 2,
           type: challenge.format,
-          category: 'Takım Maçı',
+          category: t('teamHome_teamMatchCategory'),
           creator_id: resolvedUserId,
         });
       }
 
-      const { data: challengerTeam } = await supabase
-        .from('teams')
-        .select('owner_id')
-        .eq('id', challenge.challenger_team_id)
-        .maybeSingle();
-      if (challengerTeam?.owner_id) {
-        notifyUser(
-          challengerTeam.owner_id,
-          accept ? '✅' : '❌',
-          accept
-            ? `${team.name} maç davetini kabul etti`
-            : `${team.name} maç davetini reddetti`,
-          'teamHome',
-          'Maç Daveti Yanıtlandı'
-        );
-      }
+      notifyEvent({ kind: 'team_challenge_responded', challengeId: challenge.id });
 
       setPendingChallenges((prev) => prev.filter((c) => c.id !== challenge.id));
       if (accept) loadActivity(team.id);
@@ -287,9 +305,9 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
       membersRes.data.forEach((m: any) => {
         items.push({
           id: `member-${m.id}`,
-          icon: '👤',
-          text: 'Bir oyuncu kadroya katıldı',
-          time: new Date(m.joined_at).toLocaleDateString('tr-TR'),
+          icon: 'person-outline',
+          text: t('teamHome_memberJoinedText'),
+          time: new Date(m.joined_at).toLocaleDateString(dateLocale),
           sortKey: new Date(m.joined_at).getTime(),
         });
       });
@@ -299,13 +317,13 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
     if (!challengesRes.error && challengesRes.data) {
       challengesRes.data.forEach((c: any) => {
-        const opponentName = c.challenger_team_id === teamId ? c.opponent?.name ?? 'Rakip Takım' : c.challenger?.name ?? 'Rakip Takım';
-        const statusText = c.status === 'accepted' ? `vs ${opponentName} maçı onaylandı` : c.status === 'completed' ? `vs ${opponentName} maçı tamamlandı` : `vs ${opponentName} için meydan okuma gönderildi`;
+        const opponentName = c.challenger_team_id === teamId ? c.opponent?.name ?? t('teamHome_defaultOpponentName') : c.challenger?.name ?? t('teamHome_defaultOpponentName');
+        const statusText = c.status === 'accepted' ? `vs ${opponentName}${t('teamHome_matchConfirmedSuffix')}` : c.status === 'completed' ? `vs ${opponentName}${t('teamHome_matchCompletedSuffix')}` : `vs ${opponentName}${t('teamHome_challengeSentSuffix')}`;
         items.push({
           id: `challenge-${c.id}`,
-          icon: c.status === 'completed' ? '🏁' : '⚔️',
+          icon: c.status === 'completed' ? 'flag-outline' : 'shield-outline',
           text: statusText,
-          time: new Date(c.created_at).toLocaleDateString('tr-TR'),
+          time: new Date(c.created_at).toLocaleDateString(dateLocale),
           sortKey: new Date(c.created_at).getTime(),
         });
       });
@@ -336,10 +354,10 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
   const statsRow = team
     ? [
-        { value: String(team.wins + team.losses + team.draws), label: 'Maç' },
-        { value: String(team.wins), label: 'Galibiyet' },
-        { value: String(team.draws), label: 'Beraberlik' },
-        { value: String(team.losses), label: 'Mağlubiyet' },
+        { value: String(team.wins + team.losses + team.draws), label: t('teamHome_statMatches') },
+        { value: String(team.wins), label: t('teamHome_statWins') },
+        { value: String(team.draws), label: t('teamHome_statDraws') },
+        { value: String(team.losses), label: t('teamHome_statLosses') },
       ]
     : [];
 
@@ -358,20 +376,20 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
               <Image source={{ uri: team.logo_url }} style={styles.logo} />
             ) : (
               <View style={styles.logoPlaceholder}>
-                <Text style={styles.logoPlaceholderIcon}>🏟️</Text>
+                <Ionicons name="business-outline" size={22} color={theme.gold} />
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.teamName} numberOfLines={1}>{team?.name ?? 'Takımın'}</Text>
+              <Text style={styles.teamName} numberOfLines={1}>{team?.name ?? t('teamHome_yourTeamDefault')}</Text>
               <View style={styles.leagueBadge}>
-                <Text style={styles.leagueBadgeText}>{team?.league ?? 'Amatör'}</Text>
+                <Text style={styles.leagueBadgeText}>{team?.league ?? t('teamHome_amateurDefault')}</Text>
               </View>
             </View>
             <HapticTouchable style={styles.notifBtn} onPress={() => navigate('search')}>
-              <Text style={styles.notifIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={17} color={theme.text} />
             </HapticTouchable>
             <HapticTouchable style={styles.notifBtn} onPress={() => navigate('notifications')}>
-              <Text style={styles.notifIcon}>🔔</Text>
+              <Ionicons name="notifications-outline" size={17} color={theme.text} />
               {unreadCount > 0 && (
                 <View style={styles.notifDot}>
                   <Text style={styles.notifDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -381,13 +399,18 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           </View>
         </View>
 
+        <TournamentTeaser />
+        <VenuesTeaser navigate={navigate} />
+
         {!team && (
           <EmptyState
-            icon="🏟️"
-            title="Henüz takımın yok"
-            subtitle="Takım profilini oluşturarak oyuncu ve rakip bulmaya başla"
-            actionLabel="Takım Oluştur"
-            onAction={() => navigate('teamEdit')}
+            icon="business-outline"
+            title={t('teamHome_noTeamTitle')}
+            subtitle={t('teamHome_noTeamSub')}
+            actions={[
+              { label: t('teamHome_createTeam'), onPress: () => navigate('teamEdit'), variant: 'primary' },
+              { label: t('teamHome_joinWithCode'), onPress: () => setShowJoinModal(true), variant: 'outline' },
+            ]}
           />
         )}
 
@@ -399,17 +422,27 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
               ))}
             </View>
 
+            <View style={styles.discoverGrid}>
+              {getTeamDiscoverItems(t).map((item) => (
+                <HapticTouchable key={item.key} style={styles.discoverCard} onPress={() => navigate(item.screen)}>
+                  <View style={[styles.discoverIconWrap, { backgroundColor: hexToRgba(theme[item.colorKey], 0.16) }]}>
+                    <Ionicons name={item.icon} size={20} color={theme[item.colorKey]} />
+                  </View>
+                  <Text style={styles.discoverTitle}>{item.title}</Text>
+                  <Text style={styles.discoverSub}>{item.sub}</Text>
+                </HapticTouchable>
+              ))}
+            </View>
+
             <View style={styles.grid}>
-              {ACTIONS.map((item) => (
+              {getActions(t).map((item) => (
                 <ActionCard key={item.screen} item={item} theme={theme} onPress={() => navigate(item.screen)} />
               ))}
             </View>
 
             {pendingChallenges.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>⚔️ Bekleyen Maç Davetleri</Text>
-                </View>
+                <SectionHeader title={t('teamHome_pendingChallengesHeader')} />
                 <View style={styles.activityList}>
                   {pendingChallenges.map((c) => (
                     <View key={c.id} style={styles.challengeCard}>
@@ -435,7 +468,7 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
                           disabled={respondingId === c.id}
                         >
                           {respondingId === c.id ? (
-                            <ActivityIndicator size="small" color="#000" />
+                            <ActivityIndicator size="small" color={Paper.ink} />
                           ) : (
                             <Text style={styles.acceptBtnText}>Kabul Et</Text>
                           )}
@@ -447,17 +480,15 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
               </>
             )}
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Son Aktivite</Text>
-            </View>
+            <SectionHeader title={t('teamHome_recentActivityHeader')} />
             {activity.length === 0 ? (
-              <EmptyState icon="⚡" title="Henüz aktivite yok" subtitle="Kadro ve maç aktiviteleri burada görünecek" />
+              <EmptyState icon="flash-outline" title={t('teamHome_noActivityTitle')} subtitle={t('teamHome_noActivitySub')} />
             ) : (
               <View style={styles.activityList}>
                 {activity.map((a) => (
                   <View key={a.id} style={styles.activityItem}>
                     <View style={styles.activityIconWrap}>
-                      <Text style={styles.activityIcon}>{a.icon}</Text>
+                      <Ionicons name={a.icon} size={16} color={theme.gold} />
                     </View>
                     <Text style={styles.activityText}>{a.text}</Text>
                     <Text style={styles.activityTime}>{a.time}</Text>
@@ -470,6 +501,30 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <BottomSheet visible={showJoinModal} onClose={() => { setShowJoinModal(false); setJoinCode(''); }} theme={theme}>
+        <Text style={styles.joinModalTitle}>{t('teamHome_joinModalTitle')}</Text>
+        <Text style={styles.joinModalSubtitle}>{t('teamHome_joinModalSub')}</Text>
+        <TextInput
+          value={joinCode}
+          onChangeText={setJoinCode}
+          placeholder={t('teamHome_joinModalPlaceholder')}
+          placeholderTextColor={theme.textSecondary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.joinModalInput}
+        />
+        <HapticTouchable
+          style={[styles.joinModalBtn, (!joinCode.trim() || joining) && { opacity: 0.6 }]}
+          onPress={handleJoinByCode}
+          disabled={!joinCode.trim() || joining}
+        >
+          <Text style={styles.joinModalBtnText}>{joining ? t('teamHome_joining') : t('teamHome_joinBtn')}</Text>
+        </HapticTouchable>
+        <HapticTouchable onPress={() => { setShowJoinModal(false); setJoinCode(''); }} style={{ padding: 14, alignItems: 'center' }}>
+          <Text style={{ color: theme.textSecondary, fontFamily: FontFamily.mono, fontSize: 12 }}>{t('common_cancel')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -481,50 +536,48 @@ const createStyles = (theme: Theme) =>
     header: { padding: 24, paddingTop: 16 },
     headerTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     logo: {
-      width: 56, height: 56, borderRadius: 28,
-      borderWidth: 2, borderColor: theme.gold,
+      width: 54, height: 54, borderRadius: RADIUS,
+      borderWidth: 1, borderColor: theme.gold,
     },
     logoPlaceholder: {
-      width: 56, height: 56, borderRadius: 28,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderWidth: 2, borderColor: theme.gold,
+      width: 54, height: 54, borderRadius: RADIUS,
+      backgroundColor: theme.card2,
+      borderWidth: 1, borderColor: theme.gold,
       alignItems: 'center', justifyContent: 'center',
     },
-    logoPlaceholderIcon: { fontSize: 24 },
-    teamName: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
+    teamName: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text, letterSpacing: 0.5 },
     leagueBadge: {
       alignSelf: 'flex-start',
-      backgroundColor: hexToRgba(theme.gold, 0.15),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 8,
+      borderRadius: RADIUS,
       paddingHorizontal: 8,
       paddingVertical: 3,
       marginTop: 4,
     },
-    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.gold, letterSpacing: 0.5 },
+    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.goldDark, letterSpacing: 0.5 },
     notifBtn: {
-      width: 44, height: 44,
+      width: 42, height: 42,
       backgroundColor: theme.card,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    notifIcon: { fontSize: 18 },
     notifDot: {
       position: 'absolute',
       top: 6, right: 6,
       minWidth: 16, height: 16,
-      borderRadius: 8,
+      borderRadius: RADIUS - 3,
       paddingHorizontal: 3,
       backgroundColor: theme.error,
       alignItems: 'center',
       justifyContent: 'center',
     },
     notifDotText: { fontFamily: FontFamily.monoMedium, fontSize: 9, color: '#fff' },
-    statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 24 },
+    statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -532,7 +585,7 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -546,57 +599,99 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 12,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     activityIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 34,
+      height: 34,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    activityIcon: { fontSize: 16 },
-    activityText: { fontFamily: FontFamily.bodySemiBold, flex: 1, fontSize: 12, color: theme.textMuted, lineHeight: 17 },
+    activityText: { fontFamily: FontFamily.body, flex: 1, fontSize: 12, color: theme.textMuted, lineHeight: 17 },
     activityTime: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textSecondary },
     challengeCard: {
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.3),
+      borderColor: theme.gold,
     },
     challengeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text, marginBottom: 4 },
     challengeMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 12 },
     challengeActions: { flexDirection: 'row', gap: 10 },
-    challengeBtn: { flex: 1, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    declineBtn: { backgroundColor: hexToRgba(theme.error, 0.1), borderWidth: 1, borderColor: theme.error },
-    declineBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.error },
+    challengeBtn: { flex: 1, height: 40, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center' },
+    declineBtn: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.error },
+    declineBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.error },
     acceptBtn: { backgroundColor: theme.gold },
-    acceptBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: '#000' },
+    acceptBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: Paper.ink },
+    joinModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+    joinModalCard: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: CARD_RADIUS,
+      borderTopRightRadius: CARD_RADIUS,
+      padding: 24,
+    },
+    joinModalTitle: { fontFamily: FontFamily.display, fontSize: 18, color: theme.text, letterSpacing: 0.5, marginBottom: 6 },
+    joinModalSubtitle: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginBottom: 18, lineHeight: 18 },
+    joinModalInput: {
+      backgroundColor: theme.bg,
+      borderRadius: CARD_RADIUS,
+      padding: 14,
+      color: theme.text,
+      fontFamily: FontFamily.mono,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    joinModalBtn: {
+      backgroundColor: theme.gold,
+      borderRadius: PILL_RADIUS,
+      padding: 16,
+      alignItems: 'center',
+    },
+    joinModalBtnText: { color: theme.bg, fontFamily: FontFamily.display, fontSize: 14, letterSpacing: 1 },
+    discoverGrid: { flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 20 },
+    discoverCard: {
+      flex: 1,
+      backgroundColor: theme.card,
+      borderRadius: CARD_RADIUS,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    discoverIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: CARD_RADIUS,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    discoverTitle: { fontFamily: FontFamily.display, fontSize: 15, color: theme.text, marginBottom: 4, letterSpacing: 0.3 },
+    discoverSub: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textSecondary, lineHeight: 15 },
   });
 
 const styles = StyleSheet.create({
   gridCardWrap: { width: '47%' },
   gridCard: {
-    borderRadius: 20,
+    borderRadius: RADIUS,
     padding: 18,
     borderWidth: 1,
     minHeight: 140,
   },
   gridIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
-  gridIcon: { fontSize: 20 },
   gridTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 4 },
-  gridSub: { fontFamily: FontFamily.body, fontSize: 11, lineHeight: 15 },
-  gridArrow: { fontSize: 16, fontWeight: '800', marginTop: 10 },
+  gridSub: { fontFamily: FontFamily.mono, fontSize: 11, lineHeight: 15 },
 });

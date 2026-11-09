@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet, Linking, Alert } from 'react-native';
+import { View, StyleSheet, Linking, Alert, BackHandler } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import type { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 import { useFonts, BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { supabase } from './lib/supabase';
+import { profiles } from './lib/profiles';
 import { registerForPushNotificationsAsync, setupNotificationHandler } from './lib/notifications';
 import { extractTeamIdFromJoinUrl, joinTeam } from './lib/teamJoin';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import SplashScreen from './screens/SplashScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -30,6 +32,7 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import MatchScreen from './screens/MatchScreen';
 import CreateMatchScreen from './screens/CreateMatchScreen';
 import ChatScreen from './screens/ChatScreen';
+import TribunScreen from './screens/TribunScreen';
 import TeamHomeScreen from './screens/TeamHomeScreen';
 import TeamProfileScreen from './screens/TeamProfileScreen';
 import TeamSquadScreen from './screens/TeamSquadScreen';
@@ -38,8 +41,27 @@ import FindPlayerScreen from './screens/FindPlayerScreen';
 import FindOpponentScreen from './screens/FindOpponentScreen';
 import SearchScreen from './screens/SearchScreen';
 import TeamStatsScreen from './screens/TeamStatsScreen';
+import RegionsScreen from './screens/RegionsScreen';
+import BadgesScreen from './screens/BadgesScreen';
+import VenuePanelScreen from './screens/VenuePanelScreen';
+import VenuesScreen from './screens/VenuesScreen';
+import VenueDetailScreen from './screens/VenueDetailScreen';
+import SocialFeedScreen from './screens/SocialFeedScreen';
+import CreatePostScreen from './screens/CreatePostScreen';
+import UserFollowListScreen from './screens/UserFollowListScreen';
+import MerchScreen from './screens/MerchScreen';
+import MerchCartScreen from './screens/MerchCartScreen';
+import ReportScreen, { ReportTarget } from './screens/ReportScreen';
 import BottomNav from './components/BottomNav';
+import OfflineBanner from './components/OfflineBanner';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
+import { parseRecoveryUrl, PASSWORD_RESET_REDIRECT } from './lib/authFlows';
+import { useKeyboardOpen } from './lib/useKeyboardOpen';
+import { checkAccountAccess, clearExpiredBan, mustSignOut, renderAccountMessage, type AccountAccessResult } from './lib/accountAccess';
+import { AccountAccessContext } from './lib/accountContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import RatingPromptSheet from './components/RatingPromptSheet';
+import { shouldShowRatingPrompt, markRatingPromptShown, markRatingPromptResponded } from './lib/appRating';
 
 type Screen =
   | 'splash'
@@ -59,6 +81,7 @@ type Screen =
   | 'match'
   | 'createMatch'
   | 'chat'
+  | 'tribun'
   | 'teamHome'
   | 'teamProfile'
   | 'teamEdit'
@@ -66,14 +89,46 @@ type Screen =
   | 'findPlayer'
   | 'findOpponent'
   | 'search'
-  | 'teamStats';
+  | 'teamStats'
+  | 'regions'
+  | 'badges'
+  | 'venues'
+  | 'venueDetail'
+  | 'socialFeed'
+  | 'createPost'
+  | 'userFollowList'
+  | 'merch'
+  | 'merchCart'
+  | 'report'
+  | 'resetPassword';
 
-type TabName = 'home' | 'activities' | 'footbally' | 'messages' | 'profile' | 'findPlayer' | 'findOpponent' | 'teamSquad' | 'teamProfile' | 'teamHome';
+type TabName = 'home' | 'match' | 'search' | 'messages' | 'profile' | 'teamHome' | 'findOpponent' | 'findPlayer' | 'teamProfile';
 
-const PLAYER_TAB_SCREENS: Screen[] = ['home', 'activities', 'footbally', 'messages', 'profile'];
-const TEAM_TAB_SCREENS: Screen[] = ['teamHome', 'findPlayer', 'findOpponent', 'teamSquad', 'teamProfile'];
+// Giriş öncesi akış — bu ekranlarda alt navbar ve kenardan geri kaydırma jesti gösterilmez.
+// 'chat' buraya dahil: sohbet ekranında navbar üzerine binmesin diye sekme çubuğu gizlenir.
+// 'tribun' (Sahadan) bir navbar sekmesi olduğu için görünür kalır; klavye açıkken
+// gizlenmesi AppContent içinde ayrıca ele alınır.
+const NO_NAV_SCREENS: Screen[] = ['splash', 'onboarding', 'login', 'register', 'chat', 'report', 'resetPassword'];
+const EDGE_BACK_WIDTH = 28;
+const EDGE_BACK_THRESHOLD = 80;
 
-const USER_TYPE_STORAGE_KEY = '@footbally/userType';
+// Alttaki navbar'daki sekme kök ekranları. Bunlardan birine geçildiğinde geri
+// geçmişi sıfırlanır — böylece kenardan geri kaydırma jesti farklı bir
+// sekmenin ekranlarına asla sızmaz; en fazla o sekmenin kök ekranına kadar
+// geri gider ve orada durur.
+const TAB_ROOT_SCREENS: Screen[] = [
+  'home',
+  'activities',
+  'footbally',
+  'messages',
+  'profile',
+  'tribun',
+  'teamHome',
+  'findPlayer',
+  'findOpponent',
+  'teamSquad',
+  'teamProfile',
+];
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -85,84 +140,238 @@ export default function App() {
   });
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <LanguageProvider>
-          {fontsLoaded ? <AppContent /> : <SplashScreen onDone={() => {}} />}
-        </LanguageProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            {fontsLoaded ? <AppContent /> : <SplashScreen onDone={() => {}} />}
+          </LanguageProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 function AppContent() {
   const { theme, isDark } = useTheme();
+  const { lang, t } = useLanguage();
   const [screen, setScreen] = useState<Screen>('splash');
   const [history, setHistory] = useState<Screen[]>([]);
   const [chatTarget, setChatTarget] = useState<{ id: string; name: string } | null>(null);
-  const [userType, setUserType] = useState<'player' | 'team'>('player');
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  // Sosyal Saha: viewing another user's profile (from a post/like/comment/follow
+  // list) reuses the same 'profile' screen, just pointed at a different uid —
+  // null means "show my own profile" (the tab-bar default).
+  const [viewedProfileUserId, setViewedProfileUserId] = useState<string | null>(null);
+  // Same idea as viewedProfileUserId, for viewing another team's profile —
+  // null means "show my own team" (the tab-bar default).
+  const [viewedTeamOwnerId, setViewedTeamOwnerId] = useState<string | null>(null);
+  const [followListTarget, setFollowListTarget] = useState<{ userId: string; type: 'followers' | 'following' } | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  // Tek hesap türü: oyuncu/takım ayrımı yok. Saha sahipleri (venues) panelden tanımlandığı için ayrı kalır.
+  const [userType, setUserType] = useState<'player' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Hesap durumu tek kaynak: giriş, açılış ve Ayarlar bu değeri kullanır. null = henüz kontrol edilmedi.
+  const [accountAccess, setAccountAccess] = useState<AccountAccessResult | null>(null);
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false);
   const [settingsFrom, setSettingsFrom] = useState<Screen>('profile');
   const sessionRef = useRef<Session | null>(null);
   const pushTokenRef = useRef<string | null>(null);
-  const userTypeRef = useRef<'player' | 'team'>('player');
 
   const navigate = (next: string, params?: any) => {
     if (next === 'chat' && params) {
       setChatTarget({ id: String(params.id ?? ''), name: String(params.name ?? '') });
     }
+    if (next === 'venueDetail' && params) {
+      setSelectedVenueId(String(params.id ?? ''));
+    }
+    if (next === 'profile') {
+      // Bottom nav'daki "Profil" sekmesi params göndermez (kendi profilin);
+      // bir gönderi/yorum/takip listesinden gelen navigasyon userId taşır.
+      setViewedProfileUserId(params?.userId ? String(params.userId) : null);
+    }
+    if (next === 'teamProfile') {
+      setViewedTeamOwnerId(params?.userId ? String(params.userId) : null);
+    }
+    if (next === 'userFollowList' && params) {
+      setFollowListTarget({
+        userId: String(params.userId ?? ''),
+        type: params.type === 'following' ? 'following' : 'followers',
+      });
+    }
+    if (next === 'report') {
+      setReportTarget(
+        params?.id
+          ? { type: params.type, id: String(params.id), name: String(params.name ?? '') }
+          : null,
+      );
+    }
     if (next === 'settings') {
       setSettingsFrom(screen);
     }
-    setHistory((prev) => [...prev, screen]);
+    // 'profile'/'teamProfile' birer sekme köküdür ama başka bir kullanıcının/
+    // takımın profiline (userId param'ıyla) gidilirken bunu tab-switch değil
+    // normal bir ileri-geçmiş adımı gibi ele alıyoruz — böylece geri kaydırma
+    // jesti geldiği gönderi/takip listesine dönebiliyor.
+    const isViewingOtherProfile =
+      (next === 'profile' || next === 'teamProfile') && !!params?.userId;
+    if (TAB_ROOT_SCREENS.includes(next as Screen) && !isViewingOtherProfile) {
+      // Bir sekme köküne geçiş, geri geçmişini sıfırlar — sekmeler arası
+      // "geri kaydırma" sızıntısını engeller.
+      setHistory([]);
+    } else {
+      setHistory((prev) => [...prev, screen]);
+    }
     setScreen(next as Screen);
   };
 
   const previousScreen = history[history.length - 1] ?? 'home';
 
-  const savePushToken = async (userId: string) => {
-    if (!pushTokenRef.current) return;
-    await supabase.from('profiles').update({ push_token: pushTokenRef.current }).eq('user_id', userId);
+  const goBack = () => {
+    if (history.length === 0) return;
+    const target = history[history.length - 1];
+    setHistory((prev) => prev.slice(0, -1));
+    setScreen(target);
   };
 
-  const handleAuthSuccess = (type: 'player' | 'team') => {
-    setUserType(type);
-    userTypeRef.current = type;
-    AsyncStorage.setItem(USER_TYPE_STORAGE_KEY, type);
-    navigate(type === 'team' ? 'teamHome' : 'home');
-  };
-
-  useEffect(() => {
-    AsyncStorage.getItem(USER_TYPE_STORAGE_KEY).then((stored) => {
-      if (stored === 'player' || stored === 'team') {
-        setUserType(stored);
-        userTypeRef.current = stored;
+  // Ekranın sol kenarındaki dar şeritten (edgeBackZone) başlayıp sağa doğru
+  // yeterince kaydırınca bir önceki ekrana dön (iOS'taki gibi). Şerit dar
+  // olduğu için ekranın geri kalanındaki buton/scroll'larla çakışmaz; jest bir
+  // kez başladıktan sonra parmak şeridin dışına çıksa bile takip edilmeye
+  // devam eder (Gesture Handler'ın standart davranışı).
+  const edgeBackGesture = Gesture.Pan()
+    .activeOffsetX(10)
+    .failOffsetY([-30, 30])
+    .onEnd((e) => {
+      if (e.translationX > EDGE_BACK_THRESHOLD) {
+        runOnJS(goBack)();
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      sessionRef.current = session;
-      setCurrentUserId(session?.user?.id ?? null);
-      if (session) savePushToken(session.user.id);
-    });
+  // Ayarlar'daki "Tekrar dene": hesap durumunu yeniden sorar.
+  const refreshAccountAccess = async () => {
+    const uid = sessionRef.current?.user?.id;
+    if (uid) await applyAccountAccess(uid);
+  };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+  // Android geri tuşu: geçmiş varsa önceki ekrana döner; geçmiş yoksa ve ana ekranda değilsek ana ekrana döner.
+  // Böylece takım ekranlarından geri basmak uygulamayı kapatmaz. Ana ekranda sistem geri davranışı korunur.
+  const handleHardwareBack = (): boolean => {
+    if (history.length > 0) {
+      goBack();
+      return true;
+    }
+    if (screen !== 'home' && screen !== 'splash' && screen !== 'onboarding' && screen !== 'login') {
+      navigate('home');
+      return true;
+    }
+    return false;
+  };
+  // Dinleyici bir kez kaydedilir; her render'da en güncel işleyici ref üzerinden çağrılır.
+  const hardwareBackRef = useRef(handleHardwareBack);
+  useEffect(() => {
+    hardwareBackRef.current = handleHardwareBack;
+  });
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => hardwareBackRef.current());
+    return () => subscription.remove();
+  }, []);
+
+  const savePushToken = async (userId: string) => {
+    if (!pushTokenRef.current) return;
+    await profiles.updateOwn(userId, { push_token: pushTokenRef.current });
+  };
+
+  // Saha sahibi hesaplari kendi kaydiyla degil, panelimizden manuel olusturuluyor
+  // (anlasmali/kuratoryel ortaklik). Bu yuzden Login/Register'daki oyuncu/takim
+  // rol secimine bagli olmadan, giris yapan kullanicinin bir saha sahibi olup
+  // olmadigi venues tablosundan dogrudan kontrol edilir.
+  // Her girişte yeniden hesaplanır; saha sahibi olmayan bir hesap önceki oturumdan kalan 'venue' durumunu devralmaz.
+  const checkVenueOwnership = async (uid: string): Promise<boolean> => {
+    const { data } = await supabase.from('venues').select('id').eq('owner_user_id', uid).maybeSingle();
+    const isVenue = !!data;
+    setUserType(isVenue ? 'venue' : 'player');
+    return isVenue;
+  };
+
+  // Hesap durumunu uygular. Yalnızca doğrulanmış kişisel yasak/pasiflik oturumu kapatır (false döner).
+  // Doğrulanamama oturumu kapatmaz: durum saklanır, korunan yazmalar kapalı kalır ve Ayarlar'da yeniden denenebilir.
+  const applyAccountAccess = async (uid: string): Promise<boolean> => {
+    const access = await checkAccountAccess(uid);
+    if (mustSignOut(access)) {
+      sessionRef.current = null;
+      setCurrentUserId(null);
+      setAccountAccess(null);
+      setHistory([]);
+      setScreen('onboarding');
+      Alert.alert(t('login_blocked'), renderAccountMessage(access.message, lang));
+      void supabase.auth.signOut();
+      return false;
+    }
+    if (access.verified && access.expiredBan) void clearExpiredBan();
+    setAccountAccess(access);
+    return true;
+  };
+
+  // Giriş/kayıt sonrası çağrılır. Yasaklı ya da pasif hesap burada oturumdan çıkarılır ve ana ekrana geçilmez.
+  const handleAuthSuccess = async () => {
+    const uid = sessionRef.current?.user?.id;
+    if (uid) {
+      if (!(await applyAccountAccess(uid))) return;
+      savePushToken(uid);
+      await checkVenueOwnership(uid);
+    }
+    navigate('home');
+  };
+
+  useEffect(() => {
+    // Açılıştaki kayıtlı oturum: yasaklıysa kapatılır, doğrulanamazsa (çevrimdışı, geçici hata) oturum korunur.
+    const restoreStoredSession = async (session: Session) => {
+      if (!(await applyAccountAccess(session.user.id))) return;
+      await routeForSession(session);
+    };
+
+    const routeForSession = async (session: Session | null) => {
+      if (session) {
+        savePushToken(session.user.id);
+        await checkVenueOwnership(session.user.id);
+      } else {
+        setAccountAccess(null);
+      }
+      setScreen((current) => {
+        // Kurtarma (şifre sıfırlama) akışında oturum açılsa da kullanıcı yeni şifre ekranında kalır.
+        if (current === 'splash' || current === 'resetPassword') return current;
+        setHistory([]);
+        return session ? 'home' : 'onboarding';
+      });
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       sessionRef.current = session;
       setCurrentUserId(session?.user?.id ?? null);
-      if (session) savePushToken(session.user.id);
-      setScreen((current) =>
-        current === 'splash'
-          ? current
-          : session
-          ? userTypeRef.current === 'team'
-            ? 'teamHome'
-            : 'home'
-          : 'onboarding'
-      );
+      // Girişte (SIGNED_IN) ekran geçişi ve push kaydı handleAuthSuccess içinde, ban kontrolünden sonra yapılır.
+      if (event === 'SIGNED_IN') return;
+      // Ban kontrolü ağ çağrısı yapar; auth callback'i (oturum kilidi altında) beklemesin diye callback dışında çalışır.
+      if (event === 'INITIAL_SESSION' && session) {
+        setTimeout(() => void restoreStoredSession(session), 0);
+        return;
+      }
+      void routeForSession(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const timer = setTimeout(async () => {
+      if (await shouldShowRatingPrompt()) {
+        await markRatingPromptShown();
+        setShowRatingPrompt(true);
+      }
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [currentUserId]);
 
   useEffect(() => {
     setupNotificationHandler();
@@ -203,21 +412,50 @@ function AppContent() {
   };
 
   useEffect(() => {
-    Linking.getInitialURL().then(handleJoinTeamUrl);
+    Linking.getInitialURL().then((url) => handleJoinTeamUrl(url ?? null));
     const subscription = Linking.addEventListener('url', ({ url }) => handleJoinTeamUrl(url));
     return () => subscription.remove();
   }, []);
 
-  const showNav = (userType === 'team' ? TEAM_TAB_SCREENS : PLAYER_TAB_SCREENS).includes(screen);
+  // Şifre sıfırlama bağlantısı: tokenlar bağlantıdan alınır, oturum kurulur, yeni şifre ekranı açılır.
+  // Bağlantı geçersizse de ekran açılır ve geçersiz olduğu söylenir (sessiz başarısızlık yok).
+  const [recoverySession, setRecoverySession] = useState(false);
+  // Splash bu bağlantıdan önce bitmiş olabilir ya da sonra; her iki durumda da kurtarma ekranına gidilmeli.
+  const recoveryRef = useRef(false);
+  const handleRecoveryUrl = async (url: string | null) => {
+    if (!url || !url.startsWith(PASSWORD_RESET_REDIRECT)) return;
+    const tokens = parseRecoveryUrl(url);
+    let ok = false;
+    if (tokens) {
+      const { error } = await supabase.auth.setSession({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken });
+      ok = !error;
+    }
+    recoveryRef.current = true;
+    setRecoverySession(ok);
+    setHistory([]);
+    setScreen('resetPassword');
+  };
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => handleRecoveryUrl(url ?? null));
+    const subscription = Linking.addEventListener('url', ({ url }) => handleRecoveryUrl(url));
+    return () => subscription.remove();
+  }, []);
+
+  const keyboardOpen = useKeyboardOpen();
+  // Sahadan'da giriş alanı klavyenin altında kalmasın diye klavye açıkken navbar gizlenir.
+  const showNav =
+    !NO_NAV_SCREENS.includes(screen) &&
+    userType !== 'venue' &&
+    !((screen === 'tribun' || screen === 'merchCart') && keyboardOpen);
 
   const renderScreen = () => {
     switch (screen) {
       case 'splash':
-        return <SplashScreen onDone={() => navigate(sessionRef.current ? 'home' : 'onboarding')} />;
+        return <SplashScreen onDone={() => navigate(recoveryRef.current ? 'resetPassword' : sessionRef.current ? 'home' : 'onboarding')} />;
       case 'onboarding':
         return <OnboardingScreen onDone={() => navigate('login')} />;
       case 'login':
-        return <LoginScreen onLogin={handleAuthSuccess} onRegister={(type) => { setUserType(type); navigate('register'); }} />;
+        return <LoginScreen onLogin={handleAuthSuccess} onRegister={() => navigate('register')} />;
       case 'register':
         return <RegisterScreen onLogin={handleAuthSuccess} onBack={() => navigate('login')} />;
       case 'activities':
@@ -227,13 +465,55 @@ function AppContent() {
       case 'messages':
         return <MessagesScreen navigate={navigate} />;
       case 'profile':
-        return <ProfileScreen navigate={navigate} userId={currentUserId} />;
+        return (
+          <ProfileScreen
+            navigate={navigate}
+            userId={viewedProfileUserId ?? currentUserId}
+            currentUserId={currentUserId}
+            onBack={viewedProfileUserId ? goBack : undefined}
+          />
+        );
+      case 'socialFeed':
+        return <SocialFeedScreen navigate={navigate} userId={currentUserId} />;
+      case 'createPost':
+        return <CreatePostScreen navigate={navigate} userId={currentUserId} />;
+      case 'userFollowList':
+        return (
+          <UserFollowListScreen
+            navigate={navigate}
+            onBack={goBack}
+            userId={followListTarget?.userId ?? ''}
+            type={followListTarget?.type ?? 'followers'}
+            currentUserId={currentUserId}
+          />
+        );
       case 'premium':
         return <PremiumScreen navigate={navigate} previousScreen={previousScreen} />;
+      case 'merch':
+        return <MerchScreen onBack={goBack} onOpenCart={() => navigate('merchCart')} />;
+      case 'merchCart':
+        return <MerchCartScreen onBack={goBack} />;
+      case 'report':
+        return <ReportScreen onBack={goBack} target={reportTarget} />;
+      case 'resetPassword':
+        return (
+          <ResetPasswordScreen
+            hasRecoverySession={recoverySession}
+            onDone={() => {
+              recoveryRef.current = false;
+              setRecoverySession(false);
+              navigate('login');
+            }}
+          />
+        );
       case 'ai':
         return <AIAnalysisScreen navigate={navigate} />;
       case 'settings':
         return <SettingsScreen navigate={navigate} userId={currentUserId} fromScreen={settingsFrom} />;
+      case 'regions':
+        return <RegionsScreen navigate={navigate} userId={currentUserId} />;
+      case 'badges':
+        return <BadgesScreen navigate={navigate} userId={currentUserId} />;
       case 'scout':
         return <ScoutScreen navigate={navigate} />;
       case 'notifications':
@@ -250,50 +530,96 @@ function AppContent() {
             otherUserName={chatTarget?.name ?? ''}
           />
         );
+      case 'tribun':
+        return <TribunScreen navigate={navigate} />;
       case 'teamHome':
         return <TeamHomeScreen navigate={navigate} userId={currentUserId} />;
       case 'teamProfile':
-        return <TeamProfileScreen navigate={navigate} userId={currentUserId} />;
+        return (
+          <TeamProfileScreen
+            navigate={navigate}
+            userId={viewedTeamOwnerId ?? currentUserId}
+            currentUserId={currentUserId}
+            onBack={viewedTeamOwnerId ? goBack : undefined}
+          />
+        );
       case 'teamEdit':
         return <TeamEditScreen navigate={navigate} userId={currentUserId} />;
       case 'teamSquad':
         return <TeamSquadScreen navigate={navigate} userId={currentUserId} />;
       case 'findPlayer':
-        return <FindPlayerScreen navigate={navigate} />;
+        return <FindPlayerScreen navigate={navigate} onBack={goBack} />;
       case 'findOpponent':
-        return <FindOpponentScreen navigate={navigate} />;
+        return <FindOpponentScreen navigate={navigate} onBack={goBack} />;
       case 'search':
-        return <SearchScreen navigate={navigate} userType={userType} />;
+        return <SearchScreen navigate={navigate} />;
       case 'teamStats':
         return <TeamStatsScreen navigate={navigate} userId={currentUserId} />;
       case 'home':
-        return userType === 'team' ? (
-          <TeamHomeScreen navigate={navigate} userId={currentUserId} />
+        return userType === 'venue' ? (
+          <VenuePanelScreen navigate={navigate} userId={currentUserId} />
         ) : (
           <HomeScreen navigate={navigate} userId={currentUserId} />
         );
+      case 'venues':
+        return <VenuesScreen navigate={navigate} />;
+      case 'venueDetail':
+        return <VenueDetailScreen navigate={navigate} venueId={selectedVenueId} />;
       default:
-        return userType === 'team' ? (
-          <TeamHomeScreen navigate={navigate} userId={currentUserId} />
-        ) : (
-          <HomeScreen navigate={navigate} userId={currentUserId} />
-        );
+        return <HomeScreen navigate={navigate} userId={currentUserId} />;
     }
   };
 
   return (
-    <ErrorBoundary theme={theme}>
+    <AccountAccessContext.Provider value={{ access: accountAccess, refresh: refreshAccountAccess }}>
+    <ErrorBoundary theme={theme} lang={lang}>
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         {renderScreen()}
+        <OfflineBanner />
         {showNav && (
-          <BottomNav active={screen as TabName} onPress={navigate} userType={userType} />
+          <BottomNav
+            active={
+              (screen === 'profile' && viewedProfileUserId) || (screen === 'teamProfile' && viewedTeamOwnerId)
+                ? null
+                : (screen as TabName)
+            }
+            onPress={navigate}
+          />
         )}
+        {history.length > 0 && (
+          <GestureDetector gesture={edgeBackGesture}>
+            <View style={styles.edgeBackZone} />
+          </GestureDetector>
+        )}
+        <RatingPromptSheet
+          visible={showRatingPrompt}
+          onClose={() => setShowRatingPrompt(false)}
+          onAnswered={() => {
+            markRatingPromptResponded();
+          }}
+          theme={theme}
+          t={t}
+          userId={currentUserId}
+        />
       </View>
     </ErrorBoundary>
+    </AccountAccessContext.Provider>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // Gerçek ekranın en solunda, dar (EDGE_BACK_WIDTH) ve görünmez bir şerit —
+  // buradan başlayan bir sürükleme, parmak ekranın ortasına kadar gitse bile
+  // Gesture Handler tarafından takip edilmeye devam eder (RNGH'nin standart
+  // "edge swipe" tekniği). Böylece tüm ekranı kaplayan bir algılayıcının diğer
+  // buton/scroll'larla çakışması engellenmiş olur.
+  edgeBackZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: EDGE_BACK_WIDTH,
+  },
 });

@@ -7,24 +7,55 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
 
-const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const RADIUS = CARD_RADIUS;
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
-const skills = [
-  { name: 'Hız', value: 0 },
-  { name: 'Pas', value: 0 },
-  { name: 'Şut', value: 0 },
-  { name: 'Dayanıklılık', value: 0 },
-  { name: 'Dribbling', value: 0 },
-  { name: 'Savunma', value: 0 },
+const getDays = (t: (key: any) => string) => [
+  t('performance_dayMon'),
+  t('performance_dayTue'),
+  t('performance_dayWed'),
+  t('performance_dayThu'),
+  t('performance_dayFri'),
+  t('performance_daySat'),
+  t('performance_daySun'),
 ];
+
+const getSkills = (t: (key: any) => string) => [
+  { name: t('performance_skillSpeed'), value: 0 },
+  { name: t('performance_skillPass'), value: 0 },
+  { name: t('performance_skillShot'), value: 0 },
+  { name: t('performance_skillStamina'), value: 0 },
+  { name: t('performance_skillDribbling'), value: 0 },
+  { name: t('performance_skillDefense'), value: 0 },
+];
+
+const getAiInsight = (matchesPlayed: number, winRate: number, goals: number, hasPlayed: boolean, lang: 'tr' | 'en'): string => {
+  if (!hasPlayed) {
+    return lang === 'tr' ? 'İlk maçını oyna ve AI analizini gör' : 'Play your first match to see your AI analysis';
+  }
+  if (matchesPlayed >= 3) {
+    const tail = winRate >= 50
+      ? (lang === 'tr' ? 'Harika gidiyorsun, bu formu koru!' : "You're doing great, keep up this form!")
+      : (lang === 'tr' ? 'Daha fazla maça katılarak formunu yükseltebilirsin.' : 'You can improve your form by joining more matches.');
+    return lang === 'tr'
+      ? `Son ${matchesPlayed} maçında %${winRate} galibiyet oranın ve toplam ${goals} golün var. ${tail}`
+      : `In your last ${matchesPlayed} matches you have a ${winRate}% win rate and ${goals} total goals. ${tail}`;
+  }
+  return lang === 'tr'
+    ? `${matchesPlayed} maç oynadın. Daha fazla maça katıl, performansını takip edelim.`
+    : `You've played ${matchesPlayed} match(es). Join more matches so we can track your performance.`;
+};
 
 const CHART_HEIGHT = 120;
 const PLATFORM_AVERAGE_SCORE = 65;
@@ -44,6 +75,9 @@ interface Props {
 
 export default function PerformanceScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t, lang } = useLanguage();
+  const days = getDays(t);
+  const skills = getSkills(t);
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,9 +87,6 @@ export default function PerformanceScreen({ navigate }: Props) {
   const [score, setScore] = useState(0);
   const [weeklyForm, setWeeklyForm] = useState<ResultRow[]>([]);
 
-  useEffect(() => {
-    loadStats();
-  }, []);
 
   const loadStats = async () => {
     try {
@@ -67,11 +98,7 @@ export default function PerformanceScreen({ navigate }: Props) {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('score')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: profile } = await profiles.ownProfile('score');
       if (profile) setScore(profile.score ?? 0);
 
       const today = new Date().toISOString().slice(0, 10);
@@ -96,27 +123,25 @@ export default function PerformanceScreen({ navigate }: Props) {
     setRefreshing(false);
   };
 
+  useEffect(() => {
+    loadStats();
+  }, []);
+
   const onRefresh = () => {
     setRefreshing(true);
     loadStats();
   };
 
-  const miniStats = [
-    { icon: '⚽', val: String(goals), label: 'Gol' },
-    { icon: '🏆', val: String(wins), label: 'Galibiyet' },
-    { icon: '🏟️', val: String(matchesPlayed), label: 'Maç' },
+  const miniStats: { icon: IoniconName; val: string; label: string }[] = [
+    { icon: 'football-outline', val: String(goals), label: t('performance_goalsLabel') },
+    { icon: 'trophy-outline', val: String(wins), label: t('teamProfile_statWins') },
+    { icon: 'business-outline', val: String(matchesPlayed), label: t('teamProfile_statMatches') },
   ];
 
   const hasPlayed = matchesPlayed > 0;
   const winRate = hasPlayed ? Math.round((wins / matchesPlayed) * 100) : 0;
 
-  const aiInsight = hasPlayed
-    ? matchesPlayed >= 3
-      ? `Son ${matchesPlayed} maçında %${winRate} galibiyet oranın ve toplam ${goals} golün var. ${
-          winRate >= 50 ? 'Harika gidiyorsun, bu formu koru!' : 'Daha fazla maça katılarak formunu yükseltebilirsin.'
-        }`
-      : `${matchesPlayed} maç oynadın. Daha fazla maça katıl, performansını takip edelim.`
-    : 'İlk maçını oyna ve AI analizini gör';
+  const aiInsight = getAiInsight(matchesPlayed, winRate, goals, hasPlayed, lang);
 
   const chartAvgLabel = weeklyForm.length > 0
     ? Math.round(weeklyForm.reduce((sum, r) => sum + formBarHeight(r.result), 0) / weeklyForm.length)
@@ -125,7 +150,7 @@ export default function PerformanceScreen({ navigate }: Props) {
   const last7 = Array.from({ length: 7 }, (_, i) => weeklyForm[weeklyForm.length - 7 + i] ?? null);
 
   if (loading) {
-    return <LoadingScreen message="Performans yükleniyor..." />;
+    return <LoadingScreen message={t('performance_loading')} />;
   }
 
   return (
@@ -139,24 +164,24 @@ export default function PerformanceScreen({ navigate }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Performans</Text>
+          <Text style={styles.title}>{t('performance_title')}</Text>
         </View>
 
         {/* AI Insight */}
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
-            <Text style={styles.aiIcon}>🤖</Text>
-            <Text style={styles.aiLabel}>AI ANALİZİ</Text>
+            <Ionicons name="hardware-chip-outline" size={15} color={theme.gold} />
+            <Text style={styles.aiLabel}>{t('performance_aiLabel')}</Text>
           </View>
           <Text style={styles.aiText}>{aiInsight}</Text>
         </View>
 
         {!hasPlayed ? (
           <EmptyState
-            icon="🏆"
-            title="Henüz maç verisi yok"
-            subtitle="Maçlara katıl ve performansını takip et!"
-            actionLabel="Maç Bul"
+            icon="trophy-outline"
+            title={t('performance_emptyTitle')}
+            subtitle={t('performance_emptySub')}
+            actionLabel={t('performance_findMatch')}
             onAction={() => navigate('match')}
           />
         ) : (
@@ -165,7 +190,7 @@ export default function PerformanceScreen({ navigate }: Props) {
             <View style={styles.miniRow}>
               {miniStats.map((m, i) => (
                 <View key={i} style={styles.miniCard}>
-                  <Text style={styles.miniIcon}>{m.icon}</Text>
+                  <Ionicons name={m.icon} size={17} color={theme.gold} style={{ marginBottom: 6 }} />
                   <Text style={styles.miniVal}>{m.val}</Text>
                   <Text style={styles.miniLabel}>{m.label}</Text>
                 </View>
@@ -175,8 +200,8 @@ export default function PerformanceScreen({ navigate }: Props) {
             {/* Weekly Form Chart */}
             <View style={styles.card}>
               <View style={styles.chartHeader}>
-                <Text style={styles.cardTitle}>Son 7 Maç Formu</Text>
-                <Text style={styles.chartAvg}>Ort. {chartAvgLabel}</Text>
+                <Text style={styles.cardTitle}>{t('performance_weeklyFormTitle')}</Text>
+                <Text style={styles.chartAvg}>{t('performance_avgPrefix')} {chartAvgLabel}</Text>
               </View>
               <View style={styles.chartRow}>
                 {last7.map((r, i) => (
@@ -191,7 +216,7 @@ export default function PerformanceScreen({ navigate }: Props) {
                       />
                     </View>
                     <Text style={styles.barLabel}>
-                      {r ? (r.result === 'win' ? 'G' : r.result === 'draw' ? 'B' : r.result === 'loss' ? 'M' : '-') : days[i]}
+                      {r ? (r.result === 'win' ? t('performance_formWin') : r.result === 'draw' ? t('performance_formDraw') : r.result === 'loss' ? t('performance_formLoss') : '-') : days[i]}
                     </Text>
                   </View>
                 ))}
@@ -200,16 +225,16 @@ export default function PerformanceScreen({ navigate }: Props) {
 
             {/* Platform comparison */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Platform Karşılaştırması</Text>
+              <Text style={styles.cardTitle}>{t('performance_platformComparisonTitle')}</Text>
               <View style={styles.compareRow}>
-                <Text style={styles.compareLabel}>Sen</Text>
+                <Text style={styles.compareLabel}>{t('performance_you')}</Text>
                 <View style={styles.compareTrack}>
                   <View style={[styles.compareFill, { width: `${Math.min(100, score)}%`, backgroundColor: theme.gold }]} />
                 </View>
                 <Text style={styles.compareValue}>{score}</Text>
               </View>
               <View style={styles.compareRow}>
-                <Text style={styles.compareLabel}>Ortalama</Text>
+                <Text style={styles.compareLabel}>{t('performance_average')}</Text>
                 <View style={styles.compareTrack}>
                   <View
                     style={[
@@ -222,14 +247,14 @@ export default function PerformanceScreen({ navigate }: Props) {
               </View>
               <Text style={styles.compareHint}>
                 {score >= PLATFORM_AVERAGE_SCORE
-                  ? `Platform ortalamasının ${score - PLATFORM_AVERAGE_SCORE} puan üzerindesin 🎉`
-                  : `Platform ortalamasının ${PLATFORM_AVERAGE_SCORE - score} puan altındasın`}
+                  ? `${t('performance_aboveAveragePrefix')}${score - PLATFORM_AVERAGE_SCORE}${t('performance_aboveAverageSuffix')}`
+                  : `${t('performance_belowAveragePrefix')}${PLATFORM_AVERAGE_SCORE - score}${t('performance_belowAverageSuffix')}`}
               </Text>
             </View>
 
             {/* Skill Bars */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Yetenek Skorları</Text>
+              <Text style={styles.cardTitle}>{t('performance_skillScoresTitle')}</Text>
               {skills.map((s, i) => (
                 <View key={i} style={styles.skillItem}>
                   <View style={styles.skillTop}>
@@ -247,13 +272,13 @@ export default function PerformanceScreen({ navigate }: Props) {
 
         {/* Premium CTA */}
         <HapticTouchable style={styles.premiumCard} onPress={() => navigate('premium')}>
-          <Text style={styles.premiumIcon}>✦</Text>
-          <Text style={styles.premiumTitle}>Premium'a Geç</Text>
+          <Ionicons name="star" size={22} color={theme.gold} style={{ marginBottom: 10 }} />
+          <Text style={styles.premiumTitle}>{t('performance_premiumCta')}</Text>
           <Text style={styles.premiumSub}>
-            Detaylı analiz, sınırsız video ve scout görünürlüğü
+            {t('performance_premiumSub')}
           </Text>
           <View style={styles.premiumBtn}>
-            <Text style={styles.premiumBtnText}>Şimdi Yükselt →</Text>
+            <Text style={styles.premiumBtnText}>{t('performance_upgradeNow')}</Text>
           </View>
         </HapticTouchable>
       </ScrollView>
@@ -270,26 +295,25 @@ const createStyles = (theme: Theme) =>
       paddingTop: 16,
       paddingBottom: 20,
     },
-    title: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, letterSpacing: 0.5 },
+    title: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, letterSpacing: 0.5 },
     aiCard: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: theme.gold,
     },
     aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    aiIcon: { fontSize: 16 },
-    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 1.5 },
+    aiLabel: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.goldDark, letterSpacing: 1.5 },
     aiText: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, lineHeight: 22 },
     miniRow: {
       flexDirection: 'row',
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.border,
@@ -301,26 +325,25 @@ const createStyles = (theme: Theme) =>
       borderRightWidth: 1,
       borderRightColor: theme.border,
     },
-    miniIcon: { fontSize: 20, marginBottom: 6 },
-    miniVal: { fontFamily: FontFamily.monoMedium, fontSize: 20, color: theme.gold },
+    miniVal: { fontFamily: FontFamily.display, fontSize: 20, color: theme.goldDark },
     miniLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 16, color: theme.text, letterSpacing: 0.5 },
     chartHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 20,
     },
-    chartAvg: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.gold },
+    chartAvg: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.goldDark },
     chartRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -329,45 +352,41 @@ const createStyles = (theme: Theme) =>
     barCol: { alignItems: 'center', gap: 10 },
     barTrack: {
       height: 120,
-      width: 18,
+      width: 16,
       backgroundColor: theme.border,
-      borderRadius: 6,
       justifyContent: 'flex-end',
       overflow: 'hidden',
     },
     barFill: {
       width: '100%',
-      backgroundColor: hexToRgba(theme.gold, 0.45),
-      borderRadius: 6,
+      backgroundColor: theme.card2,
     },
     barFillToday: { backgroundColor: theme.gold },
     barLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary },
     compareRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-    compareLabel: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textSecondary, width: 70 },
-    compareTrack: { flex: 1, height: 10, backgroundColor: theme.border, borderRadius: 5, overflow: 'hidden' },
-    compareFill: { height: 10, borderRadius: 5 },
+    compareLabel: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, width: 70 },
+    compareTrack: { flex: 1, height: 6, backgroundColor: theme.border, overflow: 'hidden' },
+    compareFill: { height: 6 },
     compareValue: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text, width: 30, textAlign: 'right' },
-    compareHint: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 14 },
+    compareHint: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 14 },
     skillItem: { marginTop: 16 },
     skillTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
     skillName: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted },
     skillVal: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
-    skillTrack: { height: 4, backgroundColor: theme.border, borderRadius: 2 },
+    skillTrack: { height: 4, backgroundColor: theme.border },
     skillFill: {
       height: 4,
       backgroundColor: theme.gold,
-      borderRadius: 2,
     },
     premiumCard: {
       marginHorizontal: 24,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 24,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.2),
+      borderColor: theme.gold,
     },
-    premiumIcon: { fontSize: 26, color: theme.gold, marginBottom: 10 },
     premiumTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 17, color: theme.text, marginBottom: 6 },
     premiumSub: {
       fontFamily: FontFamily.body,
@@ -379,9 +398,9 @@ const createStyles = (theme: Theme) =>
     },
     premiumBtn: {
       backgroundColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 24,
       paddingVertical: 13,
     },
-    premiumBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: '#000' },
+    premiumBtnText: { fontFamily: FontFamily.display, fontSize: 13, letterSpacing: 0.5, color: Paper.ink },
   });

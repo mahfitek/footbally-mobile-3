@@ -6,44 +6,50 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+import { TranslationKey } from '../lib/i18n';
 import HapticTouchable from '../components/HapticTouchable';
 
-const slides = [
+const RADIUS = CARD_RADIUS;
+
+const getSlides = (t: (key: TranslationKey) => string) => [
   {
     id: 1,
-    title: 'Kendini',
-    titleGold: 'Geliştir',
-    desc: 'AI destekli analizler ve kişisel antrenman programlarıyla her gün bir adım daha ilerle.',
-    emoji: '⚡',
+    code: '01/03',
+    title: t('onboarding_slide1Title'),
+    titleGold: t('onboarding_slide1TitleGold'),
+    desc: t('onboarding_slide1Desc'),
     kind: 'phone' as const,
   },
   {
     id: 2,
-    title: 'Fırsatları',
-    titleGold: 'Yakala',
-    desc: 'Profesyonel kulüplerden, akademilerden ve scoutlardan gelen davetleri kaçırma.',
-    emoji: '🎯',
+    code: '02/03',
+    title: t('onboarding_slide2Title'),
+    titleGold: t('onboarding_slide2TitleGold'),
+    desc: t('onboarding_slide2Desc'),
     kind: 'clubs' as const,
   },
   {
     id: 3,
-    title: 'Zafere',
-    titleGold: 'Ulaş',
-    desc: 'Kariyer hedeflerine ulaş, süperliğe tırman ve hayalini yaşa.',
-    emoji: '🏆',
+    code: '03/03',
+    title: t('onboarding_slide3Title'),
+    titleGold: t('onboarding_slide3TitleGold'),
+    desc: t('onboarding_slide3Desc'),
     kind: 'success' as const,
   },
 ];
 
-const PHONE_STATS = ['AI Analiz', 'Performans Takibi', 'Skor Sistemi'];
 const CLUBS = ['GS', 'FB', 'BJK', 'TS'];
 
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [current, setCurrent] = useState(0);
+  const slides = getSlides(t);
+  const PHONE_STATS = [t('onboarding_phoneStat1'), t('onboarding_phoneStat2'), t('onboarding_phoneStat3')];
 
   const next = () => {
     if (current < slides.length - 1) {
@@ -55,64 +61,63 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
   const slide = slides[current];
   const isLast = current === slides.length - 1;
+  const todayLabel = new Date().toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 
   return (
     <View style={styles.container}>
-      <View style={{ backgroundColor: 'transparent' }}>
-        <Image
-          source={require('../assets/logo-text.png')}
-          style={{ width: 240, height: 65, resizeMode: 'contain', backgroundColor: 'transparent' }}
-        />
+      <View style={styles.topStrip}>
+        <Text style={styles.topStripText}>FOOTBALLY</Text>
+        <Text style={styles.topStripText}>{slide.code} · {todayLabel}</Text>
       </View>
 
-      <View style={styles.slideWrap}>
-        {slide.kind === 'phone' && (
-          <View style={styles.phoneMock}>
-            <View style={styles.phoneNotch} />
-            <View style={styles.phoneAvatar}>
-              <Text style={{ fontSize: 28 }}>⚽</Text>
-            </View>
-            <View style={styles.phoneNameBar} />
-            <View style={styles.phoneStatsRow}>
+      <View style={styles.body}>
+        <View style={styles.card}>
+          {slide.kind === 'phone' && (
+            <View style={styles.phoneMock}>
+              <View style={styles.crestRow}>
+                <Image
+                  source={require('../assets/logo-icon-square.png')}
+                  style={styles.crest}
+                />
+                <Text style={styles.cardBrand}>FOOTBALLY</Text>
+              </View>
+              <Text style={styles.cardLabel}>{t('onboarding_playerFileLabel')}</Text>
               {PHONE_STATS.map((s) => (
-                <View key={s} style={styles.phoneStatChip}>
-                  <Text style={styles.phoneStatText}>{s}</Text>
+                <View key={s} style={styles.dataRow}>
+                  <Text style={styles.dataRowText}>{s}</Text>
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          )}
 
-        {slide.kind === 'clubs' && (
-          <View style={styles.clubsWrap}>
-            <View style={styles.clubsRow}>
-              {CLUBS.map((c) => (
-                <View key={c} style={styles.clubBadge}>
-                  <Text style={styles.clubBadgeText}>{c}</Text>
-                </View>
-              ))}
+          {slide.kind === 'clubs' && (
+            <View style={styles.phoneMock}>
+              <Text style={styles.cardLabel}>{t('onboarding_registeredClubs')}</Text>
+              <View style={styles.clubsRow}>
+                {CLUBS.map((c) => (
+                  <View key={c} style={styles.clubBadge}>
+                    <Text style={styles.clubBadgeText}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.clubsCaptionRow}>
+                <Text style={styles.clubsCaption}>{t('onboarding_clubsCaption')}</Text>
+              </View>
             </View>
-            <Text style={styles.clubsCaption}>180+ Scout · 50+ Kulüp · Türkiye geneli</Text>
-          </View>
-        )}
+          )}
 
-        {slide.kind === 'success' && (
-          <View style={styles.successWrap}>
-            <Text style={styles.icon}>{slide.emoji}</Text>
-            <View style={styles.successStatCard}>
+          {slide.kind === 'success' && (
+            <View style={styles.phoneMock}>
+              <Text style={styles.cardLabel}>{t('onboarding_fieldStat')}</Text>
               <Text style={styles.successStatValue}>847</Text>
-              <Text style={styles.successStatLabel}>
-                oyuncu son 3 ayda kulüplerle görüştü
-              </Text>
+              <Text style={styles.successStatLabel}>{t('onboarding_fieldStatLabel')}</Text>
             </View>
-          </View>
-        )}
-
-        {slide.kind !== 'success' && (
-          <View style={styles.iconWrap}>
-            <Text style={styles.icon}>{slide.emoji}</Text>
-          </View>
-        )}
+          )}
+        </View>
 
         <Text style={styles.title}>
           {slide.title}{' '}
@@ -132,13 +137,13 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
       <HapticTouchable style={styles.btn} onPress={next}>
         <Text style={styles.btnText}>
-          {isLast ? 'Başla' : 'Devam Et'}
+          {isLast ? t('onboarding_start') : t('onboarding_continue')}
         </Text>
       </HapticTouchable>
 
       {isLast && (
         <HapticTouchable style={styles.loginLink} onPress={onDone}>
-          <Text style={styles.loginLinkText}>Zaten hesabım var</Text>
+          <Text style={styles.loginLinkText}>{t('onboarding_alreadyHaveAccount')}</Text>
         </HapticTouchable>
       )}
     </View>
@@ -150,59 +155,133 @@ const createStyles = (theme: Theme) =>
     container: {
       flex: 1,
       backgroundColor: theme.bg,
-      alignItems: 'center',
+      paddingBottom: 40,
+      paddingHorizontal: 24,
+    },
+    topStrip: {
+      flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingTop: 70,
-      paddingBottom: 50,
-      paddingHorizontal: 32,
+      paddingTop: 18,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      marginBottom: 24,
     },
-    slideWrap: {
-      alignItems: 'center',
+    topStripText: {
+      fontFamily: FontFamily.mono,
+      fontSize: 11,
+      color: theme.textSecondary,
+      letterSpacing: 1,
+    },
+    body: {
       flex: 1,
-      justifyContent: 'center',
-    },
-    iconWrap: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.2),
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 40,
-      backgroundColor: hexToRgba(theme.gold, 0.05),
     },
-    icon: {
-      fontSize: 52,
+    card: {
+      width: '100%',
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      padding: 22,
+      marginBottom: 32,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    phoneMock: {
+      width: '100%',
+    },
+    crestRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    crest: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      resizeMode: 'contain',
+    },
+    cardBrand: {
+      fontFamily: FontFamily.display,
+      fontSize: 18,
+      letterSpacing: 2,
+      color: theme.text,
+    },
+    cardLabel: {
+      fontFamily: FontFamily.mono,
+      fontSize: 11,
+      letterSpacing: 1,
+      color: theme.goldDark,
+      paddingBottom: 12,
+      marginBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    dataRow: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    dataRowText: {
+      fontFamily: FontFamily.monoMedium,
+      fontSize: 13,
+      color: theme.text,
+    },
+    clubsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+    clubBadge: {
+      flex: 1,
+      height: 44,
+      borderRadius: RADIUS,
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    clubBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 13, color: theme.text },
+    clubsCaptionRow: {
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    clubsCaption: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.textMuted, letterSpacing: 0.5 },
+    successStatValue: { fontFamily: FontFamily.display, fontSize: 44, color: theme.goldDark, letterSpacing: 1 },
+    successStatLabel: {
+      fontFamily: FontFamily.mono,
+      fontSize: 12,
+      color: theme.textMuted,
+      marginTop: 4,
     },
     title: {
       fontFamily: FontFamily.display,
-      fontSize: 38,
+      fontSize: 34,
       color: theme.text,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: 14,
       letterSpacing: 0.5,
     },
     titleGold: {
-      color: theme.gold,
+      color: theme.goldDark,
     },
     desc: {
-      fontFamily: FontFamily.body,
-      fontSize: 15,
+      fontFamily: FontFamily.mono,
+      fontSize: 13,
       color: theme.textMuted,
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: 21,
       maxWidth: 280,
     },
     dots: {
       flexDirection: 'row',
+      justifyContent: 'center',
       gap: 8,
-      marginBottom: 32,
+      marginBottom: 24,
     },
     dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 18,
+      height: 3,
+      borderRadius: 1.5,
       backgroundColor: theme.border,
     },
     dotActive: {
@@ -211,103 +290,18 @@ const createStyles = (theme: Theme) =>
     },
     btn: {
       width: '100%',
-      height: 56,
+      height: 52,
       backgroundColor: theme.gold,
-      borderRadius: 24,
+      borderRadius: PILL_RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
     },
     btnText: {
-      fontFamily: FontFamily.bodySemiBold,
-      fontSize: 16,
-      color: '#000',
+      fontFamily: FontFamily.display,
+      fontSize: 15,
+      color: theme.bg,
       letterSpacing: 1,
     },
-    loginLink: { marginTop: 16, padding: 8 },
-    loginLinkText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.gold },
-
-    // Slide 1 - phone mock
-    phoneMock: {
-      width: 180,
-      height: 260,
-      borderRadius: 28,
-      borderWidth: 2,
-      borderColor: theme.border,
-      backgroundColor: theme.card,
-      alignItems: 'center',
-      paddingTop: 20,
-      paddingHorizontal: 14,
-      marginBottom: 32,
-    },
-    phoneNotch: {
-      width: 50,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.border,
-      marginBottom: 18,
-    },
-    phoneAvatar: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: theme.card2,
-      borderWidth: 2,
-      borderColor: theme.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 12,
-    },
-    phoneNameBar: {
-      width: 90,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: theme.border,
-      marginBottom: 18,
-    },
-    phoneStatsRow: { gap: 8, width: '100%' },
-    phoneStatChip: {
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 10,
-      paddingVertical: 8,
-      alignItems: 'center',
-    },
-    phoneStatText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.gold },
-
-    // Slide 2 - clubs
-    clubsWrap: { alignItems: 'center', marginBottom: 32 },
-    clubsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-    clubBadge: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: theme.card,
-      borderWidth: 1.5,
-      borderColor: theme.gold,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    clubBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 14, color: theme.gold },
-    clubsCaption: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, letterSpacing: 0.5 },
-
-    // Slide 3 - success story
-    successWrap: { alignItems: 'center', marginBottom: 8 },
-    successStatCard: {
-      marginTop: 24,
-      backgroundColor: hexToRgba(theme.gold, 0.08),
-      borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.25),
-      borderRadius: 20,
-      paddingVertical: 20,
-      paddingHorizontal: 28,
-      alignItems: 'center',
-    },
-    successStatValue: { fontFamily: FontFamily.monoMedium, fontSize: 40, color: theme.gold },
-    successStatLabel: {
-      fontFamily: FontFamily.bodySemiBold,
-      fontSize: 12,
-      color: theme.textMuted,
-      textAlign: 'center',
-      marginTop: 4,
-      maxWidth: 180,
-    },
+    loginLink: { marginTop: 16, padding: 8, alignItems: 'center' },
+    loginLinkText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
   });

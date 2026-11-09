@@ -5,23 +5,30 @@ import {
   Image,
   StyleSheet,
   ScrollView,
-  Modal,
   ActivityIndicator,
   RefreshControl,
   Share,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { profiles } from '../lib/profiles';
 import { sendLocalNotification } from '../lib/notifications';
-import { notifyUser } from '../lib/notify';
+import { notifyEvent } from '../lib/notify';
+import { MATCH_COLUMNS } from '../lib/columns';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
+import BottomSheet from '../components/BottomSheet';
+import MatchCard from '../components/MatchCard';
 
 type MatchView = {
   id: number;
@@ -45,17 +52,19 @@ type Participant = { user_id: string; full_name: string; avatar_url: string | nu
 
 type TabKey = 'upcoming' | 'past' | 'applied' | 'mine';
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'upcoming', label: 'Yaklaşan' },
-  { key: 'past', label: 'Geçmiş' },
-  { key: 'applied', label: 'Başvurulan' },
-  { key: 'mine', label: 'Benim Maçlarım' },
+const getTabs = (t: (key: any) => string): { key: TabKey; label: string }[] => [
+  { key: 'upcoming', label: t('match_tabUpcoming') },
+  { key: 'past', label: t('match_tabPast') },
+  { key: 'applied', label: t('match_tabApplied') },
+  { key: 'mine', label: t('match_tabMine') },
 ];
 
-const RESULT_OPTIONS: { key: 'win' | 'loss' | 'draw'; label: string; color: 'success' | 'error' | 'textSecondary' }[] = [
-  { key: 'win', label: 'Galibiyet', color: 'success' },
-  { key: 'draw', label: 'Beraberlik', color: 'textSecondary' },
-  { key: 'loss', label: 'Mağlubiyet', color: 'error' },
+const getResultOptions = (
+  t: (key: any) => string
+): { key: 'win' | 'loss' | 'draw'; label: string; color: 'success' | 'error' | 'textSecondary' }[] => [
+  { key: 'win', label: t('match_resultWin'), color: 'success' },
+  { key: 'draw', label: t('match_resultDraw'), color: 'textSecondary' },
+  { key: 'loss', label: t('match_resultLoss'), color: 'error' },
 ];
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -66,6 +75,9 @@ interface Props {
 
 export default function MatchScreen({ navigate }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const TABS = getTabs(t);
+  const RESULT_OPTIONS = getResultOptions(t);
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
@@ -86,24 +98,17 @@ export default function MatchScreen({ navigate }: Props) {
   const [goalsChoice, setGoalsChoice] = useState(0);
   const [savingResult, setSavingResult] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [myRatings, setMyRatings] = useState<Record<string, number>>({});
+  const [ratingBusyFor, setRatingBusyFor] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadInitial();
-  }, []);
 
-  useEffect(() => {
-    if (activeTab !== 'upcoming' && loadedScope !== 'all') {
-      setTabLoading(true);
-      fetchMatches('all', userId).finally(() => setTabLoading(false));
-    }
-  }, [activeTab]);
 
   // "Aktif İlanlar" (Yaklaşan) sekmesi için DB seviyesinde tarih filtresi;
   // diğer sekmeler (Geçmiş/Başvurulan/Benim Maçlarım) geçmiş tarihli maçlara
   // da ihtiyaç duyduğundan, o sekmelere ilk geçişte 'all' scope ayrıca çekilir.
   const fetchMatches = async (scope: 'active' | 'all', currentUserId: string | null) => {
     try {
-      let query = supabase.from('matches').select('*').order('date', { ascending: true });
+      let query = supabase.from('matches').select(MATCH_COLUMNS).order('date', { ascending: true });
       if (scope === 'active') {
         query = query.gte('date', todayStr());
       }
@@ -111,7 +116,7 @@ export default function MatchScreen({ navigate }: Props) {
 
       if (error) {
         if (__DEV__) console.log('Maçlar yüklenemedi:', error);
-        if (!error.code) setToast({ message: 'Maçlar yüklenemedi', type: 'error' });
+        if (!error.code) setToast({ message: t('match_loadFailed'), type: 'error' });
         setMatches([]);
         return;
       }
@@ -156,6 +161,13 @@ export default function MatchScreen({ navigate }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (activeTab !== 'upcoming' && loadedScope !== 'all') {
+      setTabLoading(true);
+      fetchMatches('all', userId).finally(() => setTabLoading(false));
+    }
+  }, [activeTab]);
+
   const loadInitial = async () => {
     setLoading(true);
     try {
@@ -164,11 +176,7 @@ export default function MatchScreen({ navigate }: Props) {
       setUserId(user?.id ?? null);
 
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, city')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data: profile } = await profiles.ownProfile('full_name, city');
         setMyName(profile?.full_name ?? '');
         setMyCity(profile?.city ?? '');
       }
@@ -181,6 +189,10 @@ export default function MatchScreen({ navigate }: Props) {
     setLoading(false);
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    loadInitial();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -199,12 +211,39 @@ export default function MatchScreen({ navigate }: Props) {
       setLoadingParticipants(false);
       return;
     }
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name, avatar_url')
-      .in('user_id', userIds);
-    setParticipants((profiles ?? []) as Participant[]);
+    const { data: participantProfiles } = await profiles.publicProfiles(userIds, 'user_id, full_name, avatar_url');
+    setParticipants((participantProfiles ?? []) as Participant[]);
     setLoadingParticipants(false);
+
+    if (userId) {
+      const { data: ratingRows } = await supabase
+        .from('player_ratings')
+        .select('rated_user_id, rating')
+        .eq('match_id', matchId)
+        .eq('rater_id', userId);
+      const map: Record<string, number> = {};
+      (ratingRows ?? []).forEach((r: any) => {
+        map[r.rated_user_id] = r.rating;
+      });
+      setMyRatings(map);
+    }
+  };
+
+  const submitRating = async (matchId: number, ratedUserId: string, rating: number) => {
+    if (!userId || ratedUserId === userId) return;
+    setRatingBusyFor(ratedUserId);
+    setMyRatings((prev) => ({ ...prev, [ratedUserId]: rating }));
+    const { error } = await supabase
+      .from('player_ratings')
+      .upsert(
+        { match_id: matchId, rater_id: userId, rated_user_id: ratedUserId, rating, updated_at: new Date().toISOString() },
+        { onConflict: 'match_id,rater_id,rated_user_id' }
+      );
+    setRatingBusyFor(null);
+    if (error) {
+      if (__DEV__) console.log('Oyuncu değerlendirilemedi:', error);
+      setToast({ message: t('match_ratingSaveFailed'), type: 'error' });
+    }
   };
 
   const openMatch = (match: MatchView) => {
@@ -224,7 +263,7 @@ export default function MatchScreen({ navigate }: Props) {
 
       if (error) {
         if (__DEV__) console.log('Maça katılım kaydedilemedi:', error);
-        setToast({ message: 'Katılım kaydedilemedi', type: 'error' });
+        setToast({ message: t('match_joinFailed'), type: 'error' });
       } else {
         setMatches((prev) =>
           prev.map((m) =>
@@ -238,22 +277,13 @@ export default function MatchScreen({ navigate }: Props) {
             ? { ...prev, applied: true, participantsCount: prev.participantsCount + 1, myApplicationId: inserted?.id ?? null }
             : prev
         );
-        setToast({ message: 'Maça başvurunuz alındı', type: 'success' });
-        sendLocalNotification('Maça Katıldın! ⚽', `${match.title} maçına başvurun alındı.`);
-        notifyUser(userId, '✅', `${match.title} maçına katılımın onaylandı.`, 'match');
-        if (match.creator_id && match.creator_id !== userId) {
-          notifyUser(
-            match.creator_id,
-            '👤',
-            `${myName || 'Bir oyuncu'} "${match.title}" maçına katıldı.`,
-            'match',
-            'Yeni Katılımcı'
-          );
-        }
+        setToast({ message: t('match_joinSuccess'), type: 'success' });
+        sendLocalNotification(t('match_joinedNotifTitle'), `${match.title} ${t('match_joinedNotifBody')}`);
+        notifyEvent({ kind: 'match_join', matchId: match.id });
       }
     } catch (err) {
       if (__DEV__) console.log('Maça katılırken beklenmeyen hata:', err);
-      setToast({ message: 'Katılım kaydedilemedi', type: 'error' });
+      setToast({ message: t('match_joinFailed'), type: 'error' });
     }
     setJoining(false);
   };
@@ -265,7 +295,7 @@ export default function MatchScreen({ navigate }: Props) {
       const { error } = await supabase.from('match_applications').delete().eq('id', match.myApplicationId);
       if (error) {
         if (__DEV__) console.log('Maçtan ayrılınamadı:', error);
-        setToast({ message: 'Maçtan ayrılınamadı', type: 'error' });
+        setToast({ message: t('match_leaveFailed'), type: 'error' });
       } else {
         setMatches((prev) =>
           prev.map((m) =>
@@ -279,11 +309,11 @@ export default function MatchScreen({ navigate }: Props) {
             ? { ...prev, applied: false, participantsCount: Math.max(0, prev.participantsCount - 1), myApplicationId: null }
             : prev
         );
-        setToast({ message: 'Maçtan ayrıldın', type: 'success' });
+        setToast({ message: t('match_leaveSuccess'), type: 'success' });
       }
     } catch (err) {
       if (__DEV__) console.log('Maçtan ayrılırken beklenmeyen hata:', err);
-      setToast({ message: 'Maçtan ayrılınamadı', type: 'error' });
+      setToast({ message: t('match_leaveFailed'), type: 'error' });
     }
     setJoining(false);
   };
@@ -291,7 +321,7 @@ export default function MatchScreen({ navigate }: Props) {
   const handleShare = async (match: MatchView) => {
     try {
       await Share.share({
-        message: `${match.title} maçına göz at! ⚽\n📅 ${match.date} · ${match.time}\n📍 ${match.location}, ${match.city}\n\nFootbally'de katıl.`,
+        message: `${t('match_shareMessage')} ${match.title}\n${match.date} · ${match.time}\n${match.location}, ${match.city}\n\n${t('match_shareJoinFootbally')}`,
         title: match.title,
       });
     } catch {
@@ -319,12 +349,12 @@ export default function MatchScreen({ navigate }: Props) {
       .eq('id', resultTarget.myApplicationId);
     if (error) {
       if (__DEV__) console.log('Maç sonucu kaydedilemedi:', error);
-      setToast({ message: 'Sonuç kaydedilemedi', type: 'error' });
+      setToast({ message: t('match_resultSaveFailed'), type: 'error' });
     } else {
       setMatches((prev) =>
         prev.map((m) => (m.id === resultTarget.id ? { ...m, myResult: resultChoice, myGoals: goalsChoice } : m))
       );
-      setToast({ message: 'Maç sonucu kaydedildi', type: 'success' });
+      setToast({ message: t('match_resultSaveSuccess'), type: 'success' });
       setResultTarget(null);
     }
     setSavingResult(false);
@@ -336,7 +366,7 @@ export default function MatchScreen({ navigate }: Props) {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.backBtn} />
-            <Text style={styles.title}>Maçlar</Text>
+            <Text style={styles.title}>{t('match_title')}</Text>
           </View>
         </View>
         <View style={{ paddingHorizontal: 24, gap: 14 }}>
@@ -364,25 +394,26 @@ export default function MatchScreen({ navigate }: Props) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <HapticTouchable style={styles.backBtn} onPress={() => navigate('home')}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={17} color={theme.text} />
           </HapticTouchable>
-          <Text style={styles.title}>Maçlar</Text>
+          <Text style={styles.title}>{t('match_title')}</Text>
         </View>
-        <HapticTouchable style={styles.createBtn} onPress={() => navigate('createMatch')}>
-          <Text style={styles.createBtnText}>+ Maç Oluştur</Text>
+        <HapticTouchable style={[styles.createBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} onPress={() => navigate('createMatch')}>
+          <Ionicons name="add" size={14} color={Paper.ink} />
+          <Text style={styles.createBtnText}>{t('match_createMatch')}</Text>
         </HapticTouchable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScrollOuter} contentContainerStyle={styles.tabsScroll}>
         <View style={styles.tabs}>
-          {TABS.map((t) => (
+          {TABS.map((tab) => (
             <HapticTouchable
-              key={t.key}
-              style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
-              onPress={() => setActiveTab(t.key)}
+              key={tab.key}
+              style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
+              onPress={() => setActiveTab(tab.key)}
             >
-              <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>
-                {t.label}
+              <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+                {tab.label}
               </Text>
             </HapticTouchable>
           ))}
@@ -395,7 +426,7 @@ export default function MatchScreen({ navigate }: Props) {
           onPress={() => setNearbyOnly((prev) => !prev)}
         >
           <Text style={[styles.nearbyChipText, nearbyOnly && styles.nearbyChipTextActive]}>
-            📍 Yakınımda ({myCity})
+            {t('match_nearby')} ({myCity})
           </Text>
         </HapticTouchable>
       ) : null}
@@ -421,148 +452,148 @@ export default function MatchScreen({ navigate }: Props) {
         ) : filtered.length === 0 ? (
           activeTab === 'upcoming' ? (
             <EmptyState
-              icon="⚽"
-              title="Henüz maç yok"
-              subtitle="İlk maçı sen oluştur!"
-              actionLabel="Maç Oluştur"
+              icon="football-outline"
+              title={t('match_emptyUpcomingTitle')}
+              subtitle={t('match_emptyUpcomingSub')}
+              actionLabel={t('match_createMatch')}
               onAction={() => navigate('createMatch')}
             />
           ) : activeTab === 'past' ? (
             <EmptyState
-              icon="⚽"
-              title="Geçmiş maç yok"
-              subtitle="Oynadığın maçlar burada listelenecek"
+              icon="football-outline"
+              title={t('match_emptyPastTitle')}
+              subtitle={t('match_emptyPastSub')}
             />
           ) : activeTab === 'mine' ? (
             <EmptyState
-              icon="⚽"
-              title="Henüz maçın yok"
-              subtitle="Bir maç oluştur ya da birine katıl"
-              actionLabel="Maç Oluştur"
+              icon="football-outline"
+              title={t('match_emptyMineTitle')}
+              subtitle={t('match_emptyMineSub')}
+              actionLabel={t('match_createMatch')}
               onAction={() => navigate('createMatch')}
             />
           ) : (
             <EmptyState
-              icon="⚽"
-              title="Henüz bir maça başvurmadın"
-              subtitle="Yaklaşan maçlara göz atarak başvurabilirsin"
+              icon="football-outline"
+              title={t('match_emptyAppliedTitle')}
+              subtitle={t('match_emptyAppliedSub')}
             />
           )
         ) : (
           <View style={styles.list}>
             {filtered.map((m) => {
               const isUpcoming = m.date >= today;
-              const statusColor = m.applied ? theme.success : isUpcoming ? theme.gold : theme.textSecondary;
-              const statusLabel = m.applied ? 'Başvurulan' : isUpcoming ? 'Yaklaşan' : 'Geçmiş';
+              const statusLabel = m.applied ? t('match_statusApplied') : isUpcoming ? t('match_statusUpcoming') : t('match_statusPast');
               const needsResult = m.applied && !isUpcoming && !m.myResult;
+              const remainingSlots = m.required_players - m.participantsCount;
+              const isUrgent = isUpcoming && !m.applied && remainingSlots > 0 && remainingSlots <= 2;
+              const statusTone = m.applied ? 'solid' : isUpcoming ? 'soft' : 'muted';
               return (
-                <HapticTouchable key={m.id} style={styles.card} onPress={() => openMatch(m)}>
-                  <View style={styles.cardTop}>
-                    <View style={styles.cardLeft}>
-                      <View style={styles.badgeIcon}>
-                        <Text style={styles.badgeIconText}>⚽</Text>
-                      </View>
-                      <View style={styles.cardTopText}>
-                        <Text style={styles.cardTitle}>{m.title}</Text>
-                        <Text style={styles.cardMeta}>
-                          {m.date} · {m.time} · {m.location}
-                        </Text>
-                      </View>
-                    </View>
-                    <View
-                      style={[styles.statusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}
-                    >
-                      <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-                        {statusLabel}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardBottom}>
-                    <Text style={styles.typeTag}>{m.type}</Text>
-                    <Text style={styles.typeTag}>{m.category}</Text>
-                    <Text style={styles.participants}>
-                      👥 {m.participantsCount}/{m.required_players}
-                    </Text>
-                  </View>
-                  {needsResult && (
-                    <HapticTouchable style={styles.resultPromptBtn} onPress={() => openResultEntry(m)}>
-                      <Text style={styles.resultPromptText}>📝 Maç Sonucunu Gir</Text>
-                    </HapticTouchable>
-                  )}
-                </HapticTouchable>
+                <MatchCard
+                  key={m.id}
+                  title={m.title}
+                  date={m.date}
+                  time={m.time}
+                  location={m.location}
+                  typeLabel={m.type}
+                  categoryLabel={m.category}
+                  participantsText={`${m.participantsCount}/${m.required_players}`}
+                  status={{ label: statusLabel, tone: statusTone }}
+                  urgentLabel={isUrgent ? `${t('match_urgentLast')} ${remainingSlots} ${t('match_urgentSpotsLeft')}` : undefined}
+                  resultLabel={needsResult ? t('match_enterResult') : undefined}
+                  onPress={() => openMatch(m)}
+                  onResultPress={needsResult ? () => openResultEntry(m) : undefined}
+                />
               );
             })}
           </View>
         )}
       </ScrollView>
 
-      <Modal
-        visible={!!selected}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSelected(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <ScrollView style={styles.modalCard} contentContainerStyle={{ paddingBottom: 12 }}>
+      <BottomSheet visible={!!selected} onClose={() => setSelected(null)} theme={theme} contentStyle={{ maxHeight: '85%', paddingHorizontal: 0 }}>
+        <ScrollView style={{ paddingHorizontal: 24 }} contentContainerStyle={{ paddingBottom: 12 }}>
             {selected && (
               <>
                 <Text style={styles.modalTitle}>{selected.title}</Text>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Tarih</Text>
+                  <Text style={styles.detailLabel}>{t('match_detailDate')}</Text>
                   <Text style={styles.detailValue}>{selected.date} · {selected.time}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Konum</Text>
+                  <Text style={styles.detailLabel}>{t('match_detailLocation')}</Text>
                   <Text style={styles.detailValue}>{selected.location}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Şehir</Text>
+                  <Text style={styles.detailLabel}>{t('match_detailCity')}</Text>
                   <Text style={styles.detailValue}>{selected.city}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Format</Text>
+                  <Text style={styles.detailLabel}>{t('match_detailFormat')}</Text>
                   <Text style={styles.detailValue}>{selected.type}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Maç Tipi</Text>
+                  <Text style={styles.detailLabel}>{t('match_detailType')}</Text>
                   <Text style={styles.detailValue}>{selected.category}</Text>
                 </View>
                 <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.detailLabel}>Katılımcı</Text>
+                  <Text style={styles.detailLabel}>{t('match_detailParticipants')}</Text>
                   <Text style={styles.detailValue}>
                     {selected.participantsCount}/{selected.required_players}
                   </Text>
                 </View>
 
-                <HapticTouchable style={styles.mapBtn} onPress={() => openInMaps(selected)}>
-                  <Text style={styles.mapBtnText}>🗺️ Haritada Aç</Text>
+                <HapticTouchable style={[styles.mapBtn, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => openInMaps(selected)}>
+                  <Ionicons name="map-outline" size={14} color={theme.text} />
+                  <Text style={styles.mapBtnText}>{t('match_openInMaps')}</Text>
                 </HapticTouchable>
 
-                <Text style={styles.participantsHeader}>Katılımcılar</Text>
+                <Text style={styles.participantsHeader}>{t('match_participantsHeader')}</Text>
                 {loadingParticipants ? (
                   <ActivityIndicator color={theme.gold} style={{ marginVertical: 12 }} />
                 ) : participants.length === 0 ? (
-                  <Text style={styles.noParticipantsText}>Henüz katılımcı yok</Text>
+                  <Text style={styles.noParticipantsText}>{t('match_noParticipants')}</Text>
                 ) : (
                   <View style={styles.participantsList}>
-                    {participants.map((p) => (
-                      <View key={p.user_id} style={styles.participantRow}>
-                        <View style={styles.participantAvatar}>
-                          {p.avatar_url ? (
-                            <Image source={{ uri: p.avatar_url }} style={styles.participantAvatarImg} />
-                          ) : (
-                            <Text style={{ fontSize: 16 }}>👤</Text>
+                    {participants.map((p) => {
+                      const canRate = selected.date < today && selected.applied && p.user_id !== userId;
+                      const myRating = myRatings[p.user_id] ?? 0;
+                      return (
+                        <View key={p.user_id} style={styles.participantRow}>
+                          <View style={styles.participantAvatar}>
+                            {p.avatar_url ? (
+                              <Image source={{ uri: p.avatar_url }} style={styles.participantAvatarImg} />
+                            ) : (
+                              <Ionicons name="person-outline" size={15} color={theme.gold} />
+                            )}
+                          </View>
+                          <Text style={styles.participantName}>{p.full_name || t('match_defaultPlayerName')}</Text>
+                          {canRate && (
+                            <View style={styles.starRow}>
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <HapticTouchable
+                                  key={n}
+                                  onPress={() => submitRating(selected.id, p.user_id, n)}
+                                  disabled={ratingBusyFor === p.user_id}
+                                  hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+                                >
+                                  <Ionicons
+                                    name={n <= myRating ? 'star' : 'star-outline'}
+                                    size={15}
+                                    color={theme.gold}
+                                  />
+                                </HapticTouchable>
+                              ))}
+                            </View>
                           )}
                         </View>
-                        <Text style={styles.participantName}>{p.full_name || 'Oyuncu'}</Text>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 )}
 
                 {selected.creator_id === userId ? (
                   <View style={styles.ownerNotice}>
-                    <Text style={styles.ownerNoticeText}>Bu maçı sen oluşturdun</Text>
+                    <Text style={styles.ownerNoticeText}>{t('match_ownerNotice')}</Text>
                   </View>
                 ) : selected.applied ? (
                   <HapticTouchable
@@ -571,7 +602,7 @@ export default function MatchScreen({ navigate }: Props) {
                     disabled={joining}
                   >
                     {joining ? <ActivityIndicator color={theme.error} /> : (
-                      <Text style={styles.leaveBtnText}>Ayrıl</Text>
+                      <Text style={styles.leaveBtnText}>{t('match_leave')}</Text>
                     )}
                   </HapticTouchable>
                 ) : (
@@ -584,81 +615,72 @@ export default function MatchScreen({ navigate }: Props) {
                     disabled={joining || selected.participantsCount >= selected.required_players}
                   >
                     {joining ? (
-                      <ActivityIndicator color="#000" />
+                      <ActivityIndicator color={Paper.ink} />
                     ) : (
                       <Text style={styles.joinBtnText}>
-                        {selected.participantsCount >= selected.required_players ? 'Maç Doldu' : 'Katıl'}
+                        {selected.participantsCount >= selected.required_players ? t('match_full') : t('match_join')}
                       </Text>
                     )}
                   </HapticTouchable>
                 )}
 
-                <HapticTouchable style={styles.shareBtn} onPress={() => handleShare(selected)}>
-                  <Text style={styles.shareBtnText}>↗ Maçı Paylaş</Text>
+                <HapticTouchable style={[styles.shareBtn, { flexDirection: 'row', gap: 6, justifyContent: 'center' }]} onPress={() => handleShare(selected)}>
+                  <Ionicons name="share-outline" size={13} color={theme.gold} />
+                  <Text style={styles.shareBtnText}>{t('match_shareMatch')}</Text>
                 </HapticTouchable>
 
                 <HapticTouchable style={styles.closeBtn} onPress={() => setSelected(null)}>
-                  <Text style={styles.closeBtnText}>Kapat</Text>
+                  <Text style={styles.closeBtnText}>{t('match_close')}</Text>
                 </HapticTouchable>
               </>
             )}
-          </ScrollView>
-        </View>
-      </Modal>
+        </ScrollView>
+      </BottomSheet>
 
-      <Modal
-        visible={!!resultTarget}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setResultTarget(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{resultTarget?.title} · Sonuç</Text>
+      <BottomSheet visible={!!resultTarget} onClose={() => setResultTarget(null)} theme={theme}>
+        <Text style={styles.modalTitle}>{resultTarget?.title} · {t('match_resultModalSuffix')}</Text>
 
-            <Text style={styles.detailLabel}>SONUÇ</Text>
-            <View style={styles.resultOptionsRow}>
-              {RESULT_OPTIONS.map((opt) => (
-                <HapticTouchable
-                  key={opt.key}
-                  style={[
-                    styles.resultOptionBtn,
-                    resultChoice === opt.key && { backgroundColor: theme[opt.color], borderColor: theme[opt.color] },
-                  ]}
-                  onPress={() => setResultChoice(opt.key)}
-                >
-                  <Text
-                    style={[
-                      styles.resultOptionText,
-                      resultChoice === opt.key && { color: opt.key === 'draw' ? theme.text : '#000' },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </HapticTouchable>
-              ))}
-            </View>
-
-            <Text style={[styles.detailLabel, { marginTop: 16 }]}>ATTIĞIN GOL</Text>
-            <View style={styles.goalsStepper}>
-              <HapticTouchable style={styles.goalsBtn} onPress={() => setGoalsChoice((g) => Math.max(0, g - 1))}>
-                <Text style={styles.goalsBtnText}>−</Text>
-              </HapticTouchable>
-              <Text style={styles.goalsValue}>{goalsChoice}</Text>
-              <HapticTouchable style={styles.goalsBtn} onPress={() => setGoalsChoice((g) => Math.min(20, g + 1))}>
-                <Text style={styles.goalsBtnText}>+</Text>
-              </HapticTouchable>
-            </View>
-
-            <HapticTouchable style={[styles.joinBtn, { marginTop: 20 }]} onPress={saveResult} disabled={savingResult}>
-              {savingResult ? <ActivityIndicator color="#000" /> : <Text style={styles.joinBtnText}>Kaydet</Text>}
+        <Text style={styles.detailLabel}>{t('match_resultLabel')}</Text>
+        <View style={styles.resultOptionsRow}>
+          {RESULT_OPTIONS.map((opt) => (
+            <HapticTouchable
+              key={opt.key}
+              style={[
+                styles.resultOptionBtn,
+                resultChoice === opt.key && { backgroundColor: theme[opt.color], borderColor: theme[opt.color] },
+              ]}
+              onPress={() => setResultChoice(opt.key)}
+            >
+              <Text
+                style={[
+                  styles.resultOptionText,
+                  resultChoice === opt.key && { color: opt.key === 'draw' ? theme.text : Paper.ink },
+                ]}
+              >
+                {opt.label}
+              </Text>
             </HapticTouchable>
-            <HapticTouchable style={styles.closeBtn} onPress={() => setResultTarget(null)}>
-              <Text style={styles.closeBtnText}>Vazgeç</Text>
-            </HapticTouchable>
-          </View>
+          ))}
         </View>
-      </Modal>
+
+        <Text style={[styles.detailLabel, { marginTop: 16 }]}>{t('match_goalsLabel')}</Text>
+        <View style={styles.goalsStepper}>
+          <HapticTouchable style={styles.goalsBtn} onPress={() => setGoalsChoice((g) => Math.max(0, g - 1))}>
+            <Text style={styles.goalsBtnText}>−</Text>
+          </HapticTouchable>
+          <Text style={styles.goalsValue}>{goalsChoice}</Text>
+          <HapticTouchable style={styles.goalsBtn} onPress={() => setGoalsChoice((g) => Math.min(20, g + 1))}>
+            <Text style={styles.goalsBtnText}>+</Text>
+          </HapticTouchable>
+        </View>
+
+        <HapticTouchable style={[styles.joinBtn, { marginTop: 20 }]} onPress={saveResult} disabled={savingResult}>
+          {savingResult ? <ActivityIndicator color={Paper.ink} /> : <Text style={styles.joinBtnText}>{t('match_save')}</Text>}
+        </HapticTouchable>
+        <HapticTouchable style={styles.closeBtn} onPress={() => setResultTarget(null)}>
+          <Text style={styles.closeBtnText}>{t('match_giveUp')}</Text>
+        </HapticTouchable>
+      </BottomSheet>
 
       <Toast
         visible={!!toast}
@@ -687,26 +709,28 @@ const createStyles = (theme: Theme) =>
       width: 40,
       height: 40,
       backgroundColor: theme.card,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    backIcon: { fontSize: 20, color: theme.text },
-    title: { fontSize: 22, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
+    title: { fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.text },
     createBtn: {
       backgroundColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingHorizontal: 14,
       paddingVertical: 10,
     },
-    createBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: '#000' },
-    tabsScroll: { paddingHorizontal: 24, marginBottom: 12 },
+    createBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: Paper.ink },
+    tabsScrollOuter: { flexGrow: 0, flexShrink: 0, marginBottom: 12 },
+    tabsScroll: { paddingHorizontal: 24 },
     tabs: {
       flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
       backgroundColor: theme.card2,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 4,
       borderWidth: 1,
       borderColor: theme.border,
@@ -715,76 +739,28 @@ const createStyles = (theme: Theme) =>
     tabBtn: {
       paddingVertical: 10,
       paddingHorizontal: 14,
-      borderRadius: 12,
+      borderRadius: RADIUS - 2,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     tabBtnActive: { backgroundColor: theme.gold },
-    tabText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.textSecondary },
-    tabTextActive: { color: '#000' },
+    tabText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.textSecondary },
+    tabTextActive: { color: Paper.ink },
     nearbyChip: {
       alignSelf: 'flex-start',
       marginHorizontal: 24,
       marginBottom: 14,
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
     nearbyChipActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-    nearbyChipText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.textSecondary },
-    nearbyChipTextActive: { color: '#000' },
+    nearbyChipText: { fontSize: 12, fontFamily: FontFamily.monoMedium, color: theme.textSecondary },
+    nearbyChipTextActive: { color: Paper.ink },
     list: { paddingHorizontal: 24, gap: 14 },
-    card: {
-      backgroundColor: theme.card,
-      borderRadius: 24,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    cardTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 14,
-    },
-    cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-    badgeIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badgeIconText: { fontSize: 20 },
-    cardTopText: { flex: 1 },
-    cardTitle: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.text },
-    cardMeta: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary, marginTop: 3 },
-    statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-    statusBadgeText: { fontSize: 11, fontFamily: FontFamily.monoMedium },
-    cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-    typeTag: {
-      fontSize: 12,
-      fontFamily: FontFamily.monoMedium,
-      color: theme.text,
-      backgroundColor: theme.card2,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    participants: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
-    resultPromptBtn: {
-      marginTop: 12,
-      backgroundColor: hexToRgba(theme.gold, 0.12),
-      borderWidth: 1,
-      borderColor: theme.gold,
-      borderRadius: 12,
-      paddingVertical: 10,
-      alignItems: 'center',
-    },
-    resultPromptText: { fontSize: 12, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -792,8 +768,8 @@ const createStyles = (theme: Theme) =>
     },
     modalCard: {
       backgroundColor: theme.card,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: RADIUS,
+      borderTopRightRadius: RADIUS,
       padding: 24,
       maxHeight: '85%',
       borderWidth: 1,
@@ -812,21 +788,21 @@ const createStyles = (theme: Theme) =>
     mapBtn: {
       marginTop: 14,
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingVertical: 12,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    mapBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    mapBtnText: { fontSize: 13, fontFamily: FontFamily.mono, color: theme.text },
     participantsHeader: { fontSize: 13, fontFamily: FontFamily.display, letterSpacing: 0.3, color: theme.text, marginTop: 18, marginBottom: 10 },
-    noParticipantsText: { fontSize: 12, fontFamily: FontFamily.body, color: theme.textSecondary },
+    noParticipantsText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.textSecondary },
     participantsList: { gap: 8 },
     participantRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     participantAvatar: {
       width: 32,
       height: 32,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
@@ -834,54 +810,58 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.border,
     },
-    participantAvatarImg: { width: 32, height: 32, borderRadius: 16 },
-    participantName: { fontSize: 13, color: theme.text, fontFamily: FontFamily.bodySemiBold },
+    participantAvatarImg: { width: 32, height: 32, borderRadius: RADIUS },
+    participantName: { fontSize: 13, color: theme.text, fontFamily: FontFamily.bodySemiBold, flex: 1 },
+    starRow: { flexDirection: 'row', gap: 2 },
     ownerNotice: {
       marginTop: 18,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 16,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.gold,
       paddingVertical: 14,
       alignItems: 'center',
     },
-    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
+    ownerNoticeText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.goldDark },
     joinBtn: {
       marginTop: 18,
-      height: 54,
-      borderRadius: 18,
+      height: 52,
+      borderRadius: RADIUS,
       backgroundColor: theme.gold,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    joinBtnDisabled: { opacity: 0.5 },
-    joinBtnText: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: '#000' },
-    leaveBtn: { backgroundColor: hexToRgba(theme.error, 0.12), borderWidth: 1, borderColor: theme.error },
-    leaveBtnText: { fontSize: 15, fontFamily: FontFamily.bodySemiBold, color: theme.error },
+    // Dolu maç: opacity yerine gri zemin; metin koyu kaldığı için okunabilirlik korunur.
+    joinBtnDisabled: { backgroundColor: theme.border },
+    joinBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: Paper.ink },
+    leaveBtn: { backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.error },
+    leaveBtnText: { fontSize: 14, fontFamily: FontFamily.display, letterSpacing: 0.5, color: theme.error },
     shareBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-    shareBtnText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.gold },
+    shareBtnText: { fontSize: 12, fontFamily: FontFamily.mono, color: theme.goldDark },
     closeBtn: { alignItems: 'center', paddingVertical: 10 },
-    closeBtnText: { fontSize: 13, color: theme.textSecondary, fontFamily: FontFamily.bodySemiBold },
+    closeBtnText: { fontSize: 12, color: theme.textSecondary, fontFamily: FontFamily.mono },
     resultOptionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
     resultOptionBtn: {
       flex: 1,
       paddingVertical: 12,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       alignItems: 'center',
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    resultOptionText: { fontSize: 13, fontFamily: FontFamily.bodySemiBold, color: theme.text },
+    resultOptionText: { fontSize: 13, fontFamily: FontFamily.monoMedium, color: theme.text },
     goalsStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginTop: 8 },
     goalsBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 38,
+      height: 38,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: theme.border,
     },
-    goalsBtnText: { fontSize: 20, fontWeight: '700', color: theme.gold },
-    goalsValue: { fontSize: 22, fontFamily: FontFamily.monoMedium, color: theme.text, width: 40, textAlign: 'center' },
+    goalsBtnText: { fontSize: 20, fontWeight: '700', color: theme.goldDark },
+    goalsValue: { fontSize: 22, fontFamily: FontFamily.display, color: theme.text, width: 40, textAlign: 'center' },
   });

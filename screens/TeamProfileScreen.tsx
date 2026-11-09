@@ -10,20 +10,29 @@ import {
   Modal,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { hexToRgba, Theme } from '../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
+import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
+
+const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { TEAM_COLUMNS } from '../lib/columns';
+import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
+import StatCard from '../components/StatCard';
 
 type TeamData = {
   id: string;
+  owner_id: string;
   name: string;
   city: string | null;
   district: string | null;
@@ -71,11 +80,21 @@ const FAKE_APPLICATIONS: Application[] = [
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
+  /** Görüntülenen takım profilinin sahibi — kendi takımın için oturum
+   * kullanıcısı, başka bir takım için o takımın owner_id'si (bkz. App.tsx
+   * viewedTeamOwnerId). */
   userId?: string | null;
+  /** Oturum açmış (görüntüleyen) kullanıcı — userId'den farklıysa "başkasının
+   * takım profili" moduna geçilir (düzenleme/yükleme gizlenir, Takip Et gösterilir). */
+  currentUserId?: string | null;
+  /** Sadece başkasının takım profili görüntülenirken verilir — geri dönüş
+   * için kullanılır; kendi takımında (sekme kökü) gösterilmez. */
+  onBack?: () => void;
 }
 
-export default function TeamProfileScreen({ navigate, userId }: Props) {
+export default function TeamProfileScreen({ navigate, userId, currentUserId, onBack }: Props) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,9 +109,16 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedPosition, setSelectedPosition] = useState('');
 
-  useEffect(() => {
-    loadAll();
-  }, [userId]);
+  // Sosyal Saha — takip sistemi (bkz. supabase/migrations/20261026101200_add_social_saha.sql)
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
+  // Görüntülenen takım (team.owner_id) oturumdaki kullanıcıdan (currentUserId)
+  // farklıysa "başkasının takım profili" moduna geçilir: düzenleme/yükleme
+  // gizlenir, Takip Et butonu gösterilir — bkz. screens/ProfileScreen.tsx.
+  const isOwnProfile = !currentUserId || !team || team.owner_id === currentUserId;
 
   const loadAll = async () => {
     setLoading(true);
@@ -112,7 +138,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
 
     const { data, error } = await supabase
       .from('teams')
-      .select('*')
+      .select(TEAM_COLUMNS)
       .eq('owner_id', uid)
       .maybeSingle();
 
@@ -124,6 +150,47 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
 
     setTeam(data as TeamData);
     await loadSquad(data.id);
+    await loadFollowInfo(data.owner_id);
+  };
+
+  const loadFollowInfo = async (ownerId: string) => {
+    const { data } = await profiles.publicProfile(ownerId, 'followers_count, following_count');
+    setFollowersCount(data?.followers_count ?? 0);
+    setFollowingCount(data?.following_count ?? 0);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const viewerUid = currentUserId ?? session?.user?.id ?? null;
+    if (!viewerUid || viewerUid === ownerId) return;
+
+    const { data: followRow } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', viewerUid)
+      .eq('followed_id', ownerId)
+      .maybeSingle();
+    setIsFollowing(!!followRow);
+  };
+
+  const toggleFollow = async () => {
+    if (!currentUserId || !team || isOwnProfile || followBusy) return;
+    const targetId = team.owner_id;
+    const wasFollowing = isFollowing;
+    setFollowBusy(true);
+    // Optimistic update — anında yansıt, hata olursa geri al.
+    setIsFollowing(!wasFollowing);
+    setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? -1 : 1)));
+
+    const { error } = wasFollowing
+      ? await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('followed_id', targetId)
+      : await supabase.from('follows').insert({ follower_id: currentUserId, followed_id: targetId });
+
+    if (error) {
+      if (__DEV__) console.log('Takip işlemi başarısız:', error);
+      setIsFollowing(wasFollowing);
+      setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? 1 : -1)));
+      setToast({ message: t('social_followActionFailed'), type: 'error' });
+    }
+    setFollowBusy(false);
   };
 
   const loadSquad = async (teamId: string) => {
@@ -142,10 +209,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
     const profilesById = new Map<string, { full_name: string | null; score: number | null }>();
 
     if (userIds.length > 0) {
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, score')
-        .in('user_id', userIds);
+      const { data: profilesData, error: profilesError } = await profiles.publicProfiles(userIds, 'user_id, full_name, score');
 
       if (profilesError) {
         if (__DEV__) console.log('Kadro oyuncu profilleri yüklenemedi:', profilesError);
@@ -159,7 +223,7 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         const profile = profilesById.get(m.user_id);
         return {
           id: m.id,
-          name: profile?.full_name ?? 'İsimsiz Oyuncu',
+          name: profile?.full_name ?? t('teamProfile_unnamedPlayer'),
           position: m.position ?? '-',
           score: profile?.score ?? 0,
         };
@@ -176,11 +240,11 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'İzin Gerekli',
-        'Bunun için ayarlardan galeri iznini açmanız gerekiyor.',
+        t('teamProfile_permissionTitle'),
+        t('teamProfile_permissionBody'),
         [
-          { text: 'İptal', style: 'cancel' },
-          { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return false;
@@ -218,10 +282,10 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setTeam({ ...team, logo_url: publicUrl });
-      setToast({ message: 'Takım logosu güncellendi', type: 'success' });
+      setToast({ message: t('teamProfile_logoUpdated'), type: 'success' });
     } catch (err) {
       if (__DEV__) console.log('Logo yüklenemedi:', err);
-      setToast({ message: 'Logo yüklenemedi', type: 'error' });
+      setToast({ message: t('teamProfile_logoUploadFailed'), type: 'error' });
     } finally {
       setUploadingLogo(false);
     }
@@ -255,10 +319,10 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setTeam({ ...team, photos });
-      setToast({ message: 'Fotoğraf eklendi', type: 'success' });
+      setToast({ message: t('teamProfile_photoAdded'), type: 'success' });
     } catch (err) {
       if (__DEV__) console.log('Fotoğraf yüklenemedi:', err);
-      setToast({ message: 'Fotoğraf yüklenemedi', type: 'error' });
+      setToast({ message: t('teamProfile_photoUploadFailed'), type: 'error' });
     } finally {
       setUploadingPhoto(false);
     }
@@ -292,10 +356,10 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       if (updateError) throw updateError;
 
       setTeam({ ...team, videos });
-      setToast({ message: 'Video eklendi', type: 'success' });
+      setToast({ message: t('teamProfile_videoAdded'), type: 'success' });
     } catch (err) {
       if (__DEV__) console.log('Video yüklenemedi:', err);
-      setToast({ message: 'Video yüklenemedi', type: 'error' });
+      setToast({ message: t('teamProfile_videoUploadFailed'), type: 'error' });
     } finally {
       setUploadingVideo(false);
     }
@@ -308,25 +372,29 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   };
 
   const handleAcceptApplication = (app: Application) => {
-    Alert.alert('✅ Kabul Edildi', `${app.full_name} takıma davet edildi!`);
+    Alert.alert(t('teamProfile_acceptedTitle'), `${t('teamProfile_acceptedPrefix')}${app.full_name}${t('teamProfile_acceptedSuffix')}`);
   };
 
   const handleRejectApplication = (app: Application) => {
     setApplications((prev) => prev.filter((a) => a.id !== app.id));
   };
 
+  useEffect(() => {
+    loadAll();
+  }, [userId]);
+
   if (loading) {
-    return <LoadingScreen message="Takım profili yükleniyor..." />;
+    return <LoadingScreen message={t('teamProfile_loading')} />;
   }
 
   if (!team) {
     return (
       <SafeAreaView style={styles.safe}>
         <EmptyState
-          icon="🏟️"
-          title="Henüz takımın yok"
-          subtitle="Takım profilini oluşturarak başla"
-          actionLabel="Takım Oluştur"
+          icon="business-outline"
+          title={t('teamHome_noTeamTitle')}
+          subtitle={t('teamSquad_noTeamSub')}
+          actionLabel={t('teamHome_createTeam')}
           onAction={() => navigate('teamEdit')}
         />
       </SafeAreaView>
@@ -334,12 +402,12 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
   }
 
   const statsRow = [
-    { val: String(team.wins + team.losses + team.draws), label: 'Maç' },
-    { val: String(team.wins), label: 'Galibiyet' },
-    { val: String(team.draws), label: 'Beraberlik' },
-    { val: String(team.losses), label: 'Mağlubiyet' },
-    { val: String(team.goals_scored), label: 'Gol Atılan' },
-    { val: String(team.goals_conceded), label: 'Gol Yenilen' },
+    { val: String(team.wins + team.losses + team.draws), label: t('teamProfile_statMatches') },
+    { val: String(team.wins), label: t('teamProfile_statWins') },
+    { val: String(team.draws), label: t('teamProfile_statDraws') },
+    { val: String(team.losses), label: t('teamProfile_statLosses') },
+    { val: String(team.goals_scored), label: t('teamProfile_statGoalsScored') },
+    { val: String(team.goals_conceded), label: t('teamProfile_statGoalsConceded') },
   ];
 
   return (
@@ -352,48 +420,100 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Takım Profilim</Text>
-          <TouchableOpacity onPress={() => navigate('settings')} style={styles.settingsBtn}>
-            <Text style={{ fontSize: 20 }}>⚙️</Text>
-          </TouchableOpacity>
+          {isOwnProfile ? (
+            <Text style={styles.headerTitle}>{t('teamProfile_headerTitle')}</Text>
+          ) : (
+            <HapticTouchable
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              onPress={() => (onBack ? onBack() : navigate('socialFeed'))}
+            >
+              <Ionicons name="chevron-back" size={19} color={theme.text} />
+              <Text style={styles.headerTitle}>{team.name}</Text>
+            </HapticTouchable>
+          )}
+          {isOwnProfile && (
+            <TouchableOpacity onPress={() => navigate('settings')} style={styles.settingsBtn}>
+              <Ionicons name="settings-outline" size={18} color={theme.text} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.heroSection}>
-          <HapticTouchable style={styles.logoWrap} onPress={pickTeamLogo} disabled={uploadingLogo}>
+          <HapticTouchable
+            style={styles.logoWrap}
+            onPress={isOwnProfile ? pickTeamLogo : undefined}
+            disabled={uploadingLogo || !isOwnProfile}
+          >
             {team.logo_url ? (
               <Image source={{ uri: team.logo_url }} style={styles.logoImage} />
             ) : (
-              <Text style={styles.logoEmoji}>🏟️</Text>
+              <Ionicons name="business-outline" size={36} color={theme.gold} />
             )}
-            <View style={styles.logoEditBadge}>
-              <Text style={styles.logoEditIcon}>📷</Text>
-            </View>
+            {isOwnProfile && (
+              <View style={styles.logoEditBadge}>
+                <Ionicons name="camera-outline" size={13} color={Paper.ink} />
+              </View>
+            )}
           </HapticTouchable>
-          <Text style={styles.name}>{team.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>{team.name}</Text>
           <View style={styles.leagueBadge}>
-            <Text style={styles.leagueBadgeText}>{team.league ?? 'Amatör'}</Text>
+            <Text style={styles.leagueBadgeText}>{team.league ?? t('teamProfile_leagueDefault')}</Text>
           </View>
           <Text style={styles.location}>
-            📍 {team.city ?? 'Şehir belirtilmedi'}{team.district ? `, ${team.district}` : ''}
+            {team.city ?? t('teamProfile_cityUnspecified')}{team.district ? `, ${team.district}` : ''}
           </Text>
-          {team.founded_year && <Text style={styles.founded}>Kuruluş: {team.founded_year}</Text>}
-          <HapticTouchable style={styles.editBtn} onPress={() => navigate('teamEdit')}>
-            <Text style={styles.editBtnText}>✎ Profili Düzenle</Text>
+          {team.founded_year && <Text style={styles.founded}>{t('teamProfile_founded')} {team.founded_year}</Text>}
+          {isOwnProfile && (
+            <HapticTouchable style={[styles.editBtn, { flexDirection: 'row', gap: 6 }]} onPress={() => navigate('teamEdit')}>
+              <Ionicons name="create-outline" size={13} color={theme.gold} />
+              <Text style={styles.editBtnText}>{t('teamProfile_editProfile')}</Text>
+            </HapticTouchable>
+          )}
+        </View>
+
+        {/* Sosyal Saha — takipçi/takip edilen sayısı + Takip Et butonu */}
+        <View style={styles.followRow}>
+          <HapticTouchable
+            style={styles.followStat}
+            onPress={() => navigate('userFollowList', { userId: team.owner_id, type: 'followers' })}
+          >
+            <Text style={styles.followStatValue}>{followersCount}</Text>
+            <Text style={styles.followStatLabel}>{t('social_followers')}</Text>
           </HapticTouchable>
+          <View style={styles.followDivider} />
+          <HapticTouchable
+            style={styles.followStat}
+            onPress={() => navigate('userFollowList', { userId: team.owner_id, type: 'following' })}
+          >
+            <Text style={styles.followStatValue}>{followingCount}</Text>
+            <Text style={styles.followStatLabel}>{t('social_following')}</Text>
+          </HapticTouchable>
+          {!isOwnProfile && (
+            <HapticTouchable
+              style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+              onPress={toggleFollow}
+              disabled={followBusy}
+            >
+              {followBusy ? (
+                <ActivityIndicator size="small" color={isFollowing ? theme.gold : Paper.ink} />
+              ) : (
+                <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
+                  {isFollowing ? t('social_following_action') : t('social_follow')}
+                </Text>
+              )}
+            </HapticTouchable>
+          )}
         </View>
 
         <View style={styles.statsBar}>
           {statsRow.map((s, i) => (
-            <View key={i} style={[styles.statItem, i === statsRow.length - 1 && { borderRightWidth: 0 }]}>
-              <Text style={styles.statVal}>{s.val}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
+            <StatCard key={i} label={s.label} value={s.val} />
           ))}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Hakkında</Text>
-          <Text style={styles.description}>{team.description || 'Henüz açıklama eklenmedi.'}</Text>
+          <Text style={styles.cardTitle}>{t('teamProfile_about')}</Text>
+          <Text style={styles.description}>{team.description || t('teamProfile_noDescription')}</Text>
 
           {team.playing_style && team.playing_style.length > 0 && (
             <View style={styles.pillsRow}>
@@ -406,61 +526,71 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
           )}
 
           <View style={styles.bioRow}>
-            <Text style={styles.bioLabel}>Diziliş</Text>
+            <Text style={styles.bioLabel}>{t('teamProfile_formation')}</Text>
             <Text style={styles.bioValue}>{team.formation ?? '-'}</Text>
           </View>
           <View style={styles.bioRow}>
-            <Text style={styles.bioLabel}>Maç Günleri</Text>
+            <Text style={styles.bioLabel}>{t('teamProfile_matchDays')}</Text>
             <Text style={styles.bioValue}>{team.match_days?.join(', ') || '-'}</Text>
           </View>
           <View style={[styles.bioRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.bioLabel}>Saha</Text>
+            <Text style={styles.bioLabel}>{t('teamProfile_ground')}</Text>
             <Text style={styles.bioValue}>{team.ground_name ?? '-'}</Text>
           </View>
         </View>
 
+        {(isOwnProfile || (team.photos ?? []).length > 0) && (
         <View style={styles.mediaSection}>
-          <Text style={styles.mediaSectionTitle}>📸 Takım Fotoğrafları</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Text style={styles.mediaSectionTitle}>{t('teamProfile_teamPhotos')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
             {(team.photos ?? []).map((photo, i) => (
               <Image key={i} source={{ uri: photo }} style={styles.mediaThumb} />
             ))}
-            <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamPhoto} disabled={uploadingPhoto}>
-              <Text style={styles.mediaAddIcon}>+</Text>
-              <Text style={styles.mediaAddLabel}>{uploadingPhoto ? 'Yükleniyor...' : 'Fotoğraf'}</Text>
-            </HapticTouchable>
+            {isOwnProfile && (
+              <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamPhoto} disabled={uploadingPhoto}>
+                <Ionicons name="add" size={22} color={theme.gold} />
+                <Text style={styles.mediaAddLabel}>{uploadingPhoto ? t('teamProfile_uploading') : t('teamProfile_photo')}</Text>
+              </HapticTouchable>
+            )}
           </ScrollView>
         </View>
+        )}
 
+        {(isOwnProfile || (team.videos ?? []).length > 0) && (
         <View style={styles.mediaSection}>
-          <Text style={styles.mediaSectionTitle}>🎥 Takım Videoları</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Text style={styles.mediaSectionTitle}>{t('teamProfile_teamVideos')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
             {(team.videos ?? []).map((_, i) => (
               <View key={i} style={styles.videoThumb}>
-                <Text style={{ fontSize: 28 }}>▶️</Text>
+                <Ionicons name="play" size={20} color={theme.gold} />
               </View>
             ))}
-            <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamVideo} disabled={uploadingVideo}>
-              <Text style={styles.mediaAddIcon}>+</Text>
-              <Text style={styles.mediaAddLabel}>{uploadingVideo ? 'Yükleniyor...' : 'Video'}</Text>
-            </HapticTouchable>
+            {isOwnProfile && (
+              <HapticTouchable style={styles.mediaAddBtn} onPress={pickTeamVideo} disabled={uploadingVideo}>
+                <Ionicons name="add" size={22} color={theme.gold} />
+                <Text style={styles.mediaAddLabel}>{uploadingVideo ? t('teamProfile_uploading') : t('teamProfile_video')}</Text>
+              </HapticTouchable>
+            )}
           </ScrollView>
         </View>
+        )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Kadro</Text>
-          <HapticTouchable onPress={() => navigate('teamSquad')}>
-            <Text style={styles.sectionLink}>Kadroyu Yönet →</Text>
-          </HapticTouchable>
+          <Text style={styles.sectionTitle}>{t('teamSquad_squadHeader')}</Text>
+          {isOwnProfile && (
+            <HapticTouchable onPress={() => navigate('teamSquad')}>
+              <Text style={styles.sectionLink}>{t('teamProfile_manageSquad')}</Text>
+            </HapticTouchable>
+          )}
         </View>
         {squad.length === 0 ? (
-          <EmptyState icon="👥" title="Kadroda oyuncu yok" subtitle="Oyuncu bularak kadrona ekle" />
+          <EmptyState icon="people-outline" title={t('teamSquad_emptySquadTitle')} subtitle={t('teamProfile_emptySquadSub')} />
         ) : (
           <View style={styles.squadList}>
             {squad.map((p) => (
               <View key={p.id} style={styles.squadRow}>
                 <View style={styles.squadAvatar}>
-                  <Text style={styles.squadAvatarIcon}>👤</Text>
+                  <Ionicons name="person-outline" size={17} color={theme.gold} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.squadName}>{p.name}</Text>
@@ -473,21 +603,23 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Aranılan Pozisyonlar</Text>
+          <Text style={styles.sectionTitle}>{t('teamProfile_wantedPositions')}</Text>
         </View>
         {(!team.needed_positions || team.needed_positions.length === 0) ? (
-          <EmptyState icon="🔍" title="Aranan pozisyon yok" subtitle="Profili düzenleyerek pozisyon ekleyebilirsin" />
+          <EmptyState icon="search-outline" title={t('teamProfile_noPositionsTitle')} subtitle={t('teamProfile_noPositionsSub')} />
         ) : (
           <View style={styles.openPositions}>
             {team.needed_positions.map((pos, i) => (
               <View key={pos} style={[styles.positionRow, i === team.needed_positions!.length - 1 && { marginBottom: 0 }]}>
                 <View>
                   <Text style={styles.positionRowTitle}>{pos}</Text>
-                  <Text style={styles.positionRowSub}>Aktif arama</Text>
+                  <Text style={styles.positionRowSub}>{t('teamProfile_activeSearch')}</Text>
                 </View>
-                <HapticTouchable style={styles.viewApplicationsBtn} onPress={() => loadApplications(pos)}>
-                  <Text style={styles.viewApplicationsBtnText}>Başvuruları Görüntüle →</Text>
-                </HapticTouchable>
+                {isOwnProfile && (
+                  <HapticTouchable style={styles.viewApplicationsBtn} onPress={() => loadApplications(pos)}>
+                    <Text style={styles.viewApplicationsBtnText}>{t('teamProfile_viewApplications')}</Text>
+                  </HapticTouchable>
+                )}
               </View>
             ))}
           </View>
@@ -499,46 +631,47 @@ export default function TeamProfileScreen({ navigate, userId }: Props) {
       <Modal visible={showApplications} animationType="slide">
         <SafeAreaView style={styles.safe}>
           <View style={styles.appHeader}>
-            <HapticTouchable onPress={() => setShowApplications(false)}>
-              <Text style={styles.appBackText}>← Geri</Text>
+            <HapticTouchable style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => setShowApplications(false)}>
+              <Ionicons name="chevron-back" size={16} color={theme.gold} />
+              <Text style={styles.appBackText}>{t('common_back')}</Text>
             </HapticTouchable>
             <View style={{ flex: 1 }}>
-              <Text style={styles.appTitle}>Başvurular</Text>
-              <Text style={styles.appSubtitle}>{selectedPosition} · {applications.length} başvuru</Text>
+              <Text style={styles.appTitle}>{t('teamProfile_applicationsTitle')}</Text>
+              <Text style={styles.appSubtitle}>{selectedPosition} · {applications.length} {t('teamProfile_applicationsCountSuffix')}</Text>
             </View>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16 }}>
             {applications.length === 0 ? (
               <View style={{ alignItems: 'center', padding: 40 }}>
-                <Text style={{ fontSize: 40, marginBottom: 12 }}>📭</Text>
-                <Text style={{ color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold }}>Henüz başvuru yok</Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4, fontFamily: FontFamily.body }}>Bu pozisyon için başvuru bekleniyor</Text>
+                <Ionicons name="mail-open-outline" size={32} color={theme.textSecondary} style={{ marginBottom: 12 }} />
+                <Text style={{ color: theme.text, fontSize: 16, fontFamily: FontFamily.bodySemiBold }}>{t('teamProfile_noApplicationsTitle')}</Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4, fontFamily: FontFamily.body }}>{t('teamProfile_noApplicationsSub')}</Text>
               </View>
             ) : (
               applications.map((app) => (
                 <View key={app.id} style={styles.appCard}>
                   <View style={styles.appCardTop}>
                     <View style={styles.appAvatar}>
-                      <Text style={{ fontSize: 22 }}>⚽</Text>
+                      <Ionicons name="person-outline" size={19} color={theme.gold} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.appName}>{app.full_name}</Text>
                       <Text style={styles.appPosition}>{app.position}</Text>
-                      <Text style={styles.appMeta}>📍 {app.city} · 🎂 {app.age} yaş · {app.applied_at}</Text>
+                      <Text style={styles.appMeta}>{app.city} · {app.age} {t('teamProfile_ageSuffix')} · {app.applied_at}</Text>
                     </View>
                     <Text style={styles.appScore}>{app.score}</Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptApplication(app)}>
-                      <Text style={styles.acceptBtnText}>✓ Kabul Et</Text>
+                      <Text style={styles.acceptBtnText}>{t('teamProfile_accept')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectApplication(app)}>
-                      <Text style={styles.rejectBtnText}>✕ Reddet</Text>
+                      <Text style={styles.rejectBtnText}>{t('teamProfile_reject')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.msgBtn} onPress={() => navigate('chat')}>
-                      <Text style={styles.msgBtnText}>💬 Mesaj</Text>
+                      <Text style={styles.msgBtnText}>{t('teamProfile_message')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -564,12 +697,12 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginTop: 16,
     },
-    headerTitle: { color: theme.text, fontSize: 20, fontFamily: FontFamily.display, letterSpacing: 0.5 },
+    headerTitle: { color: theme.text, fontSize: 18, fontFamily: FontFamily.display, letterSpacing: 0.5 },
     settingsBtn: {
       width: 40,
       height: 40,
       backgroundColor: theme.card,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
@@ -577,83 +710,95 @@ const createStyles = (theme: Theme) =>
     },
     heroSection: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24 },
     logoWrap: {
-      width: 100, height: 100, borderRadius: 50,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 96, height: 96, borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center', justifyContent: 'center',
-      borderWidth: 2, borderColor: theme.gold,
+      borderWidth: 1, borderColor: theme.gold,
       marginBottom: 12,
     },
-    logoImage: { width: 100, height: 100, borderRadius: 50 },
-    logoEmoji: { fontSize: 40 },
+    logoImage: { width: 96, height: 96, borderRadius: RADIUS },
     logoEditBadge: {
       position: 'absolute', bottom: 0, right: 0,
       backgroundColor: theme.gold,
-      borderRadius: 12,
-      width: 28, height: 28,
+      borderRadius: RADIUS,
+      width: 26, height: 26,
       alignItems: 'center', justifyContent: 'center',
     },
-    logoEditIcon: { fontSize: 13 },
-    name: { fontFamily: FontFamily.display, fontSize: 24, color: theme.text, textAlign: 'center', marginBottom: 8, letterSpacing: 0.5 },
+    name: { fontFamily: FontFamily.display, fontSize: 22, color: theme.text, textAlign: 'center', marginBottom: 8, letterSpacing: 0.5 },
     leagueBadge: {
-      backgroundColor: hexToRgba(theme.gold, 0.15),
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 10,
       paddingVertical: 4,
       marginBottom: 10,
     },
-    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.gold, letterSpacing: 0.5 },
-    location: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textSecondary, marginBottom: 2 },
-    founded: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginBottom: 16 },
+    leagueBadgeText: { fontFamily: FontFamily.mono, fontSize: 11, color: theme.goldDark, letterSpacing: 0.5 },
+    location: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 2 },
+    founded: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginBottom: 16 },
     editBtn: {
       borderWidth: 1,
       borderColor: theme.gold,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       paddingVertical: 10,
       paddingHorizontal: 20,
     },
-    editBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
-    statsBar: {
+    editBtnText: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
+    followRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       marginHorizontal: 24,
       marginBottom: 20,
-      backgroundColor: theme.card,
-      borderRadius: 20,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.border,
+      gap: 12,
     },
-    statItem: {
+    followStat: { alignItems: 'center' },
+    followStatValue: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text },
+    followStatLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
+    followDivider: { width: 1, height: 28, backgroundColor: theme.border },
+    followBtn: {
       flex: 1,
+      height: 40,
+      borderRadius: RADIUS,
+      backgroundColor: theme.gold,
       alignItems: 'center',
-      paddingVertical: 14,
-      borderRightWidth: 1,
-      borderRightColor: theme.border,
+      justifyContent: 'center',
     },
-    statVal: { fontFamily: FontFamily.monoMedium, fontSize: 16, color: theme.gold },
-    statLabel: { fontFamily: FontFamily.mono, fontSize: 9, color: theme.textSecondary, marginTop: 2, textAlign: 'center' },
+    followBtnActive: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    followBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Paper.ink },
+    followBtnTextActive: { color: theme.goldDark },
+    statsBar: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginHorizontal: 24,
+      marginBottom: 20,
+    },
     card: {
       marginHorizontal: 24,
       marginBottom: 20,
       backgroundColor: theme.card,
-      borderRadius: 24,
+      borderRadius: RADIUS,
       padding: 20,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    cardTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, marginBottom: 12, letterSpacing: 0.5 },
+    cardTitle: { fontFamily: FontFamily.display, fontSize: 16, color: theme.text, marginBottom: 12, letterSpacing: 0.5 },
     description: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, lineHeight: 19, marginBottom: 14 },
     pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
     pill: {
       backgroundColor: theme.card2,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: 12,
+      borderRadius: RADIUS,
       paddingHorizontal: 12,
       paddingVertical: 6,
     },
-    pillText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: theme.textMuted },
+    pillText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
     bioRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -664,23 +809,23 @@ const createStyles = (theme: Theme) =>
     bioLabel: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary },
     bioValue: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text },
     mediaSection: { marginHorizontal: 24, marginBottom: 20 },
-    mediaSectionTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 16, marginBottom: 12, letterSpacing: 0.5 },
-    mediaThumb: { width: 120, height: 80, borderRadius: 12, marginRight: 10 },
+    mediaSectionTitle: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 16, marginBottom: 12, letterSpacing: 0.2 },
+    mediaThumb: { width: 112, height: 112, borderRadius: 16, marginRight: 10, borderWidth: 1, borderColor: theme.border },
     videoThumb: {
-      width: 120, height: 80, borderRadius: 12,
-      backgroundColor: '#111',
+      width: 112, height: 112, borderRadius: 16,
+      backgroundColor: theme.card2,
       marginRight: 10,
       alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: theme.border,
     },
     mediaAddBtn: {
-      width: 120, height: 80, borderRadius: 12,
+      width: 112, height: 112, borderRadius: 16,
       backgroundColor: theme.card,
-      borderWidth: 1, borderColor: theme.border, borderStyle: 'dashed',
+      borderWidth: 1, borderColor: theme.border,
       alignItems: 'center', justifyContent: 'center',
       marginRight: 10,
     },
-    mediaAddIcon: { fontSize: 24, color: theme.gold },
-    mediaAddLabel: { fontFamily: FontFamily.bodySemiBold, color: theme.gold, fontSize: 11 },
+    mediaAddLabel: { fontFamily: FontFamily.mono, color: theme.goldDark, fontSize: 11, marginTop: 4 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -688,44 +833,41 @@ const createStyles = (theme: Theme) =>
       paddingHorizontal: 24,
       marginBottom: 14,
     },
-    sectionTitle: { fontFamily: FontFamily.display, fontSize: 19, color: theme.text, letterSpacing: 0.5 },
-    sectionLink: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
+    sectionTitle: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
+    sectionLink: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.goldDark },
     squadList: { paddingHorizontal: 24, gap: 10, marginBottom: 28 },
     squadRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 14,
       borderWidth: 1,
       borderColor: theme.border,
     },
     squadAvatar: {
-      width: 40, height: 40,
-      borderRadius: 20,
+      width: 38, height: 38,
+      borderRadius: RADIUS,
       backgroundColor: theme.card2,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
     },
-    squadAvatarIcon: { fontSize: 18 },
     squadName: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.text },
-    squadMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
-    squadScore: { fontFamily: FontFamily.monoMedium, fontSize: 18, color: theme.gold },
+    squadMeta: { fontFamily: FontFamily.mono, fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    squadScore: { fontFamily: FontFamily.display, fontSize: 17, color: theme.goldDark },
     openPositions: {
       marginHorizontal: 24,
       marginBottom: 28,
       backgroundColor: theme.card,
-      borderRadius: 20,
+      borderRadius: RADIUS,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.border,
     },
     positionRow: {
       backgroundColor: theme.card2,
-      borderRadius: 14,
+      borderRadius: RADIUS,
       padding: 14,
       marginBottom: 8,
       borderWidth: 1,
@@ -735,21 +877,21 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
     },
     positionRowTitle: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 14 },
-    positionRowSub: { fontFamily: FontFamily.body, color: theme.textSecondary, fontSize: 12, marginTop: 2 },
+    positionRowSub: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12, marginTop: 2 },
     viewApplicationsBtn: {
       backgroundColor: theme.gold,
-      borderRadius: 10,
+      borderRadius: RADIUS,
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
-    viewApplicationsBtnText: { fontFamily: FontFamily.bodySemiBold, color: '#000', fontSize: 12 },
+    viewApplicationsBtnText: { fontFamily: FontFamily.monoMedium, color: Paper.ink, fontSize: 12 },
     appHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-    appBackText: { color: theme.gold, fontSize: 16 },
-    appTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 19, letterSpacing: 0.5 },
+    appBackText: { color: theme.goldDark, fontSize: 13, fontFamily: FontFamily.mono },
+    appTitle: { fontFamily: FontFamily.display, color: theme.text, fontSize: 17, letterSpacing: 0.5 },
     appSubtitle: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12 },
     appCard: {
       backgroundColor: theme.card,
-      borderRadius: 16,
+      borderRadius: RADIUS,
       padding: 16,
       marginBottom: 12,
       borderWidth: 1,
@@ -757,42 +899,42 @@ const createStyles = (theme: Theme) =>
     },
     appCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
     appAvatar: {
-      width: 48, height: 48, borderRadius: 24,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
+      width: 46, height: 46, borderRadius: RADIUS,
+      backgroundColor: theme.card2,
       alignItems: 'center', justifyContent: 'center',
     },
     appName: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 15 },
-    appPosition: { fontFamily: FontFamily.mono, color: theme.gold, fontSize: 12 },
+    appPosition: { fontFamily: FontFamily.mono, color: theme.goldDark, fontSize: 12 },
     appMeta: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 11 },
-    appScore: { fontFamily: FontFamily.monoMedium, color: theme.gold, fontSize: 22 },
+    appScore: { fontFamily: FontFamily.display, color: theme.gold, fontSize: 20 },
     acceptBtn: {
       flex: 1,
-      backgroundColor: hexToRgba(theme.success, 0.1),
-      borderRadius: 10,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
       padding: 10,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.success, 0.3),
+      borderColor: theme.success,
     },
-    acceptBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.success },
+    acceptBtnText: { fontFamily: FontFamily.monoMedium, color: theme.success, fontSize: 12 },
     rejectBtn: {
       flex: 1,
-      backgroundColor: hexToRgba(theme.error, 0.1),
-      borderRadius: 10,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
       padding: 10,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.error, 0.3),
+      borderColor: theme.error,
     },
-    rejectBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.error },
+    rejectBtnText: { fontFamily: FontFamily.monoMedium, color: theme.error, fontSize: 12 },
     msgBtn: {
       flex: 1,
-      backgroundColor: hexToRgba(theme.gold, 0.1),
-      borderRadius: 10,
+      backgroundColor: theme.card2,
+      borderRadius: RADIUS,
       padding: 10,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: hexToRgba(theme.gold, 0.3),
+      borderColor: theme.gold,
     },
-    msgBtnText: { fontFamily: FontFamily.bodySemiBold, color: theme.gold },
+    msgBtnText: { fontFamily: FontFamily.monoMedium, color: theme.goldDark, fontSize: 12 },
   });

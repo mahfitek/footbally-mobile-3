@@ -1,13 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Image, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Theme } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const styles = createStyles(theme);
-  const dotAnims = useRef([new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]).current;
+  const [dotAnims] = useState(() => [new Animated.Value(0.3), new Animated.Value(0.3), new Animated.Value(0.3)]);
 
   useEffect(() => {
     const loops = dotAnims.map((anim, i) =>
@@ -52,7 +54,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
           <Animated.View key={i} style={[styles.dot, { opacity: anim }]} />
         ))}
       </View>
-      <Text style={styles.tagline}>Kariyerini Başlat</Text>
+      <Text style={styles.tagline}>{t('splash_tagline')}</Text>
     </View>
   );
 }
@@ -70,9 +72,9 @@ const createStyles = (theme: Theme) =>
       gap: 10,
     },
     dot: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
+      width: 18,
+      height: 3,
+      borderRadius: 1.5,
       backgroundColor: theme.gold,
     },
     tagline: {
@@ -80,7 +82,7 @@ const createStyles = (theme: Theme) =>
       fontFamily: FontFamily.display,
       fontSize: 13,
       letterSpacing: 2,
-      color: theme.gold,
+      color: theme.goldDark,
       textTransform: 'uppercase',
     },
   });

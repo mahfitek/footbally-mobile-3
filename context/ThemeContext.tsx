@@ -11,8 +11,8 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: DarkTheme,
-  isDark: true,
+  theme: LightTheme,
+  isDark: false,
   toggleTheme: () => {},
 });
 
@@ -25,7 +25,8 @@ interface Props {
 }
 
 export function ThemeProvider({ children }: Props) {
-  const [isDark, setIsDark] = useState(true);
+  // Varsayılan açık tema; kullanıcı daha önce koyu temayı seçtiyse AsyncStorage'dan geri yüklenir.
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
