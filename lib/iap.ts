@@ -10,6 +10,7 @@ import {
   purchaseUpdatedListener,
   purchaseErrorListener,
   isUserCancelledError,
+  getTransactionJwsIOS,
   type Purchase,
 } from 'expo-iap';
 import { supabase } from './supabase';
@@ -81,7 +82,12 @@ export async function loadIapStoreInfo(): Promise<IapStoreInfo> {
 
 // İşlemi sunucuya doğrulatır; sunucu ok ya da 409 already_linked dönerse işlemi bitirir.
 async function verifyAndFinish(purchase: Purchase): Promise<'success' | 'already_linked' | 'error'> {
-  const signedTransactionInfo = purchase.purchaseToken;
+  if (__DEV__) console.log('IAP purchase nesnesi:', JSON.stringify(purchase));
+  let signedTransactionInfo: string | null | undefined = purchase.purchaseToken;
+  if (!signedTransactionInfo && Platform.OS === 'ios') {
+    signedTransactionInfo = await getTransactionJwsIOS(purchase.productId).catch(() => null);
+    if (__DEV__) console.log('IAP JWS fallback:', signedTransactionInfo ? 'var' : 'yok');
+  }
   if (!signedTransactionInfo) return 'error';
   const { data, error } = await supabase.functions.invoke(IAP_VERIFY_FUNCTION, {
     body: { signedTransactionInfo },
