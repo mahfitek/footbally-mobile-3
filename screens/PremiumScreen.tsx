@@ -5,7 +5,11 @@ import {
   Image,
   StyleSheet,
   ScrollView,
+  Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import HapticTouchable from '../components/HapticTouchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,25 +25,27 @@ import { fetchPremiumStatus, INACTIVE_PREMIUM, PremiumStatus } from '../lib/prem
 import LoadingScreen from '../components/LoadingScreen';
 import SectionHeader from '../components/SectionHeader';
 import PremiumEftSection from '../components/PremiumEftSection';
+import { IAP_PRODUCTS, IAP_LINKS, IapPlanId } from '../constants/iap';
+import { loadIapStoreInfo, purchasePremium, syncApplePurchases, IapStoreInfo } from '../lib/iap';
 
-type PlanId = 'monthly' | 'yearly';
+const IS_IOS = Platform.OS === 'ios';
+
+type PlanId = IapPlanId;
 
 const getPlans = (t: (key: any) => string): {
   id: PlanId;
   label: string;
   price: number;
   period: string;
-  originalPrice?: number;
   badge?: string;
   days: number | null;
 }[] => [
-  { id: 'monthly', label: t('premium_planMonthlyLabel'), price: 99, period: t('premium_perMonth'), days: 30 },
+  { id: 'monthly', label: t('premium_planMonthlyLabel'), price: IAP_PRODUCTS.monthly.fallbackPrice, period: t('premium_perMonth'), days: 30 },
   {
     id: 'yearly',
     label: t('premium_planYearlyLabel'),
-    price: 999,
+    price: IAP_PRODUCTS.yearly.fallbackPrice,
     period: t('premium_perYear'),
-    originalPrice: 1188,
     badge: t('premium_bestValueBadge'),
     days: 365,
   },
@@ -67,16 +73,18 @@ interface Props {
 export default function PremiumScreen({ navigate, previousScreen }: Props) {
   const { theme } = useTheme();
   const { t, lang } = useLanguage();
-  // Yalnızca aylık plan satılır (99 TL/ay). Yıllık fiyat ve deneme süresi kaldırıldı:
-  // ödeme altyapısı yalnızca aylık dönemi destekliyor.
-  const PLANS = getPlans(t).filter((p) => p.id === 'monthly');
+  // iOS'ta aylık ve yıllık plan Apple IAP ile satılır. Diğer platformlarda yalnızca
+  // aylık plan gösterilir (Android Play Billing ayrı iş).
+  const PLANS = getPlans(t).filter((p) => IS_IOS || p.id === 'monthly');
   const BENEFITS = getBenefits(t);
   const styles = createStyles(theme);
   const [loading, setLoading] = useState(true);
   const [memberNo, setMemberNo] = useState<number | null>(null);
   const [premium, setPremium] = useState<PremiumStatus>(INACTIVE_PREMIUM);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('monthly');
-
+  const [userId, setUserId] = useState<string | null>(null);
+  const [store, setStore] = useState<IapStoreInfo>({ prices: {}, yearlyTrial: null });
+  const [busy, setBusy] = useState<'purchase' | 'restore' | null>(null);
 
   // Premium durumu ve üye numarası sunucudan okunur. Kullanıcı metadata'sındaki
   // premium alanı istemci tarafından yazılabildiği için hiçbir karar ona dayanmaz.
@@ -86,6 +94,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (user) {
+        setUserId(user.id);
         const [status, profileRes] = await Promise.all([
           fetchPremiumStatus(user.id),
           profiles.ownProfile('member_no'),
@@ -101,7 +110,59 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
 
   useEffect(() => {
     loadData();
+    // Fiyatlar ve deneme uygunluğu StoreKit'ten okunur; okunamazsa sabit fiyatlar kalır.
+    if (IS_IOS) loadIapStoreInfo().then(setStore).catch(() => {});
   }, []);
+
+  const priceText = (p: { id: PlanId; price: number }) => store.prices[p.id] ?? `₺${p.price}`;
+
+  // "İlk 2 ay ücretsiz, sonra yıllık ₺999": yalnızca StoreKit tanıtım teklifi varsa ve kullanıcı hâlâ uygunsa.
+  const trial = store.yearlyTrial;
+  const yearlyTrialText = trial
+    ? t('premium_introFree' as any)
+        .replace('{count}', String(trial.count))
+        .replace('{unit}', t(`premium_unit${trial.unit[0].toUpperCase()}${trial.unit.slice(1)}${trial.count === 1 ? '' : 's'}` as any))
+        .replace('{price}', priceText({ id: 'yearly', price: IAP_PRODUCTS.yearly.fallbackPrice }))
+    : null;
+
+  // busy bayrağı çift tıklamayı engeller. Kullanıcı iptal ederse hiçbir mesaj gösterilmez.
+  const handleSubscribe = async () => {
+    if (busy) return;
+    setBusy('purchase');
+    const outcome = await purchasePremium(selectedPlan, userId).catch(() => 'error' as const);
+    setBusy(null);
+    if (outcome === 'success') {
+      Alert.alert(t('premium_successTitle'), t('premium_successSub'));
+      await loadData();
+    } else if (outcome === 'pending') {
+      Alert.alert(t('premium_purchasePending' as any));
+    } else if (outcome === 'already_linked') {
+      Alert.alert(t('premium_alreadyLinked' as any));
+    } else if (outcome === 'error') {
+      Alert.alert(t('premium_purchaseFailedTitle' as any), t('premium_purchaseFailed' as any));
+    }
+  };
+
+  const handleRestore = async () => {
+    if (busy) return;
+    setBusy('restore');
+    const outcome = await syncApplePurchases(true);
+    setBusy(null);
+    if (outcome === 'success') {
+      Alert.alert(t('premium_successTitle'), t('premium_successSub'));
+      await loadData();
+    } else if (outcome === 'none') {
+      Alert.alert(t('premium_restoreNone' as any));
+    } else if (outcome === 'already_linked') {
+      Alert.alert(t('premium_alreadyLinked' as any));
+    } else if (outcome === 'error') {
+      Alert.alert(t('premium_restoreFailed' as any));
+    }
+  };
+
+  const openLink = (url: string) => {
+    WebBrowser.openBrowserAsync(url).catch(() => {});
+  };
 
   const isPremiumActive = premium.active;
   const premiumUntil = premium.until;
@@ -170,9 +231,9 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
                       </View>
                     )}
                     <Text style={[styles.planLabel, selected && styles.planLabelSelected]}>{p.label}</Text>
-                    <Text style={[styles.planPrice, selected && styles.planPriceSelected]}>₺{p.price}</Text>
+                    <Text style={[styles.planPrice, selected && styles.planPriceSelected]}>{priceText(p)}</Text>
                     <Text style={styles.planPeriod}>{p.period}</Text>
-                    {p.originalPrice && <Text style={styles.planOriginal}>{t('premium_insteadOfPrefix')}₺{p.originalPrice}{t('premium_insteadOfSuffix')}</Text>}
+                    {p.id === 'yearly' && yearlyTrialText && <Text style={styles.planIntro}>{yearlyTrialText}</Text>}
                   </HapticTouchable>
                 );
               })}
@@ -195,8 +256,41 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
         </View>
 
         {/* Havale/EFT akışı yalnızca geliştirme önizlemesinde açılır. Mağaza
-            sürümlerinde IBAN talimatı yayımlanmaz; uygun ödeme sistemi ayrıca belirlenir. */}
-        {!isPremiumActive && (__DEV__ ? (
+            sürümlerinde IBAN talimatı yayımlanmaz; uygun ödeme sistemi ayrıca belirlenir.
+            iOS'ta (dev build dahil) hiç gösterilmez; orada abonelik Apple IAP ile satılır. */}
+        {IS_IOS && !isPremiumActive && (
+          <>
+            <HapticTouchable
+              style={[styles.ctaBtn, busy !== null && styles.btnDisabled]}
+              onPress={handleSubscribe}
+              disabled={busy !== null}
+            >
+              {busy === 'purchase' ? (
+                <ActivityIndicator color={Paper.ink} />
+              ) : (
+                <Text style={styles.ctaText}>{t('premium_subscribe' as any)}</Text>
+              )}
+            </HapticTouchable>
+            <HapticTouchable style={styles.restoreBtn} onPress={handleRestore} disabled={busy !== null}>
+              {busy === 'restore' ? (
+                <ActivityIndicator color={theme.textMuted} />
+              ) : (
+                <Text style={styles.linkText}>{t('premium_restore' as any)}</Text>
+              )}
+            </HapticTouchable>
+            <Text style={[styles.ctaSub, { paddingHorizontal: 24 }]}>{t('premium_autoRenewNote' as any)}</Text>
+            <View style={styles.linksRow}>
+              <HapticTouchable onPress={() => openLink(IAP_LINKS.terms)}>
+                <Text style={styles.linkText}>{t('premium_terms' as any)}</Text>
+              </HapticTouchable>
+              <Text style={styles.linkSep}>·</Text>
+              <HapticTouchable onPress={() => openLink(IAP_LINKS.privacy)}>
+                <Text style={styles.linkText}>{t('premium_privacy' as any)}</Text>
+              </HapticTouchable>
+            </View>
+          </>
+        )}
+        {!IS_IOS && !isPremiumActive && (__DEV__ ? (
           <PremiumEftSection memberNo={memberNo} />
         ) : (
           <Text style={styles.ctaSub}>{t('premium_productionNote')}</Text>
@@ -314,6 +408,22 @@ const createStyles = (theme: Theme) =>
       marginTop: 4,
       textDecorationLine: 'line-through',
     },
+    planIntro: {
+      fontFamily: FontFamily.mono,
+      fontSize: 10,
+      color: theme.textSecondary,
+      marginTop: 4,
+      textAlign: 'center',
+    },
+    restoreBtn: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: 8 },
+    linksRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 14 },
+    linkText: {
+      fontFamily: FontFamily.bodySemiBold,
+      fontSize: 12,
+      color: theme.textMuted,
+      textDecorationLine: 'underline',
+    },
+    linkSep: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted },
     benefitsCard: {
       marginHorizontal: 24,
       marginBottom: 28,

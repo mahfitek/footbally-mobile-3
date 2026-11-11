@@ -68,7 +68,8 @@
           "backgroundColor": "#060A12"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-iap"
     ],
     "extra": {
       "eas": {

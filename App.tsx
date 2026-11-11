@@ -57,6 +57,7 @@ import OfflineBanner from './components/OfflineBanner';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import { parseRecoveryUrl, PASSWORD_RESET_REDIRECT } from './lib/authFlows';
 import { useKeyboardOpen } from './lib/useKeyboardOpen';
+import { syncApplePurchases } from './lib/iap';
 import { checkAccountAccess, clearExpiredBan, mustSignOut, renderAccountMessage, type AccountAccessResult } from './lib/accountAccess';
 import { AccountAccessContext } from './lib/accountContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -371,6 +372,11 @@ function AppContent() {
       }
     }, 2500);
     return () => clearTimeout(timer);
+  }, [currentUserId]);
+
+  // Açılışta/oturum açılınca mevcut Apple aboneliği sunucuyla eşitlenir (yalnızca iOS; sessiz).
+  useEffect(() => {
+    if (currentUserId) void syncApplePurchases();
   }, [currentUserId]);
 
   useEffect(() => {
