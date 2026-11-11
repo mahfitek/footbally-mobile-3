@@ -115,7 +115,8 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
     if (IS_IOS) loadIapStoreInfo().then(setStore).catch(() => {});
   }, []);
 
-  const priceText = (p: { id: PlanId; price: number }) => store.plans[p.id]?.displayPrice ?? `₺${p.price}`;
+  const priceText = (p: { id: PlanId; price: number }) =>
+    store.plans[p.id]?.displayPrice ?? formatMoney(p.price, 'TRY', lang === 'tr' ? 'tr-TR' : 'en-US');
 
   // Deneme metni: yalnızca StoreKit ücretsiz deneme teklifi varsa ve kullanıcı hâlâ uygunsa.
   // Süre StoreKit'ten gelir (ör. 7 gün); ödeme planın fiyat ve dönemiyle birlikte yazılır.

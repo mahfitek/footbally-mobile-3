@@ -57,20 +57,21 @@ test('deneme metni yalnızca uygunlukta görünür (aylık ve yıllık için ayn
   assert.equal(trialIfEligible(null, true), null);
 });
 
-test('tasarruf 12 × aylık − yıllık = 189 (StoreKit fiyatlarıyla)', () => {
-  const s = yearlySaving(99, 999);
-  assert.equal(s.strike, 1188);
-  assert.equal(s.savings, 189);
-  assert.equal(s.savings, 12 * 99 - 999);
+test('tasarruf 12 × aylık − yıllık = 199,89 (99,99 / 999,99 ile)', () => {
+  const s = yearlySaving(99.99, 999.99);
+  assert.equal(s.strike, 1199.88);
+  assert.equal(s.savings, 199.89);
+  assert.equal(s.savings, Math.round((12 * 99.99 - 999.99) * 100) / 100);
 });
 
-test('tasarruf satırı her durumda hesaplanır; fiyat okunamazsa sabit değerler kullanılır', () => {
-  assert.deepEqual(yearlySaving(null, null), { strike: 1188, savings: 189 });
-  assert.deepEqual(yearlySaving(null, 999), { strike: 1188, savings: 189 });
-  assert.deepEqual(yearlySaving(99, null), { strike: 1188, savings: 189 });
+test('tasarruf satırı her durumda hesaplanır; fiyat okunamazsa sabit fallback değerleri kullanılır', () => {
+  assert.deepEqual(yearlySaving(null, null), { strike: 1199.88, savings: 199.89 });
+  assert.deepEqual(yearlySaving(null, 999.99), { strike: 1199.88, savings: 199.89 });
+  assert.deepEqual(yearlySaving(99.99, null), { strike: 1199.88, savings: 199.89 });
 });
 
-test('formatMoney üstü çizili fiyatı gruplamadan yazar (₺1188)', () => {
-  assert.equal(formatMoney(1188, 'TRY', 'tr-TR'), '₺1188');
-  assert.equal(formatMoney(189, 'TRY', 'tr-TR'), '₺189');
+test('formatMoney kuruşu Türkçe ondalık virgülüyle yazar (₺1199,88)', () => {
+  assert.equal(formatMoney(1199.88, 'TRY', 'tr-TR'), '₺1199,88');
+  assert.equal(formatMoney(199.89, 'TRY', 'tr-TR'), '₺199,89');
+  assert.equal(formatMoney(99, 'TRY', 'tr-TR'), '₺99');
 });

@@ -7,8 +7,8 @@ export type IapDbPlan = 'Monthly' | 'Annual';
 // ID'ler App Store Connect'teki ürünlerle birebir aynıdır ("Footbally Premium" grubu).
 // fallbackPrice (TL), StoreKit fiyatı okunamadığında gösterilir.
 export const IAP_PRODUCTS: Record<IapPlanId, { productId: string; dbPlan: IapDbPlan; fallbackPrice: number }> = {
-  monthly: { productId: 'com.footbally.app.premium.monthly', dbPlan: 'Monthly', fallbackPrice: 99 },
-  yearly: { productId: 'com.footbally.app.premium.yearly', dbPlan: 'Annual', fallbackPrice: 999 },
+  monthly: { productId: 'com.footbally.app.premium.monthly', dbPlan: 'Monthly', fallbackPrice: 99.99 },
+  yearly: { productId: 'com.footbally.app.premium.yearly', dbPlan: 'Annual', fallbackPrice: 999.99 },
 };
 
 export const IAP_PRODUCT_IDS: string[] = Object.values(IAP_PRODUCTS).map((p) => p.productId);
@@ -57,26 +57,31 @@ export function trialIfEligible(offers: OfferLike[] | null | undefined, eligible
   return eligible ? freeTrialFromOffers(offers) : null;
 }
 
-// Para birimi biçimi. Intl başarısız olursa ₺ ile yazılır. Gruplama kapalı: "₺1188".
+// Kuruşa yuvarlama (floating-point hatalarını giderir: 12 × 99.99 = 1199.8799999…).
+const toCents = (value: number) => Math.round(value * 100) / 100;
+
+// Para birimi biçimi. Kuruş varsa gösterilir (₺1199,88), yoksa tam sayı (₺99).
+// Gruplama kapalı: "₺1199,88". Intl başarısız olursa ₺ ile yazılır.
 export function formatMoney(amount: number, currency: string = 'TRY', locale: string = 'tr-TR'): string {
-  const rounded = Math.round(amount);
+  const value = toCents(amount);
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
       useGrouping: false,
-    }).format(rounded);
+    }).format(value);
   } catch {
-    return `₺${rounded}`;
+    return `₺${value}`;
   }
 }
 
-// Yıllık kartta gösterilen üstü çizili fiyat ve tasarruf.
-// Üstü çizili fiyat = 12 × aylık fiyat (StoreKit'ten; yoksa sabit 12 × 99 = 1188).
-// Tasarruf = üstü çizili fiyat − yıllık fiyat (StoreKit'ten; yoksa 999). Yoksa bile 189 döner.
+// Yıllık kartta gösterilen üstü çizili fiyat ve tasarruf (kuruşlu).
+// Üstü çizili fiyat = 12 × aylık fiyat (StoreKit'ten; yoksa sabit fallback: 12 × 99,99 = 1199,88).
+// Tasarruf = üstü çizili fiyat − yıllık fiyat (StoreKit'ten; yoksa fallback: 1199,88 − 999,99 = 199,89).
 export function yearlySaving(monthlyPrice: number | null, yearlyPrice: number | null): { strike: number; savings: number } {
-  const strike = monthlyPrice != null ? Math.round(12 * monthlyPrice) : 12 * IAP_PRODUCTS.monthly.fallbackPrice;
+  const strike = toCents(monthlyPrice != null ? 12 * monthlyPrice : 12 * IAP_PRODUCTS.monthly.fallbackPrice);
   const yearly = yearlyPrice ?? IAP_PRODUCTS.yearly.fallbackPrice;
-  return { strike, savings: strike - yearly };
+  return { strike, savings: toCents(strike - yearly) };
 }
