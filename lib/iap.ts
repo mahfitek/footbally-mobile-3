@@ -19,6 +19,7 @@ import {
   IAP_VERIFY_FUNCTION,
   freeTrialFromOffers,
   planIdForProductId,
+  trialIfEligible,
   type IapFreeTrial,
   type IapPlanId,
 } from '../constants/iap';
@@ -29,10 +30,16 @@ import {
 // ok ya da 409 already_linked. Diğer hatalarda bitirilmez; StoreKit işlemi sonraki
 // açılışta yeniden sunar ve senkronizasyon tekrar dener.
 
+export type IapPlanStore = {
+  displayPrice: string;
+  price: number | null;
+  currency: string | null;
+  // Yalnızca StoreKit ücretsiz deneme teklifi varsa ve kullanıcı hâlâ uygunsa doludur.
+  trial: IapFreeTrial | null;
+};
+
 export type IapStoreInfo = {
-  prices: Partial<Record<IapPlanId, string>>;
-  // Yalnızca kullanıcı tanıtım teklifine hâlâ uygunsa doludur.
-  yearlyTrial: IapFreeTrial | null;
+  plans: Partial<Record<IapPlanId, IapPlanStore>>;
 };
 
 // already_linked: sunucu 409 döndü; bu Apple aboneliği başka bir Footbally hesabına kayıtlı.
@@ -48,21 +55,26 @@ const ensureConnection = () => {
 };
 
 export async function loadIapStoreInfo(): Promise<IapStoreInfo> {
-  const info: IapStoreInfo = { prices: {}, yearlyTrial: null };
+  const info: IapStoreInfo = { plans: {} };
   if (Platform.OS !== 'ios') return info;
   await ensureConnection();
   const products = (await fetchProducts({ skus: IAP_PRODUCT_IDS, type: 'subs' })) ?? [];
   for (const product of products) {
     const planId = planIdForProductId(product.id);
     if (!planId) continue;
-    info.prices[planId] = product.displayPrice;
-    if (planId !== 'yearly' || product.platform !== 'ios' || product.type !== 'subs') continue;
-    const trial = freeTrialFromOffers(product.subscriptionOffers);
+    const plan: IapPlanStore = {
+      displayPrice: product.displayPrice,
+      price: product.price ?? null,
+      currency: product.currency ?? null,
+      trial: null,
+    };
+    info.plans[planId] = plan;
+    if (product.platform !== 'ios' || product.type !== 'subs') continue;
     const groupId = product.subscriptionGroupIdIOS;
-    if (!trial || !groupId) continue;
+    if (!groupId || !freeTrialFromOffers(product.subscriptionOffers)) continue;
     // Uygunluk doğrulanamazsa deneme vaat edilmez; normal fiyat gösterilir.
     const eligible = await isEligibleForIntroOfferIOS(groupId).catch(() => false);
-    if (eligible) info.yearlyTrial = trial;
+    plan.trial = trialIfEligible(product.subscriptionOffers, eligible);
   }
   return info;
 }

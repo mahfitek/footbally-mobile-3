@@ -27,6 +27,7 @@ import SectionHeader from '../components/SectionHeader';
 import PremiumEftSection from '../components/PremiumEftSection';
 import { IAP_PRODUCTS, IAP_LINKS, IapPlanId } from '../constants/iap';
 import { loadIapStoreInfo, purchasePremium, syncApplePurchases, IapStoreInfo } from '../lib/iap';
+import { formatMoney, yearlySaving } from '../constants/iap';
 
 const IS_IOS = Platform.OS === 'ios';
 
@@ -83,7 +84,7 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
   const [premium, setPremium] = useState<PremiumStatus>(INACTIVE_PREMIUM);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('monthly');
   const [userId, setUserId] = useState<string | null>(null);
-  const [store, setStore] = useState<IapStoreInfo>({ prices: {}, yearlyTrial: null });
+  const [store, setStore] = useState<IapStoreInfo>({ plans: {} });
   const [busy, setBusy] = useState<'purchase' | 'restore' | null>(null);
 
   // Premium durumu ve üye numarası sunucudan okunur. Kullanıcı metadata'sındaki
@@ -114,16 +115,29 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
     if (IS_IOS) loadIapStoreInfo().then(setStore).catch(() => {});
   }, []);
 
-  const priceText = (p: { id: PlanId; price: number }) => store.prices[p.id] ?? `₺${p.price}`;
+  const priceText = (p: { id: PlanId; price: number }) => store.plans[p.id]?.displayPrice ?? `₺${p.price}`;
 
-  // "İlk 2 ay ücretsiz, sonra yıllık ₺999": yalnızca StoreKit tanıtım teklifi varsa ve kullanıcı hâlâ uygunsa.
-  const trial = store.yearlyTrial;
-  const yearlyTrialText = trial
-    ? t('premium_introFree' as any)
-        .replace('{count}', String(trial.count))
-        .replace('{unit}', t(`premium_unit${trial.unit[0].toUpperCase()}${trial.unit.slice(1)}${trial.count === 1 ? '' : 's'}` as any))
-        .replace('{price}', priceText({ id: 'yearly', price: IAP_PRODUCTS.yearly.fallbackPrice }))
-    : null;
+  // Deneme metni: yalnızca StoreKit ücretsiz deneme teklifi varsa ve kullanıcı hâlâ uygunsa.
+  // Süre StoreKit'ten gelir (ör. 7 gün); ödeme planın fiyat ve dönemiyle birlikte yazılır.
+  const trialText = (planId: PlanId): string | null => {
+    const plan = store.plans[planId];
+    const trial = plan?.trial;
+    if (!plan || !trial) return null;
+    const unit = t(`premium_unit${trial.unit[0].toUpperCase()}${trial.unit.slice(1)}${trial.count === 1 ? '' : 's'}` as any);
+    const price = formatMoney(plan.price ?? IAP_PRODUCTS[planId].fallbackPrice, plan.currency ?? 'TRY', lang === 'tr' ? 'tr-TR' : 'en-US');
+    return t((planId === 'yearly' ? 'premium_trialYearly' : 'premium_trialMonthly') as any)
+      .replace('{count}', String(trial.count))
+      .replace('{unit}', unit)
+      .replace('{price}', price);
+  };
+
+  // Yıllık kart: üstü çizili 12 × aylık fiyat ve tasarruf. Her durumda gösterilir.
+  const yearlyPlan = store.plans.yearly;
+  const saving = yearlySaving(store.plans.monthly?.price ?? null, yearlyPlan?.price ?? null);
+  const moneyLocale = lang === 'tr' ? 'tr-TR' : 'en-US';
+  const savingCurrency = yearlyPlan?.currency ?? store.plans.monthly?.currency ?? 'TRY';
+  const savingText = t('premium_saveVsMonthly' as any).replace('{amount}', formatMoney(saving.savings, savingCurrency, moneyLocale));
+  const strikeText = formatMoney(saving.strike, savingCurrency, moneyLocale);
 
   // busy bayrağı çift tıklamayı engeller. Kullanıcı iptal ederse hiçbir mesaj gösterilmez.
   const handleSubscribe = async () => {
@@ -233,7 +247,9 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
                     <Text style={[styles.planLabel, selected && styles.planLabelSelected]}>{p.label}</Text>
                     <Text style={[styles.planPrice, selected && styles.planPriceSelected]}>{priceText(p)}</Text>
                     <Text style={styles.planPeriod}>{p.period}</Text>
-                    {p.id === 'yearly' && yearlyTrialText && <Text style={styles.planIntro}>{yearlyTrialText}</Text>}
+                    {p.id === 'yearly' && <Text style={styles.planOriginal}>{strikeText}</Text>}
+                    {trialText(p.id) && <Text style={styles.planIntro}>{trialText(p.id)}</Text>}
+                    {p.id === 'yearly' && <Text style={styles.planIntro}>{savingText}</Text>}
                   </HapticTouchable>
                 );
               })}

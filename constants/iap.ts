@@ -25,7 +25,8 @@ export function planIdForProductId(productId: string): IapPlanId | null {
   return entry ?? null;
 }
 
-export type IapTrialUnit = 'day' | 'week' | 'month' | 'year';
+// Ücretsiz deneme süresi. Birim yalnızca day | month | year olur; hafta güne çevrilir.
+export type IapTrialUnit = 'day' | 'month' | 'year';
 export type IapFreeTrial = { unit: IapTrialUnit; count: number };
 
 type OfferLike = {
@@ -35,13 +36,47 @@ type OfferLike = {
   periodCount?: number | null;
 };
 
-// StoreKit'in tanıtım teklifinden (introductory offer) ücretsiz deneme süresini çıkarır.
-// Ücretsiz deneme değilse ya da süre okunamıyorsa null döner; ekranda deneme metni gösterilmez.
+// StoreKit tanıtım teklifinden (introductory, free-trial) ücretsiz deneme süresini okur.
+// Süre, birim ve dönem sayısı StoreKit'ten gelir; sabit değer kullanılmaz.
+// Teklif yoksa ya da süre okunamıyorsa null döner.
 export function freeTrialFromOffers(offers: OfferLike[] | null | undefined): IapFreeTrial | null {
   const intro = (offers ?? []).find((o) => o.type === 'introductory' && o.paymentMode === 'free-trial');
   const unit = intro?.period?.unit;
   const value = intro?.period?.value ?? 0;
-  if (unit !== 'day' && unit !== 'week' && unit !== 'month' && unit !== 'year') return null;
-  const count = value * (intro?.periodCount ?? 1);
-  return count > 0 ? { unit, count } : null;
+  const periods = intro?.periodCount ?? 1;
+  const total = value * periods;
+  if (total <= 0) return null;
+  if (unit === 'week') return { unit: 'day', count: total * 7 };
+  if (unit === 'day' || unit === 'month' || unit === 'year') return { unit, count: total };
+  return null;
+}
+
+// Deneme yalnızca StoreKit uygunluğu doğrulandıysa gösterilir. Daha önce abone olmuş
+// ya da uygunluk okunamadıysa null döner ve ekranda yalnızca normal fiyat kalır.
+export function trialIfEligible(offers: OfferLike[] | null | undefined, eligible: boolean): IapFreeTrial | null {
+  return eligible ? freeTrialFromOffers(offers) : null;
+}
+
+// Para birimi biçimi. Intl başarısız olursa ₺ ile yazılır. Gruplama kapalı: "₺1188".
+export function formatMoney(amount: number, currency: string = 'TRY', locale: string = 'tr-TR'): string {
+  const rounded = Math.round(amount);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+      useGrouping: false,
+    }).format(rounded);
+  } catch {
+    return `₺${rounded}`;
+  }
+}
+
+// Yıllık kartta gösterilen üstü çizili fiyat ve tasarruf.
+// Üstü çizili fiyat = 12 × aylık fiyat (StoreKit'ten; yoksa sabit 12 × 99 = 1188).
+// Tasarruf = üstü çizili fiyat − yıllık fiyat (StoreKit'ten; yoksa 999). Yoksa bile 189 döner.
+export function yearlySaving(monthlyPrice: number | null, yearlyPrice: number | null): { strike: number; savings: number } {
+  const strike = monthlyPrice != null ? Math.round(12 * monthlyPrice) : 12 * IAP_PRODUCTS.monthly.fallbackPrice;
+  const yearly = yearlyPrice ?? IAP_PRODUCTS.yearly.fallbackPrice;
+  return { strike, savings: strike - yearly };
 }
