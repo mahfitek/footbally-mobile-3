@@ -21,6 +21,12 @@ begin
     return new;
   end if;
 
+  -- Yalnızca video dosyaları eklenir. Analiz ekranı şu an görüntü (fotoğraf) yüklediği için bu analizler
+  -- video listesine girmez.
+  if lower(new.video_url) !~ '\.(mp4|mov|m4v|webm|3gp)$' then
+    return new;
+  end if;
+
   -- Yönetici tarafından kaldırılmış bir video geri eklenmez.
   if exists (
     select 1 from public.media_moderation m
