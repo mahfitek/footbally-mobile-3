@@ -201,7 +201,10 @@ export default function HomeScreen({ navigate, userId }: Props) {
 
       // Skor ve görev durumları tek kaynaktan (sunucu) gelir. Önce yeniden hesaplanır, sonra okunur.
       const { error: refreshError } = await profiles.refreshMyScore();
-      if (refreshError && __DEV__) console.log('Skor yenilenemedi (refresh_my_score):', refreshError.message);
+      if (refreshError) {
+        console.warn('Skor yenilenemedi (refresh_my_score):', refreshError.message);
+        setToast({ message: t('profile_scoreRefreshFailed'), type: 'error' });
+      }
 
       const { data: breakdownRaw, error: breakdownError } = await profiles.scoreBreakdown();
       const breakdown = breakdownError ? null : parseScoreBreakdown(breakdownRaw);

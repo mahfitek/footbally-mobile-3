@@ -122,14 +122,19 @@ const MISSING_FIELD_KEYS: Record<RequiredProfileField, 'profile_missingName' | '
   weight: 'profile_missingWeight',
 };
 
-// Skoru sunucuda yeniden hesaplar (görev durumları + rozet ödülleri). Hata profil kaydını bozmaz,
-// ama sessiz de kalmaz: uyarı günlüğe yazılır ve ekranda son kayıtlı profiles.score gösterilir.
-const refreshServerScore = async (uid: string) => {
+// Skoru sunucuda yeniden hesaplar (görev durumları + rozet ödülleri). Başarısızlıkta false döner; çağıran
+// kullanıcıya uyarı gösterir. Hata profil kaydını bozmaz; uyarı günlüğe de yazılır ve son kayıtlı skor gösterilir.
+const refreshServerScore = async (uid: string): Promise<boolean> => {
   try {
     const { error } = await profiles.refreshMyScore();
-    if (error) console.warn('Skor yenilenemedi (refresh_my_score):', uid, error.message);
+    if (error) {
+      console.warn('Skor yenilenemedi (refresh_my_score):', uid, error.message);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.warn('Skor yenilenirken beklenmeyen hata:', err);
+    return false;
   }
 };
 
@@ -232,7 +237,9 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
     // Kendi profilinde skor önce sunucuda yeniden hesaplanır; ekran yalnızca sunucudaki profiles.score'u gösterir.
     if (isOwnProfile) {
-      await refreshServerScore(uid);
+      if (!(await refreshServerScore(uid))) {
+        setToast({ message: t('profile_scoreRefreshFailed'), type: 'error' });
+      }
       const { data: breakdownRaw, error: breakdownError } = await profiles.scoreBreakdown();
       const breakdown = breakdownError ? null : parseScoreBreakdown(breakdownRaw);
       setServerTasks(breakdown?.tasks ?? null);
@@ -547,9 +554,13 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       setSaving(false);
       setEditMode(false);
       setOpenPicker(null);
-      await refreshServerScore(uid);
+      const scoreRefreshed = await refreshServerScore(uid);
       await loadProfile();
-      setToast({ message: toastMessage, type: toastType });
+      if (scoreRefreshed) {
+        setToast({ message: toastMessage, type: toastType });
+      } else {
+        setToast({ message: t('profile_scoreRefreshFailed'), type: 'error' });
+      }
       if (toastType === 'success') {
         sendLocalNotification(t('profile_updatedNotifTitle'), t('profile_updatedNotifBody'));
       }

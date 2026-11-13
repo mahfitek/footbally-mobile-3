@@ -18,6 +18,7 @@ import {
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import SectionHeader from '../components/SectionHeader';
+import Toast from '../components/Toast';
 
 const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -36,6 +37,7 @@ export default function BadgesScreen({ navigate, userId }: Props) {
   const [hasProfileBasics, setHasProfileBasics] = useState(false);
   const [isPremiumActive, setIsPremiumActive] = useState(false);
   const [claimedKeys, setClaimedKeys] = useState<string[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [daysClaimedThisMonth, setDaysClaimedThisMonth] = useState(0);
 
   const load = async () => {
@@ -52,7 +54,10 @@ export default function BadgesScreen({ navigate, userId }: Props) {
     if (uid) {
       // Skor sunucuda yeniden hesaplanır (rozet ödülleri de burada işlenir); ekran profiles.score'u gösterir.
       const { error: refreshError } = await profiles.refreshMyScore();
-      if (refreshError) console.warn('Skor yenilenemedi (refresh_my_score):', refreshError.message);
+      if (refreshError) {
+        console.warn('Skor yenilenemedi (refresh_my_score):', refreshError.message);
+        setToast({ message: t('profile_scoreRefreshFailed'), type: 'error' });
+      }
 
       const { data } = await profiles.ownProfile('score, position, city, age');
       setScore(data?.score ?? 0);
@@ -160,6 +165,8 @@ export default function BadgesScreen({ navigate, userId }: Props) {
           })}
         </View>
       </ScrollView>
+
+      <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
   );
 }
