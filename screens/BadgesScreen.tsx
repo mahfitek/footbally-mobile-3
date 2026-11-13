@@ -18,7 +18,6 @@ import {
   REWARD_CLAIM_ENABLED,
   Badge,
 } from '../lib/rewards';
-import { calculateProfileCompletion } from '../lib/profileScore';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import Toast from '../components/Toast';
@@ -60,11 +59,12 @@ export default function BadgesScreen({ navigate, userId }: Props) {
     }
 
     if (uid) {
-      // ProfileScreen ile aynı tamamlanma puanı; sunucudaki profiles.score okunmaz (güncel olmayabilir).
-      const { data } = await profiles.ownProfile(
-        'full_name, position, age, height, weight, city, district, foot, club'
-      );
-      setScore(data ? calculateProfileCompletion(data) : 0);
+      // Skor sunucuda yeniden hesaplanır (rozet ödülleri de burada işlenir); ekran profiles.score'u gösterir.
+      const { error: refreshError } = await profiles.refreshMyScore();
+      if (refreshError) console.warn('Skor yenilenemedi (refresh_my_score):', refreshError.message);
+
+      const { data } = await profiles.ownProfile('score, position, city, age');
+      setScore(data?.score ?? 0);
       setHasProfileBasics(!!(data?.position && data?.city && data?.age));
 
       const progress = await loadRewardProgress(uid);

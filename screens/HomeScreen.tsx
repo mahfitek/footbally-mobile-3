@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { NOTIFICATION_COLUMNS } from '../lib/columns';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
+import { buildProfileTaskRows, parseScoreBreakdown, ProfileTaskRow } from '../lib/profileTasks';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SectionHeader from '../components/SectionHeader';
@@ -198,33 +199,37 @@ export default function HomeScreen({ navigate, userId }: Props) {
       setIsPremium(status.active);
       setPremiumUntil(status.until);
 
-      const { data } = await profiles.ownProfile('full_name, score, position, age, height, weight, city, district, foot, avatar_url');
+      // Skor ve görev durumları tek kaynaktan (sunucu) gelir. Önce yeniden hesaplanır, sonra okunur.
+      const { error: refreshError } = await profiles.refreshMyScore();
+      if (refreshError && __DEV__) console.log('Skor yenilenemedi (refresh_my_score):', refreshError.message);
 
-      if (data) {
-        setName(data.full_name ?? '');
-        setScore(data.score ?? 0);
-        calculateTasks(data, status.active);
+      const { data: breakdownRaw, error: breakdownError } = await profiles.scoreBreakdown();
+      const breakdown = breakdownError ? null : parseScoreBreakdown(breakdownRaw);
+
+      const { data } = await profiles.ownProfile('full_name, score');
+      if (data) setName(data.full_name ?? '');
+
+      if (breakdown) {
+        setScore(breakdown.score);
+        setTasks(buildProfileTaskRows(breakdown).map(toHomeTask));
+      } else {
+        // Sunucu görev durumunu veremediyse yerel tahmin yapılmaz; kayıtlı skor gösterilir, görev listesi gizlenir.
+        setScore(data?.score ?? 0);
+        setTasks([]);
       }
     }
     setLoading(false);
   };
 
-  const calculateTasks = (p: any, premiumActive: boolean) => {
-    setTasks([
-      { id: 'name', title: t('home_taskNameTitle'), desc: t('home_taskNameDesc'), points: 10, done: !!p.full_name, screen: 'profile', icon: 'person-outline' },
-      { id: 'position', title: t('home_taskPositionTitle'), desc: t('home_taskPositionDesc'), points: 10, done: !!p.position, screen: 'profile', icon: 'football-outline' },
-      { id: 'age', title: t('home_taskAgeTitle'), desc: t('home_taskAgeDesc'), points: 5, done: !!p.age, screen: 'profile', icon: 'calendar-outline' },
-      { id: 'height', title: t('home_taskHeightTitle'), desc: t('home_taskPhysicalDesc'), points: 5, done: !!p.height, screen: 'profile', icon: 'resize-outline' },
-      { id: 'weight', title: t('home_taskWeightTitle'), desc: t('home_taskPhysicalDesc'), points: 5, done: !!p.weight, screen: 'profile', icon: 'barbell-outline' },
-      { id: 'city', title: t('home_taskCityTitle'), desc: t('home_taskCityDesc'), points: 5, done: !!p.city, screen: 'profile', icon: 'location-outline' },
-      { id: 'district', title: t('home_taskDistrictTitle'), desc: t('home_taskDistrictDesc'), points: 3, done: !!p.district, screen: 'profile', icon: 'map-outline' },
-      { id: 'foot', title: t('home_taskFootTitle'), desc: t('home_taskFootDesc'), points: 3, done: !!p.foot, screen: 'profile', icon: 'footsteps-outline' },
-      { id: 'match', title: t('home_taskMatchTitle'), desc: t('home_taskMatchDesc'), points: 15, done: false, screen: 'match', icon: 'football-outline' },
-      { id: 'apply', title: t('home_taskApplyTitle'), desc: t('home_taskApplyDesc'), points: 10, done: false, screen: 'activities', icon: 'flag-outline' },
-      { id: 'photo', title: t('home_taskPhotoTitle'), desc: t('home_taskPhotoDesc'), points: 10, done: !!p.avatar_url, screen: 'profile', icon: 'camera-outline' },
-      { id: 'premium', title: t('home_taskPremiumTitle'), desc: t('home_taskPremiumDesc'), points: 19, done: premiumActive, screen: 'premium', icon: 'star-outline' },
-    ]);
-  };
+  const toHomeTask = (row: ProfileTaskRow): Task => ({
+    id: row.id,
+    title: t(row.titleKey),
+    desc: t(row.descKey),
+    points: row.points,
+    done: row.done,
+    screen: row.screen,
+    icon: row.icon as IoniconName,
+  });
 
   const loadUpcomingMatches = async () => {
     try {

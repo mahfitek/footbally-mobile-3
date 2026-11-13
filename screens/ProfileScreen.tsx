@@ -34,7 +34,6 @@ const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { blockUser } from '../lib/blocking';
 import { profiles } from '../lib/profiles';
-import { calculateProfileCompletion } from '../lib/profileScore';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
@@ -120,14 +119,14 @@ const MISSING_FIELD_KEYS: Record<RequiredProfileField, 'profile_missingName' | '
   weight: 'profile_missingWeight',
 };
 
-// Kaydetmeden sonra sunucu tarafı skoru yeniler. refresh_my_score canlıda henüz olmayabilir;
-// bu yüzden hata (eksik fonksiyon dahil) profil kaydını bozmaz, yalnızca geliştirme günlüğüne düşer.
+// Skoru sunucuda yeniden hesaplar (görev durumları + rozet ödülleri). Hata profil kaydını bozmaz,
+// ama sessiz de kalmaz: uyarı günlüğe yazılır ve ekranda son kayıtlı profiles.score gösterilir.
 const refreshServerScore = async (uid: string) => {
   try {
     const { error } = await profiles.refreshMyScore();
-    if (error && __DEV__) console.log('Skor yenilenemedi (refresh_my_score):', uid, error.message);
+    if (error) console.warn('Skor yenilenemedi (refresh_my_score):', uid, error.message);
   } catch (err) {
-    if (__DEV__) console.log('Skor yenilenirken beklenmeyen hata:', err);
+    console.warn('Skor yenilenirken beklenmeyen hata:', err);
   }
 };
 
@@ -226,6 +225,8 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
 
     // Ekranın kullandığı alanlar. Kendi profilinde get_my_profile, başkasınınkinde herkese açık görünüm.
     const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
+    // Kendi profilinde skor önce sunucuda yeniden hesaplanır; ekran yalnızca sunucudaki profiles.score'u gösterir.
+    if (isOwnProfile) await refreshServerScore(uid);
     // Tamamlanma alanı yalnızca kendi profilinde istenir. Sunucu migration'ı uygulanmamışsa kolon yoktur (42703);
     // o durumda aynı sorgu tamamlanma alanı olmadan tekrarlanır ve durum "bilinmiyor" kalır.
     let { data, error } = isOwnProfile
@@ -268,7 +269,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         );
       }
 
-      setScore(calculateProfileCompletion(data));
+      setScore(data.score ?? 0);
 
       if (data.overall_rating != null) {
         setAiOverall(data.overall_rating);
@@ -285,8 +286,6 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         setAiOverall(null);
         setCardStats(defaultCardStats(50));
       }
-      // Tamamlanma puanı yalnızca bu ekranda hesaplanır; profiles.score'a yazılmaz.
-      // Sunucudaki profiles.score, refresh_my_score() ile kaydetmeden sonra yenilenir.
     } else if (error) {
       if (__DEV__) console.log('Profil yüklenemedi:', error);
       // Empty code means the request never reached the server (network failure).

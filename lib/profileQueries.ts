@@ -50,9 +50,14 @@ export function createProfileQueries(client: ProfileClient) {
       return client.rpc('clear_my_expired_ban');
     },
 
-    /** Sunucuda profiles.score'u yeniler. İstemci skoru doğrudan yazmaz. */
+    /** Sunucuda profiles.score'u yeniler ve kazanılmış rozet ödüllerini işler. İstemci skoru doğrudan yazmaz. */
     refreshMyScore() {
       return client.rpc('refresh_my_score');
+    },
+
+    /** Skor ve 15 görevin sunucu durumu (tek kaynak). Yalnızca okur. */
+    scoreBreakdown() {
+      return client.rpc('get_my_score_breakdown');
     },
 
     /**
