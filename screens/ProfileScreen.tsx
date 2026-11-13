@@ -35,6 +35,7 @@ import { supabase } from '../lib/supabase';
 import { blockUser } from '../lib/blocking';
 import { profiles } from '../lib/profiles';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
+import { PROFILE_TASK_DEFS, parseScoreBreakdown, type ProfileTaskId, type ProfileTaskState } from '../lib/profileTasks';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -173,6 +174,8 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const [district, setDistrict] = useState('');
   const [club, setClub] = useState('');
   const [score, setScore] = useState(0);
+  // Sunucudaki görev durumları (kendi profilinde). null: okunamadı; öneri listesi gösterilmez.
+  const [serverTasks, setServerTasks] = useState<ProfileTaskState[] | null>(null);
   const [rawProfile, setRawProfile] = useState<any>(null);
   // Tamamlanma: sunucu durumu (profile_completed_at) ve kayıtlı değerlerdeki eksik zorunlu alanlar.
   const [completion, setCompletion] = useState<ProfileCompletionState>('unknown');
@@ -228,7 +231,12 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     // Ekranın kullandığı alanlar. Kendi profilinde get_my_profile, başkasınınkinde herkese açık görünüm.
     const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
     // Kendi profilinde skor önce sunucuda yeniden hesaplanır; ekran yalnızca sunucudaki profiles.score'u gösterir.
-    if (isOwnProfile) await refreshServerScore(uid);
+    if (isOwnProfile) {
+      await refreshServerScore(uid);
+      const { data: breakdownRaw, error: breakdownError } = await profiles.scoreBreakdown();
+      const breakdown = breakdownError ? null : parseScoreBreakdown(breakdownRaw);
+      setServerTasks(breakdown?.tasks ?? null);
+    }
     // Tamamlanma alanı yalnızca kendi profilinde istenir. Sunucu migration'ı uygulanmamışsa kolon yoktur (42703);
     // o durumda aynı sorgu tamamlanma alanı olmadan tekrarlanır ve durum "bilinmiyor" kalır.
     let { data, error } = isOwnProfile
@@ -768,17 +776,24 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const daysClaimedThisMonth = rewardMonthKey === currentMonthKey() ? rawProfile?.reward_premium_days_this_month ?? 0 : 0;
   const remainingRewardDays = Math.max(0, MAX_REWARD_PREMIUM_DAYS_PER_MONTH - daysClaimedThisMonth);
 
-  const scoreSuggestions = [
-    { key: 'full_name', done: !!rawProfile?.full_name, label: t('profile_addName'), points: 10 },
-    { key: 'position', done: !!rawProfile?.position, label: t('profile_addPosition'), points: 10 },
-    { key: 'city', done: !!rawProfile?.city, label: t('profile_addCity'), points: 5 },
-    { key: 'age', done: !!rawProfile?.age, label: t('profile_addAge'), points: 5 },
-    { key: 'height', done: !!rawProfile?.height, label: t('profile_addHeight'), points: 5 },
-    { key: 'weight', done: !!rawProfile?.weight, label: t('profile_addWeight'), points: 5 },
-    { key: 'foot', done: !!rawProfile?.foot, label: t('profile_addFoot'), points: 3 },
-    { key: 'district', done: !!rawProfile?.district, label: t('profile_addDistrict'), points: 3 },
-    { key: 'club', done: !!rawProfile?.club, label: t('profile_addClub'), points: 4 },
-  ].filter((s) => !s.done);
+  // Eksik profil alanı önerileri: tamamlanma ve puan sunucu görev listesinden gelir (tek kaynak).
+  // Sunucu görev durumu yoksa öneri gösterilmez.
+  const pointsFor = (id: ProfileTaskId) => PROFILE_TASK_DEFS.find((d) => d.id === id)?.points ?? 0;
+  const isTaskDone = (id: ProfileTaskId) => serverTasks?.some((task) => task.id === id && task.done) === true;
+  const scoreSuggestions = (
+    [
+      { id: 'name', key: 'full_name', label: t('profile_addName') },
+      { id: 'position', key: 'position', label: t('profile_addPosition') },
+      { id: 'city', key: 'city', label: t('profile_addCity') },
+      { id: 'age', key: 'age', label: t('profile_addAge') },
+      { id: 'height', key: 'height', label: t('profile_addHeight') },
+      { id: 'weight', key: 'weight', label: t('profile_addWeight') },
+      { id: 'foot', key: 'foot', label: t('profile_addFoot') },
+      { id: 'district', key: 'district', label: t('profile_addDistrict') },
+    ] as { id: ProfileTaskId; key: string; label: string }[]
+  )
+    .map((s) => ({ key: s.key, label: s.label, points: pointsFor(s.id), done: isTaskDone(s.id) }))
+    .filter((s) => serverTasks !== null && !s.done);
 
   // Tamamlanma bildirimi. Sunucu "tamamlanmadı" diyorsa bunu söyler; sunucu alanı yoksa yalnızca eksik alanları
   // listeler ve tamamlandı iddiasında bulunmaz. Tamamlandıysa bildirim gösterilmez.
