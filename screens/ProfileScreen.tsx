@@ -165,6 +165,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
 
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [uploadingGalleryPhoto, setUploadingGalleryPhoto] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [galleryPreviewUrl, setGalleryPreviewUrl] = useState<string | null>(null);
   const [showGalleryGrid, setShowGalleryGrid] = useState(false);
 
@@ -481,6 +482,83 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       setToast({ message: t('teamProfile_photoUploadFailed'), type: 'error' });
     }
     setUploadingGalleryPhoto(false);
+  };
+
+  // Maç videosu: depoya (videos bucket, kullanıcı klasörü) yüklenir; yolu profiles.video_urls listesine eklenir.
+  // Görev tamamlanması sunucudaki video_urls dolu olmasına bağlıdır (compute_profile_task_breakdown).
+  const handleVideoAddPress = () => {
+    Alert.alert(t('profile_videoAlertTitle'), t('profile_howToAddVideo'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: t('sahadan_gallery'), onPress: () => pickProfileVideo('library') },
+      { text: t('sahadan_camera'), onPress: () => pickProfileVideo('camera') },
+    ]);
+  };
+
+  const pickProfileVideo = async (source: 'camera' | 'library') => {
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permission.status !== 'granted') {
+      Alert.alert(
+        t('teamProfile_permissionTitle'),
+        source === 'camera' ? t('aiAnalysis_cameraPermissionBody') : t('aiAnalysis_galleryPermissionBody'),
+        [
+          { text: t('common_cancel'), style: 'cancel' },
+          { text: t('teamProfile_openSettings'), onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+
+    const pickerOptions = { mediaTypes: ['videos'] as ImagePicker.MediaType[], quality: 0.7 };
+    const picked =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync(pickerOptions)
+        : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+    if (picked.canceled || !picked.assets[0]) return;
+
+    setUploadingVideo(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
+        setToast({ message: t('createMatch_needSession'), type: 'error' });
+        return;
+      }
+
+      const asset = picked.assets[0];
+      const ext = (asset.fileName?.split('.').pop() ?? 'mp4').toLowerCase();
+      const path = `${user.id}/videos/${Date.now()}.${ext}`;
+      const buffer = await fetch(asset.uri).then((r) => r.arrayBuffer());
+
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(path, buffer, { contentType: asset.mimeType ?? 'video/mp4', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: current, error: readError } = await profiles.ownProfile('video_urls');
+      if (readError) throw readError;
+      const { data: updated, error: updateError } = await profiles.updateOwn(user.id, {
+        video_urls: [...(current?.video_urls ?? []), path],
+      });
+      if (updateError) throw updateError;
+      if (!updated || updated.length === 0) throw new Error('profile_not_updated');
+
+      const scoreRefreshed = await refreshServerScore(user.id);
+      await loadProfile();
+      setToast(
+        scoreRefreshed
+          ? { message: t('profile_videoAdded'), type: 'success' }
+          : { message: t('profile_scoreRefreshFailed'), type: 'error' }
+      );
+    } catch (err) {
+      if (__DEV__) console.log('Profil videosu yüklenemedi:', err);
+      setToast({ message: t('profile_videoUploadFailed'), type: 'error' });
+    } finally {
+      setUploadingVideo(false);
+    }
   };
 
   const handleSave = async () => {
@@ -1333,6 +1411,22 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
                 <>
                   <Ionicons name="add" size={20} color={theme.gold} />
                   <Text style={styles.galleryAddText}>{t('profile_addLabel')}</Text>
+                </>
+              )}
+            </HapticTouchable>
+          )}
+          {isOwnProfile && (
+            <HapticTouchable
+              style={[styles.galleryItem, styles.galleryAdd]}
+              onPress={handleVideoAddPress}
+              disabled={uploadingVideo}
+            >
+              {uploadingVideo ? (
+                <ActivityIndicator size="small" color={theme.gold} />
+              ) : (
+                <>
+                  <Ionicons name="videocam-outline" size={20} color={theme.gold} />
+                  <Text style={styles.galleryAddText}>{t('profile_addVideo')}</Text>
                 </>
               )}
             </HapticTouchable>
