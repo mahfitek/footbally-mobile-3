@@ -85,10 +85,10 @@ const getDailyTips = (t: (key: TranslationKey) => string) => [
   t('home_tip5'),
 ];
 
-const getGridItems = (t: (key: TranslationKey) => string) => [
+const getGridItems = (t: (key: TranslationKey) => string, score: number) => [
   { icon: '📈' as const, title: t('performance'), sub: t('home_gridPerformanceSub'), screen: 'footbally' },
   { icon: '⏱️' as const, title: t('matchAnalysis'), sub: t('home_gridMatchAnalysisSub'), screen: 'match' },
-  { icon: '🎯' as const, title: t('career'), sub: t('home_gridCareerSub'), screen: 'profile' },
+  { icon: '🎯' as const, title: t('career'), sub: `${t('home_gridCareerSub')} %${score}`, screen: 'profile' },
   { icon: '⭐' as const, title: t('opportunities'), sub: t('home_gridOpportunitiesSub'), screen: 'activities' },
   { icon: '🤖' as const, title: t('aiAnalysis'), sub: t('home_gridAiSub'), screen: 'ai' },
   { icon: '🔍' as const, title: t('scoutNetwork'), sub: t('home_gridScoutSub'), screen: 'scout' },
@@ -149,7 +149,7 @@ export default function HomeScreen({ navigate, userId }: Props) {
   const [dayIndex] = useState(() => Math.floor(Date.now() / 86400000));
   const dailyTip = dailyTips[dayIndex % dailyTips.length];
   const scoreLevel = getScoreLevel(score, theme, t);
-  const gridItems = getGridItems(t);
+  const gridItems = getGridItems(t, score);
   const [scoreAnim] = useState(() => new Animated.Value(0));
   const [scoreCountAnim] = useState(() => new Animated.Value(0));
   const [gridAnims] = useState(() => gridItems.map(() => new Animated.Value(0)));
