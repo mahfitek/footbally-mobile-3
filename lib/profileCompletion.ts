@@ -5,6 +5,7 @@
 // eksik alanları listeler ve RPC sonucunu sınıflandırır. Sahte "tamamlandı" durumu üretmez.
 import { isMissingRpc } from './reports';
 import { FOOTBALL_POSITIONS } from '../constants/footballPositions';
+import type { TranslationKey } from './i18n';
 
 /** Sunucunun (complete_my_player_profile) kabul ettiği mevki değerleri. Form yalnızca bunları gönderir. */
 export const PROFILE_POSITIONS = ['Kaleci', 'Defans', 'Orta Saha', 'Kanat', 'Forvet'] as const;
@@ -51,6 +52,34 @@ export function toProfileFoot(value: string | null | undefined): string | null {
   const legacy: Record<string, string> = { 'Sağ Ayak': 'Sağ', 'Sol Ayak': 'Sol' };
   const normalized = legacy[trimmed] ?? trimmed;
   return (PROFILE_FOOT_OPTIONS as readonly string[]).includes(normalized) ? normalized : null;
+}
+
+// Sunucu değeri (Türkçe, veritabanında saklanır) → ekranda gösterilecek çeviri anahtarı.
+// Gönderilen ve saklanan değerler değişmez; yalnızca görüntü dile göre çevrilir.
+const POSITION_LABEL_KEYS: Record<(typeof PROFILE_POSITIONS)[number], TranslationKey> = {
+  'Kaleci': 'profile_posGoalkeeper',
+  'Defans': 'profile_posDefender',
+  'Orta Saha': 'profile_posMidfield',
+  'Kanat': 'profile_posWinger',
+  'Forvet': 'profile_posForward',
+};
+
+const FOOT_LABEL_KEYS: Record<(typeof PROFILE_FOOT_OPTIONS)[number], TranslationKey> = {
+  'Sağ': 'profile_footRight',
+  'Sol': 'profile_footLeft',
+  'Her İkisi': 'profile_footBoth',
+};
+
+/** Mevki değerinin çeviri anahtarı. Sunucu listesinde yoksa null (ham değer gösterilir). */
+export function profilePositionLabelKey(value: string | null | undefined): TranslationKey | null {
+  if (!value || !(PROFILE_POSITIONS as readonly string[]).includes(value)) return null;
+  return POSITION_LABEL_KEYS[value as (typeof PROFILE_POSITIONS)[number]];
+}
+
+/** Ayak değerinin çeviri anahtarı. Sunucu listesinde yoksa null (ham değer gösterilir). */
+export function profileFootLabelKey(value: string | null | undefined): TranslationKey | null {
+  if (!value || !(PROFILE_FOOT_OPTIONS as readonly string[]).includes(value)) return null;
+  return FOOT_LABEL_KEYS[value as (typeof PROFILE_FOOT_OPTIONS)[number]];
 }
 
 export interface ProfileFormValues {

@@ -53,6 +53,8 @@ import {
   completionStateOf,
   isMissingColumnError,
   missingRequiredFields,
+  profileFootLabelKey,
+  profilePositionLabelKey,
   toProfileFoot,
   toProfilePosition,
   type ProfileCompletionState,
@@ -793,14 +795,24 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
           ? { title: t('profile_statusMissingOnly'), detail: `${t('profile_statusMissing')} ${savedMissingNames}` }
           : null;
 
+  // Kayıtlı Türkçe değerleri (ör. "Kanat") seçili dile çevirir; tanınmayan değer olduğu gibi gösterilir.
+  const positionLabel = (value: string) => {
+    const key = profilePositionLabelKey(value);
+    return key ? t(key) : value;
+  };
+  const footLabel = (value: string) => {
+    const key = profileFootLabelKey(value);
+    return key ? t(key) : value;
+  };
+
   const bio = [
-    { label: t('profile_bioPosition'), value: position || '-' },
+    { label: t('profile_bioPosition'), value: position ? positionLabel(position) : '-' },
     { label: t('profile_bioAge'), value: age || '-' },
     {
       label: t('profile_bioHeightWeight'),
       value: height || weight ? `${height || '-'} cm / ${weight || '-'} kg` : '-',
     },
-    { label: t('profile_bioFoot'), value: foot || '-' },
+    { label: t('profile_bioFoot'), value: foot ? footLabel(foot) : '-' },
     { label: t('profile_bioCity'), value: city ? `${city}${district ? `, ${district}` : ''}` : '-' },
     { label: t('profile_bioClub'), value: club || '-' },
   ];
@@ -840,7 +852,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
               <Text style={styles.inputLabel}>{t('profile_positionLabel')}</Text>
               <TouchableOpacity style={styles.input} onPress={() => togglePicker('position')}>
                 <Text style={position ? styles.inputValueText : styles.inputPlaceholderText}>
-                  {position || t('profile_selectPosition')} {openPicker === 'position' ? '▲' : '▼'}
+                  {position ? positionLabel(position) : t('profile_selectPosition')} {openPicker === 'position' ? '▲' : '▼'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -854,7 +866,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
                       onPress={() => handleSelectPosition(pos)}
                       style={styles.fullListRow}
                     >
-                      <Text style={styles.listRowText}>{pos}</Text>
+                      <Text style={styles.listRowText}>{positionLabel(pos)}</Text>
                       {position === pos && <Text style={styles.checkmark}>✓</Text>}
                     </TouchableOpacity>
                   ))}
@@ -931,7 +943,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
                     onPress={() => setFoot(f)}
                     style={[styles.footPill, foot === f && styles.footPillActive]}
                   >
-                    <Text style={[styles.footPillText, foot === f && styles.footPillTextActive]}>{f}</Text>
+                    <Text style={[styles.footPillText, foot === f && styles.footPillTextActive]}>{footLabel(f)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1061,7 +1073,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             )}
           </HapticTouchable>
           <Text style={styles.name} numberOfLines={2}>{fullName || t('profile_enterNamePlaceholder')}</Text>
-          <Text style={styles.position} numberOfLines={1}>{position || t('profile_enterPositionPlaceholder')}</Text>
+          <Text style={styles.position} numberOfLines={1}>{position ? positionLabel(position) : t('profile_enterPositionPlaceholder')}</Text>
           <Text style={styles.club} numberOfLines={1}>{club || t('profile_enterClubPlaceholder')}</Text>
           {isPremiumActive && (
             <View style={styles.premiumMemberBadge}>
