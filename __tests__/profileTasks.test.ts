@@ -1,6 +1,8 @@
 /// <reference types="node" />
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   PROFILE_TASK_DEFS,
   PROFILE_TASK_TOTAL,
@@ -8,6 +10,20 @@ import {
   buildProfileTaskRows,
   parseScoreBreakdown,
 } from '../lib/profileTasks';
+
+// Sunucu (compute_profile_task_breakdown) ile istemci puan tablosu aynı olmalı; sapma testte yakalanır.
+test('task ids and points match the server breakdown in the migration', () => {
+  // npm test repo kökünden çalışır; derlenmiş çıktı klasöründen (__dirname) okunmaz.
+  const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261114120100_profile_task_score.sql'), 'utf8');
+  const server = new Map<string, number>();
+  for (const m of sql.matchAll(/'id',\s*'(\w+)',\s*'points',\s*(\d+)/g)) {
+    server.set(m[1], Number(m[2]));
+  }
+  assert.equal(server.size, PROFILE_TASK_DEFS.length);
+  for (const def of PROFILE_TASK_DEFS) {
+    assert.equal(server.get(def.id), def.points, `points mismatch for ${def.id}`);
+  }
+});
 
 test('task points add up to exactly the 100-point score maximum', () => {
   assert.equal(PROFILE_TASK_TOTAL, 100);
