@@ -33,9 +33,6 @@ export type Badge = {
 
 export const MAX_REWARD_PREMIUM_DAYS_PER_MONTH = 7;
 
-// Ödül/Premium talebi sunucu RPC'sine taşınana kadar kapalı. Kapalıyken claim düğmesi gösterilmez.
-export const REWARD_CLAIM_ENABLED = false;
-
 export const getBadges = (score: number, hasProfileBasics: boolean, isPremiumActive: boolean, t: T): Badge[] => [
   { key: 'basics', icon: 'person-outline', title: t('rewards_badgeBasicsTitle'), desc: t('rewards_badgeBasicsDesc'), unlocked: hasProfileBasics, rewardDays: 1 },
   { key: 'gelisiyor', icon: 'trending-up-outline', title: t('rewards_levelImproving'), desc: t('rewards_badgeGelisiyorDesc'), unlocked: score >= 31, rewardDays: 1 },
@@ -45,8 +42,13 @@ export const getBadges = (score: number, hasProfileBasics: boolean, isPremiumAct
   { key: 'premium', icon: 'diamond-outline', title: t('rewards_badgePremiumTitle'), desc: t('rewards_badgePremiumDesc'), unlocked: isPremiumActive, rewardDays: 0 },
 ];
 
-export const currentMonthKey = (d: Date = new Date()): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+// Ay anahtarı sunucuyla (award_due_profile_badges) aynı saat diliminde hesaplanır: Europe/Istanbul.
+// Türkiye yaz saati uygulamadığı için sabit UTC+3 kullanılır; cihazın yerel saat dilimi etkilemez.
+const ISTANBUL_OFFSET_MS = 3 * 60 * 60 * 1000;
+export const currentMonthKey = (d: Date = new Date()): string => {
+  const istanbul = new Date(d.getTime() + ISTANBUL_OFFSET_MS);
+  return `${istanbul.getUTCFullYear()}-${String(istanbul.getUTCMonth() + 1).padStart(2, '0')}`;
+};
 
 export type RewardProgress = {
   claimedBadgeKeys: string[];
@@ -66,20 +68,3 @@ export const loadRewardProgress = async (userId: string): Promise<RewardProgress
   };
 };
 
-export type ClaimResult = { ok: boolean; grantedDays: number; message: string };
-
-export const claimBadgeReward = async (userId: string, badge: Badge, t: T): Promise<ClaimResult> => {
-  if (badge.rewardDays <= 0) {
-    return { ok: false, grantedDays: 0, message: t('rewards_noReward') };
-  }
-
-  const progress = await loadRewardProgress(userId);
-  if (progress.claimedBadgeKeys.includes(badge.key)) {
-    return { ok: false, grantedDays: 0, message: t('rewards_alreadyClaimed') };
-  }
-
-  // Ödül günleri istemci tarafından YAZILMAZ: auth user_metadata ve profiles üzerinden
-  // Premium süresi uzatmak, kullanıcının kendine Premium vermesine yol açardı.
-  // Ödül talebi sunucu tarafı bir RPC'ye taşınana kadar kapalı kalır.
-  return { ok: false, grantedDays: 0, message: t('rewards_claimFailed') };
-};

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Theme, CARD_RADIUS, Paper, hexToRgba } from '../constants/theme';
+import { Theme, CARD_RADIUS, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
@@ -12,15 +12,11 @@ import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import {
   getLevel,
   getBadges,
-  claimBadgeReward,
   loadRewardProgress,
   MAX_REWARD_PREMIUM_DAYS_PER_MONTH,
-  REWARD_CLAIM_ENABLED,
-  Badge,
 } from '../lib/rewards';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
-import Toast from '../components/Toast';
 import SectionHeader from '../components/SectionHeader';
 
 const RADIUS = CARD_RADIUS;
@@ -39,19 +35,14 @@ export default function BadgesScreen({ navigate, userId }: Props) {
   const [score, setScore] = useState(0);
   const [hasProfileBasics, setHasProfileBasics] = useState(false);
   const [isPremiumActive, setIsPremiumActive] = useState(false);
-  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [claimedKeys, setClaimedKeys] = useState<string[]>([]);
   const [daysClaimedThisMonth, setDaysClaimedThisMonth] = useState(0);
-  const [claimingKey, setClaimingKey] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
-
 
   const load = async () => {
     setLoading(true);
     let uid = userId;
     const { data: { session } } = await supabase.auth.getSession();
     if (!uid) uid = session?.user?.id ?? null;
-    setResolvedUserId(uid ?? null);
 
     if (uid) {
       const status = await fetchPremiumStatus(uid).catch(() => INACTIVE_PREMIUM);
@@ -77,19 +68,6 @@ export default function BadgesScreen({ navigate, userId }: Props) {
   useEffect(() => {
     load();
   }, [userId]);
-
-  const handleClaim = async (badge: Badge) => {
-    if (!resolvedUserId || claimingKey) return;
-    setClaimingKey(badge.key);
-    const result = await claimBadgeReward(resolvedUserId, badge, t);
-    if (result.ok) {
-      setClaimedKeys((prev) => [...prev, badge.key]);
-      setDaysClaimedThisMonth((prev) => prev + result.grantedDays);
-      setIsPremiumActive(true);
-    }
-    setToast({ message: result.message, type: result.ok ? 'success' : 'error' });
-    setClaimingKey(null);
-  };
 
   const level = getLevel(score, t);
   const progressPct = Math.min(100, score);
@@ -160,7 +138,8 @@ export default function BadgesScreen({ navigate, userId }: Props) {
         <View style={styles.grid}>
           {badges.map((b) => {
             const claimed = claimedKeys.includes(b.key);
-            const canClaim = REWARD_CLAIM_ENABLED && b.unlocked && b.rewardDays > 0 && !claimed;
+            // Ödül sunucuda skor yenilenince otomatik işlenir; istemcide talep düğmesi yoktur.
+            const autoPending = b.unlocked && b.rewardDays > 0 && !claimed;
             return (
               <View key={b.key} style={[styles.badgeCard, !b.unlocked && styles.badgeCardLocked]}>
                 <View style={[styles.badgeIconWrap, { backgroundColor: b.unlocked ? hexToRgba(theme.gold, 0.16) : theme.card2 }]}>
@@ -173,22 +152,14 @@ export default function BadgesScreen({ navigate, userId }: Props) {
                     {claimed ? `+${b.rewardDays} ${t('badges_daysPremiumClaimed')}` : `+${b.rewardDays} ${t('badges_daysPremium')}`}
                   </Text>
                 )}
-                {canClaim && (
-                  <HapticTouchable
-                    style={[styles.claimBtn, claimingKey === b.key && { opacity: 0.6 }]}
-                    onPress={() => handleClaim(b)}
-                    disabled={!!claimingKey}
-                  >
-                    <Text style={styles.claimBtnText}>{claimingKey === b.key ? t('badges_claiming') : t('badges_claimReward')}</Text>
-                  </HapticTouchable>
+                {autoPending && (
+                  <Text style={styles.autoGrantText}>{t('badges_autoGranted')}</Text>
                 )}
               </View>
             );
           })}
         </View>
       </ScrollView>
-
-      <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
   );
 }
@@ -273,12 +244,5 @@ const createStyles = (theme: Theme) =>
     badgeTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.text, marginBottom: 4 },
     badgeDesc: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, lineHeight: 16 },
     badgeRewardText: { fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: theme.goldDark, marginTop: 8 },
-    claimBtn: {
-      marginTop: 10,
-      backgroundColor: theme.gold,
-      borderRadius: RADIUS - 4,
-      paddingVertical: 8,
-      alignItems: 'center',
-    },
-    claimBtnText: { fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: Paper.ink },
+    autoGrantText: { fontFamily: FontFamily.body, fontSize: 11, color: theme.textSecondary, marginTop: 6 },
   });
