@@ -85,13 +85,6 @@ const getDailyTips = (t: (key: TranslationKey) => string) => [
   t('home_tip5'),
 ];
 
-const getPlatformActivity = (t: (key: TranslationKey) => string): { icon: IoniconName; text: string; time: string }[] => [
-  { icon: 'business-outline', text: t('home_activity1'), time: '5m' },
-  { icon: 'person-outline', text: t('home_activity2'), time: '1h' },
-  { icon: 'football-outline', text: t('home_activity3'), time: '2h' },
-  { icon: 'flag-outline', text: t('home_activity4'), time: '3h' },
-];
-
 const getGridItems = (t: (key: TranslationKey) => string) => [
   { icon: '📈' as const, title: t('performance'), sub: t('home_gridPerformanceSub'), screen: 'footbally' },
   { icon: '⏱️' as const, title: t('matchAnalysis'), sub: t('home_gridMatchAnalysisSub'), screen: 'match' },
@@ -157,7 +150,6 @@ export default function HomeScreen({ navigate, userId }: Props) {
   const dailyTip = dailyTips[dayIndex % dailyTips.length];
   const scoreLevel = getScoreLevel(score, theme, t);
   const gridItems = getGridItems(t);
-  const platformActivity = getPlatformActivity(t);
   const [scoreAnim] = useState(() => new Animated.Value(0));
   const [scoreCountAnim] = useState(() => new Animated.Value(0));
   const [gridAnims] = useState(() => gridItems.map(() => new Animated.Value(0)));
@@ -553,20 +545,6 @@ export default function HomeScreen({ navigate, userId }: Props) {
                 <Text style={styles.gridSub}>{item.sub}</Text>
               </HapticTouchable>
             </Animated.View>
-          ))}
-        </View>
-
-        {/* Activity Feed */}
-        <SectionHeader title={t('home_platformActivity')} />
-        <View style={styles.activityList}>
-          {platformActivity.map((a, i) => (
-            <View key={i} style={styles.activityItem}>
-              <View style={styles.activityIconWrap}>
-                <Ionicons name={a.icon} size={16} color={theme.gold} />
-              </View>
-              <Text style={styles.activityText}>{a.text}</Text>
-              <Text style={styles.activityTime}>{a.time}</Text>
-            </View>
           ))}
         </View>
 
