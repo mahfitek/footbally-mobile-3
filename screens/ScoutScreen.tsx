@@ -23,7 +23,6 @@ import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 
 const RADIUS = CARD_RADIUS;
-type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const filters = ['Tümü', 'Forvet', 'Orta Saha', 'Defans', 'Kaleci'];
 
@@ -35,20 +34,6 @@ type PlayerView = {
   city: string;
   score: number;
 };
-
-type ScoutViewer = {
-  id: string;
-  name: string;
-  role: string;
-  icon: IoniconName;
-  online: boolean;
-};
-
-const SCOUT_VIEWERS: ScoutViewer[] = [
-  { id: 'v1', name: 'Mehmet Yılmaz', role: 'Galatasaray Scout', icon: 'business-outline', online: true },
-  { id: 'v2', name: 'Hans Mueller', role: 'Bundesliga Scout', icon: 'globe-outline', online: false },
-  { id: 'v3', name: 'Ahmet Demir', role: 'Trabzonspor Akademi', icon: 'flash-outline', online: true },
-];
 
 const MIN_AGE = 14;
 const MAX_AGE = 45;
@@ -64,7 +49,6 @@ export default function ScoutScreen({ navigate }: Props) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tümü');
   const [nearbyOnly, setNearbyOnly] = useState(false);
-  const [onlineScoutsOnly, setOnlineScoutsOnly] = useState(false);
   const [ageRange, setAgeRange] = useState<[number, number]>([MIN_AGE, MAX_AGE]);
   const [players, setPlayers] = useState<PlayerView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,8 +157,6 @@ export default function ScoutScreen({ navigate }: Props) {
     );
   });
 
-  const visibleScoutViewers = SCOUT_VIEWERS.filter((s) => !onlineScoutsOnly || s.online);
-
   const handleNearbyMatchesPress = () => {
     setNearbyOnly((prev) => !prev);
     setToast({ message: t('scout_nearbyComingSoon'), type: 'success' });
@@ -214,45 +196,6 @@ export default function ScoutScreen({ navigate }: Props) {
           </HapticTouchable>
           <Text style={styles.title}>{t('scout_title')}</Text>
         </View>
-
-        {/* Beni İnceleyen Scoutlar */}
-        <View style={styles.viewersHeader}>
-          <Text style={styles.viewersHeaderText}>
-            {SCOUT_VIEWERS.length} {t('scout_scoutsViewedProfile')}
-          </Text>
-          <HapticTouchable onPress={() => setOnlineScoutsOnly((prev) => !prev)}>
-            <View style={[styles.onlineToggle, onlineScoutsOnly && styles.onlineToggleActive]}>
-              <Text style={[styles.onlineToggleText, onlineScoutsOnly && styles.onlineToggleTextActive]}>
-                {t('scout_onlineScouts')}
-              </Text>
-            </View>
-          </HapticTouchable>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, flexShrink: 0 }}
-          contentContainerStyle={styles.viewersRow}
-        >
-          {visibleScoutViewers.map((s) => (
-            <View key={s.id} style={styles.viewerCard}>
-              <View style={styles.viewerAvatarWrap}>
-                <View style={styles.viewerAvatar}>
-                  <Ionicons name={s.icon} size={19} color={theme.gold} />
-                </View>
-                {s.online && <View style={styles.viewerOnlineDot} />}
-              </View>
-              <Text style={styles.viewerName} numberOfLines={1}>{s.name}</Text>
-              <Text style={styles.viewerRole} numberOfLines={1}>{s.role}</Text>
-              <HapticTouchable
-                style={styles.viewerMsgBtn}
-                onPress={() => navigate('chat', { id: s.id, name: s.name })}
-              >
-                <Text style={styles.viewerMsgBtnText}>{t('scout_sendMessage')}</Text>
-              </HapticTouchable>
-            </View>
-          ))}
-        </ScrollView>
 
         <View style={styles.searchWrap}>
           <Ionicons name="search-outline" size={15} color={theme.textSecondary} style={{ marginRight: 10 }} />
