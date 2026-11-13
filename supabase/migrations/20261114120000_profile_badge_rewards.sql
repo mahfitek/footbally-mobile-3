@@ -64,8 +64,13 @@ begin
     v_used := case when v_p.reward_premium_month_key = v_month then v_p.reward_premium_days_this_month else 0 end;
     v_grant := least(r.reward_days, greatest(0, 7 - v_used));
 
-    -- Rozet her durumda işaretlenir (aynı rozet bir daha değerlendirilmez). Aylık limit aşılırsa
-    -- fazla günler verilmez.
+    -- Aylık limit bu rozetin tüm günlerini karşılamıyorsa rozet beklemeye alınır: claimed_badge_keys'e
+    -- eklenmez, gün ve bildirim verilmez. Sonraki skor yenilemesinde (ve yeni ayda) tekrar denenir.
+    if v_grant < r.reward_days then
+      continue;
+    end if;
+
+    -- Rozet verildiğinde işaretlenir; böylece aynı rozet bir daha değerlendirilmez.
     update public.profiles
        set claimed_badge_keys = array_append(claimed_badge_keys, r.badge_key),
            reward_premium_month_key = v_month,
