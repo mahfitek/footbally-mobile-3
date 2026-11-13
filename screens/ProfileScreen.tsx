@@ -36,6 +36,7 @@ import { blockUser } from '../lib/blocking';
 import { profiles } from '../lib/profiles';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { PROFILE_TASK_DEFS, parseScoreBreakdown, type ProfileTaskId, type ProfileTaskState } from '../lib/profileTasks';
+import { buildAiCvText } from '../lib/aiCv';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -166,6 +167,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [uploadingGalleryPhoto, setUploadingGalleryPhoto] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [creatingCv, setCreatingCv] = useState(false);
   const [galleryPreviewUrl, setGalleryPreviewUrl] = useState<string | null>(null);
   const [showGalleryGrid, setShowGalleryGrid] = useState(false);
 
@@ -558,6 +560,74 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       setToast({ message: t('profile_videoUploadFailed'), type: 'error' });
     } finally {
       setUploadingVideo(false);
+    }
+  };
+
+  // AI CV: profil verisinden deterministik metin üretilir (yapay zeka çağrısı yok) ve save_my_ai_cv ile kaydedilir.
+  const handleCreateAiCv = async () => {
+    if (creatingCv) return;
+    setCreatingCv(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id ?? null;
+      if (!uid) {
+        setToast({ message: t('teamEdit_noSession'), type: 'error' });
+        return;
+      }
+
+      const { data: me, error: meError } = await profiles.ownProfile(
+        'full_name, position, age, height, weight, city, district, club, foot, bio, score, overall_rating'
+      );
+      if (meError || !me) throw meError ?? new Error('profile_unavailable');
+
+      // Son tamamlanmış AI analizinin güçlü yönleri (varsa). Okunamazsa CV bu bilgi olmadan üretilir.
+      const { data: job } = await supabase
+        .from('ai_video_jobs')
+        .select('result')
+        .eq('user_id', uid)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const rawStrengths = (job?.result as { strengths?: unknown } | null | undefined)?.strengths;
+      const strengths = Array.isArray(rawStrengths)
+        ? rawStrengths.filter((s): s is string => typeof s === 'string')
+        : [];
+
+      const text = buildAiCvText(
+        {
+          fullName: me.full_name,
+          position: me.position,
+          age: me.age,
+          height: me.height,
+          weight: me.weight,
+          city: me.city,
+          district: me.district,
+          club: me.club,
+          foot: me.foot,
+          bio: me.bio,
+          score: me.score,
+          overallRating: me.overall_rating,
+          strengths,
+        },
+        t
+      );
+
+      const { error: saveError } = await profiles.saveAiCv(text);
+      if (saveError) throw saveError;
+
+      const scoreRefreshed = await refreshServerScore(uid);
+      await loadProfile();
+      setToast(
+        scoreRefreshed
+          ? { message: t('aiCv_saved'), type: 'success' }
+          : { message: t('profile_scoreRefreshFailed'), type: 'error' }
+      );
+    } catch (err) {
+      if (__DEV__) console.log('AI CV kaydedilemedi:', err);
+      setToast({ message: t('aiCv_failed'), type: 'error' });
+    } finally {
+      setCreatingCv(false);
     }
   };
 
@@ -1265,6 +1335,15 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <View style={[styles.completionFill, { width: `${score}%` }]} />
           </View>
 
+          {isOwnProfile && (
+            <HapticTouchable
+              onPress={handleCreateAiCv}
+              disabled={creatingCv}
+              style={[styles.footPillActive, { alignSelf: 'flex-start', marginTop: 12 }, creatingCv && { opacity: 0.6 }]}
+            >
+              <Text style={styles.footPillTextActive}>{t('aiCv_createButton')}</Text>
+            </HapticTouchable>
+          )}
           {isOwnProfile && score < 100 && scoreSuggestions.length > 0 && (
             <>
               <Text style={styles.scoreHint}>{t('profile_scoreHintPrefix')}</Text>

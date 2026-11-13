@@ -60,6 +60,11 @@ export function createProfileQueries(client: ProfileClient) {
       return client.rpc('get_my_score_breakdown');
     },
 
+    /** AI CV metnini kendi profiline kaydeder (save_my_ai_cv: uzunluk ve hesap kontrolü sunucuda). */
+    saveAiCv(text: string) {
+      return client.rpc('save_my_ai_cv', { p_text: text });
+    },
+
     /**
      * Form alanları kaydedildikten sonra tamamlanmayı sunucuda onaylar (parametresiz).
      * Tamamlanma zamanını yalnızca sunucu yazar; sonuç için profileCompletion.classifyCompletionResult kullanılır.

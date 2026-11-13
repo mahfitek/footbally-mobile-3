@@ -83,6 +83,13 @@ test('scoreBreakdown reads the server task breakdown through its RPC only', () =
   assert.equal(calls.some((c) => c.method === 'from:profiles'), false);
 });
 
+test('saveAiCv writes through the save_my_ai_cv RPC, never a direct profiles update', () => {
+  const { client, calls } = fakeClient();
+  createProfileQueries(client as any).saveAiCv('CV');
+  assert.equal(calls[0].method, 'rpc:save_my_ai_cv');
+  assert.equal(calls.some((c) => c.method === 'from:profiles'), false);
+});
+
 test('insertOwn stamps the caller user_id onto the values', () => {
   const { client, calls } = fakeClient();
   createProfileQueries(client as any).insertOwn('me', { full_name: 'X', score: 0 });
