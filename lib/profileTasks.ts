@@ -85,3 +85,34 @@ export function buildProfileTaskRows(breakdown: ScoreBreakdown): ProfileTaskRow[
   const doneById = new Map(breakdown.tasks.map((task) => [task.id, task.done]));
   return PROFILE_TASK_DEFS.map((def) => ({ ...def, done: doneById.get(def.id) === true }));
 }
+
+// Görev kuralları. Tamamlanma kararı sunucuda verilir (compute_profile_task_breakdown); bu yardımcılar aynı
+// kuralı istemci tarafında da tanımlar ve test edilir. Kural değişirse iki yer birlikte güncellenmelidir.
+
+/** Bu durumdaki başvurular görevi tamamlamaz (sunucu listesiyle aynı). */
+export const NEGATIVE_APPLICATION_STATUSES = ['rejected', 'cancelled', 'canceled', 'withdrawn', 'declined'] as const;
+
+/** Olumsuz olmayan her başvuru sayılır. Tabloda onaylı bir durum bulunmadığı için bu kural yeterlidir. */
+export function countsAsApplication(status: string | null | undefined): boolean {
+  const normalized = (status ?? '').toLowerCase();
+  return !(NEGATIVE_APPLICATION_STATUSES as readonly string[]).includes(normalized);
+}
+
+export type PremiumSubscriptionRow = {
+  plan: string | null;
+  status: string | null;
+  amount: number | null;
+  payment_provider: string | null;
+  expires_at: string | null;
+};
+
+/**
+ * "Premium'a geç" görevini tamamlayan abonelik: etkin, süresi dolmamış, ödül (plan='reward') olmayan ve
+ * gerçek ücretli ya da Apple aboneliği.
+ */
+export function countsAsPaidPremium(sub: PremiumSubscriptionRow, nowMs: number = Date.now()): boolean {
+  if ((sub.status ?? '').toLowerCase() !== 'active') return false;
+  if (sub.expires_at !== null && Date.parse(sub.expires_at) <= nowMs) return false;
+  if ((sub.plan ?? '') === 'reward') return false;
+  return (sub.amount ?? 0) > 0 || sub.payment_provider === 'apple';
+}

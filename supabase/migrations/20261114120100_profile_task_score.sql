@@ -38,19 +38,25 @@ begin
     jsonb_build_object('id', 'district', 'points', 2, 'done', nullif(btrim(p.district), '') is not null),
     jsonb_build_object('id', 'foot',     'points', 2, 'done', nullif(btrim(p.foot), '') is not null),
     jsonb_build_object('id', 'photo',    'points', 5, 'done', nullif(btrim(p.avatar_url), '') is not null),
+    -- Başvurular: olumsuz durumlar (reddedildi, iptal, geri çekildi) sayılmaz. Tabloda onaylı bir durum
+    -- (accepted/approved/confirmed) yoktur; bu nedenle olumsuz olmayan her başvuru yeterli kabul edilir.
     jsonb_build_object('id', 'match',    'points', 8, 'done', exists (
         select 1 from public.match_applications m
-         where m.user_id = p_user_id and m.match_id is not null)),
+         where m.user_id = p_user_id and m.match_id is not null
+           and lower(coalesce(m.status, '')) not in ('rejected', 'cancelled', 'canceled', 'withdrawn', 'declined'))),
     jsonb_build_object('id', 'apply',    'points', 5, 'done', exists (
         select 1 from public.match_applications m
-         where m.user_id = p_user_id and m.opportunity_id is not null)),
-    -- Ödül aboneliği (plan='reward') "Premium'a geç" görevini tamamlamaz; yalnızca ücretli ya da yönetici aboneliği sayılır.
+         where m.user_id = p_user_id and m.opportunity_id is not null
+           and lower(coalesce(m.status, '')) not in ('rejected', 'cancelled', 'canceled', 'withdrawn', 'declined'))),
+    -- "Premium'a geç": yalnızca gerçek ücretli abonelik. Ödül aboneliği (plan='reward') ve tutarı olmayan
+    -- kayıtlar (ör. yönetici hediyesi, amount boş/0) sayılmaz. Apple aboneliği payment_provider='apple' ile sayılır.
     jsonb_build_object('id', 'premium',  'points', 7, 'done', exists (
         select 1 from public.subscriptions s
          where s.user_id = p_user_id
            and lower(s.status) = 'active'
            and (s.expires_at is null or s.expires_at > now())
-           and coalesce(s.plan, '') <> 'reward')),
+           and coalesce(s.plan, '') <> 'reward'
+           and (coalesce(s.amount, 0) > 0 or s.payment_provider = 'apple'))),
     jsonb_build_object('id', 'aiCv',     'points', 15, 'done', nullif(btrim(p.ai_cv_text), '') is not null),
     jsonb_build_object('id', 'aiAnalysis', 'points', 15, 'done', exists (
         select 1 from public.ai_video_jobs j
