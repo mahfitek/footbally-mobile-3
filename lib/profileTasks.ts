@@ -107,12 +107,13 @@ export type PremiumSubscriptionRow = {
 };
 
 /**
- * "Premium'a geç" görevini tamamlayan abonelik: etkin, süresi dolmamış, ödül (plan='reward') olmayan ve
- * gerçek ücretli ya da Apple aboneliği.
+ * "Premium'a geç" görevini tamamlayan abonelik: etkin, süresi dolmamış ve ödül (plan='reward') olmayan;
+ * ücretli (amount > 0), Apple (payment_provider='apple') ya da yönetici hediyesi (plan='admin').
  */
 export function countsAsPaidPremium(sub: PremiumSubscriptionRow, nowMs: number = Date.now()): boolean {
   if ((sub.status ?? '').toLowerCase() !== 'active') return false;
   if (sub.expires_at !== null && Date.parse(sub.expires_at) <= nowMs) return false;
-  if ((sub.plan ?? '') === 'reward') return false;
-  return (sub.amount ?? 0) > 0 || sub.payment_provider === 'apple';
+  const plan = (sub.plan ?? '').toLowerCase();
+  if (plan === 'reward') return false;
+  return (sub.amount ?? 0) > 0 || sub.payment_provider === 'apple' || plan === 'admin';
 }

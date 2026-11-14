@@ -18,11 +18,12 @@ const NOW = Date.parse('2026-11-14T12:00:00Z');
 const future = '2026-12-14T12:00:00Z';
 const past = '2026-10-14T12:00:00Z';
 
-test('"Premium\'a geç" counts only active, unexpired, paid or Apple subscriptions', () => {
+test('"Premium\'a geç" counts active, unexpired paid, Apple or admin subscriptions, never reward', () => {
   const base = { plan: 'Monthly', status: 'active', amount: 99, payment_provider: null, expires_at: future };
   assert.equal(countsAsPaidPremium(base, NOW), true);
   assert.equal(countsAsPaidPremium({ ...base, plan: 'reward', amount: 0 }, NOW), false);
-  assert.equal(countsAsPaidPremium({ ...base, plan: 'admin', amount: null }, NOW), false);
+  assert.equal(countsAsPaidPremium({ ...base, plan: 'reward', amount: 99, payment_provider: 'apple' }, NOW), false);
+  assert.equal(countsAsPaidPremium({ ...base, plan: 'admin', amount: null }, NOW), true);
   assert.equal(countsAsPaidPremium({ ...base, amount: 0 }, NOW), false);
   assert.equal(countsAsPaidPremium({ ...base, amount: 0, payment_provider: 'apple' }, NOW), true);
   assert.equal(countsAsPaidPremium({ ...base, status: 'Cancelled' }, NOW), false);
@@ -45,8 +46,9 @@ test('the server SQL uses the same negative application statuses and reward rule
   for (const status of NEGATIVE_APPLICATION_STATUSES) {
     assert.ok(sql.includes(`'${status}'`), `server SQL is missing status ${status}`);
   }
-  assert.ok(sql.includes("coalesce(s.plan, '') <> 'reward'"));
+  assert.ok(sql.includes("lower(coalesce(s.plan, '')) <> 'reward'"));
   assert.ok(sql.includes("s.payment_provider = 'apple'"));
+  assert.ok(sql.includes("lower(coalesce(s.plan, '')) = 'admin'"));
 });
 
 // Sunucu (compute_profile_task_breakdown) ile istemci puan tablosu aynı olmalı; sapma testte yakalanır.

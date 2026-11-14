@@ -48,15 +48,17 @@ begin
         select 1 from public.match_applications m
          where m.user_id = p_user_id and m.opportunity_id is not null
            and lower(coalesce(m.status, '')) not in ('rejected', 'cancelled', 'canceled', 'withdrawn', 'declined'))),
-    -- "Premium'a geç": yalnızca gerçek ücretli abonelik. Ödül aboneliği (plan='reward') ve tutarı olmayan
-    -- kayıtlar (ör. yönetici hediyesi, amount boş/0) sayılmaz. Apple aboneliği payment_provider='apple' ile sayılır.
+    -- "Premium'a geç": etkin, süresi dolmamış abonelik. Ödül aboneliği (plan='reward') sayılmaz. Sayılanlar:
+    -- ücretli abonelik (amount > 0), Apple aboneliği (payment_provider='apple') ve yönetici hediyesi (plan='admin').
+    -- Bu kural canlı veritabanındaki elle uygulanmış hali ile aynıdır.
     jsonb_build_object('id', 'premium',  'points', 7, 'done', exists (
         select 1 from public.subscriptions s
          where s.user_id = p_user_id
            and lower(s.status) = 'active'
            and (s.expires_at is null or s.expires_at > now())
-           and coalesce(s.plan, '') <> 'reward'
-           and (coalesce(s.amount, 0) > 0 or s.payment_provider = 'apple'))),
+           and lower(coalesce(s.plan, '')) <> 'reward'
+           and (coalesce(s.amount, 0) > 0 or s.payment_provider = 'apple'
+                or lower(coalesce(s.plan, '')) = 'admin'))),
     jsonb_build_object('id', 'aiCv',     'points', 15, 'done', nullif(btrim(p.ai_cv_text), '') is not null),
     jsonb_build_object('id', 'aiAnalysis', 'points', 15, 'done', exists (
         select 1 from public.ai_video_jobs j
