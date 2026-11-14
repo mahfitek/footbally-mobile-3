@@ -21,8 +21,10 @@ Tamamlanma kontrolü aynı kalır (`completed` analiz). Commit: `d12f0e4` (trigg
 
 **3. Maç videosu görevi (20 puan).** Kök neden: uygulamada video yükleme yoktu. Fotoğraf galerisi `player_gallery`
 tablosuna ve `videos` bucket'ına yazıyor; `profiles.photo_urls` güncellenmiyor (sapma: madde metni `photo_urls` diyordu).
-Değişiklik: galeri bölümünde "Video ekle" döşemesi (aynı stil). Video `videos` bucket'ında `<uid>/videos/` altına
-yüklenir, yolu `profiles.video_urls` listesine eklenir, skor yenilenir. Trigger kontrolü: `protect_profile_trusted_columns`
+Değişiklik: galeri bölümünde "Video ekle" döşemesi (aynı stil). Video herkese açık `profile-media` bucket'ında
+`<uid>/videos/<zaman>.<uzantı>` yoluna `upsert: false` ile yüklenir; listeye web sitesiyle aynı biçimde açık bağlantı
+(`getPublicUrl`) eklenir, skor yenilenir. Tür (MP4, MOV, WebM, M4V) ve boyut (200 MB) yüklemeden önce kontrol edilir,
+TR/EN toast gösterilir. Commit: `acefcf4`. (İlk sürümdeki depolama yolu yazımı bu commit ile değişti.) Trigger kontrolü: `protect_profile_trusted_columns`
 `video_urls`'i kapsamıyor; `guard_removed_profile_media` yalnızca admin tarafından kaldırılmış medyayı engelliyor.
 İstisna eklenmedi. Yükleme limiti yok. Commit: `5ded3da`.
 
@@ -40,8 +42,9 @@ bildirim verilmez; sonraki skor yenilemesinde ve yeni ayda tekrar denenir. Commi
 
 **6. "Premium'a geç" görevi.** Kök neden: `plan <> 'reward'` dışındaki her abonelik sayılıyordu. Canlı veride
 yönetici hediyeleri `amount` boş bırakılıyor. Değişiklik: sayılması için etkin, süresi dolmamış, `plan <> 'reward'`
-ve (`amount > 0` veya `payment_provider = 'apple'`) olmalı. Aynı kural `lib/profileTasks.ts` içinde
-`countsAsPaidPremium` olarak tanımlandı ve test edildi. Commit: `07f88f6`.
+ve (`amount > 0` veya `payment_provider = 'apple'` veya `plan = 'admin'`) olmalı. Yönetici hediyesinin sayılması canlıda
+elle uygulanmıştı; migration ve istemci kuralı buna göre eşitlendi (commit `a56a876`). Aynı kural
+`lib/profileTasks.ts` içinde `countsAsPaidPremium` olarak tanımlı ve test ediliyor. İlk commit: `07f88f6`.
 
 **7. Maç ve başvuru görevleri.** Kök neden: `match_applications` satırı durumdan bağımsız sayılıyordu. Canlı
 değerler: `status` yalnızca `applied` (11 satır); onaylı bir durum yok. Değişiklik: `rejected`, `cancelled`,
@@ -64,16 +67,19 @@ eklenen tüm anahtarlar TR/EN için test ediliyor (`c305653`).
 - **Madde 2, analiz kapsamı:** Analiz ekranı yalnızca görüntü (`type: 'image'`) gönderiyor. Görüntü analizleri
   video listesine girmez (uzantı filtresi). AI analiz görevi yine görüntü analizleriyle tamamlanır. *Değiştirmek için:*
   `add_video_from_completed_analysis` içindeki uzantı kontrolünü kaldırın.
-- **Madde 3, depolama ve kayıt:** Yol `<uid>/videos/...` ve `profiles.video_urls` içinde saklanıyor (fotoğrafların
-  `player_gallery` kaydından farklı). Video listesi profil ekranında gösterilmiyor. *Değiştirmek için:* video
-  listesini galeri gibi göstermek ve yükleme limiti eklemek ayrı bir iş.
-- **Madde 4, CV yazımı:** Düğme RPC kullanıyor; ancak `ai_cv_text` için RLS güncellemesi hâlâ mümkün. *Değiştirmek
-  için:* `protect_profile_trusted_columns` içine `ai_cv_text` eklenir (yeni migration gerekir).
+- **Madde 3, depolama ve kayıt:** Video `profile-media` deposunda herkese açık bağlantıyla `profiles.video_urls`
+  içinde saklanıyor (fotoğrafların `player_gallery` kaydından farklı). Video listesi profil ekranında gösterilmiyor;
+  uygulamada `video_urls` okuyan ekran yok. *Değiştirmek için:* video listesini galeri gibi göstermek ayrı bir iş.
+  `ai_video_jobs` trigger'ı hâlâ depolama yolunu (açık bağlantı değil) yazıyor; analiz yalnızca görüntü olduğu için
+  bu pratikte tetiklenmiyor.
+- **Madde 4, CV yazımı:** Düğme RPC kullanıyor. `ai_cv_text` istemcinin doğrudan güncellemesine bilerek açık: web
+  sitesi bu alanı doğrudan güncelliyor. Kapatmak için `protect_profile_trusted_columns` içine eklenir (web sitesini
+  de etkiler).
 - **Madde 5, bekleme kuralı:** Kısmi gün verilmez; rozet ya tam günleriyle verilir ya da beklemede kalır. *Değiştirmek
   için:* `if v_grant < r.reward_days` koşulunu kaldırıp kalan günleri vermek.
-- **Madde 6, admin hediyeleri:** `plan='admin'` ve `amount` boş olan yönetici premiumları "Premium'a geç" görevini
-  tamamlamaz. Bu, yönetici tarafından premium verilen kullanıcılar için görev puanı kaybıdır. *Değiştirmek için:*
-  koşula `or s.plan = 'admin'` eklenir.
+- **Madde 6, admin hediyeleri:** Yönetici hediyesi (`plan='admin'`) artık "Premium'a geç" görevini tamamlıyor; canlı
+  kuralla eşitlendi. *Değiştirmek için:* koşuldan `or lower(coalesce(s.plan, '')) = 'admin'` ifadesini çıkarın ve
+  istemci yardımcısını buna göre güncelleyin.
 - **Madde 7, başvuru statüleri:** Tabloda onaylı bir statü olmadığı için olumsuz olmayan her başvuru sayılıyor.
   *Değiştirmek için:* onaylı statüler tabloya eklenince "maça katıl" için onaylı statüyü şart koşmak.
 - **Madde 8, toast metni ve öncelik:** Kayıt başarılıysa ama skor yenilenemediyse toast skor uyarısı oluyor.
@@ -101,6 +107,8 @@ Uygulama sırası (önce kontrol, sonra uygula):
 1. `supabase/migrations/20261114120000_profile_badge_rewards.sql`
 2. `supabase/migrations/20261114120100_profile_task_score.sql`
 3. `supabase/migrations/20261114120200_profile_ai_video_cv.sql`
+4. `supabase/migrations/20261114120300_premium_expiry_sync.sql` (süresi dolan premium'ları 15 dakikada bir kapatır;
+   `pg_cron` eklentisi gerektirir ve `cron.schedule` çağrısı içerir; yerel testte kapsanmadı)
 
 Yerel test: PostgreSQL 16.2 (geçici, proje dışında), Supabase şemasını taklit eden bir stub üzerinde üç dosya
 sırayla uygulandı. Senaryo betiği: `C:\Users\miyas\AppData\Local\Temp\claude\0a528e0ac0c24724\7c5a844a-05d1-43df-9a82-a4ddb6d914c9\scratchpad\run_sql_checks_v2.py`
