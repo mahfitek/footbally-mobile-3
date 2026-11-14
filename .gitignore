@@ -41,3 +41,6 @@ yarn-error.*
 /android
 scripts/demo_seed_manifest.json
 scripts/openapi_dump.json
+
+# Supabase CLI local state (not versioned)
+supabase/.temp/
