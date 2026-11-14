@@ -5,7 +5,8 @@
 --    Kaldırılmış (admin tarafından removed_by_admin) medya geri eklenmez: guard_removed_profile_media hatasından
 --    kaçınmak için aynı kontrol burada yapılır ve sessizce atlanır. Aynı URL iki kez eklenmez.
 -- 2) save_my_ai_cv(p_text): AI CV metnini kendi profiline yazar. auth.uid() kullanır, 4000 karakter sınırı vardır.
---    ai_cv_text istemcinin doğrudan güncellemesine açık değildir; yazım yalnızca bu fonksiyon üzerinden yapılır.
+--    ai_cv_text istemcinin doğrudan güncellemesine bilerek açık bırakıldı; web sitesi bu alanı doğrudan güncelliyor.
+--    Uygulama yazımı save_my_ai_cv üzerinden yapar. Trigger bu alanı korumaz, RLS güncelleme izni geçerlidir.
 
 create or replace function public.add_video_from_completed_analysis()
 returns trigger
