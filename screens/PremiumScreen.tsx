@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import HapticTouchable from '../components/HapticTouchable';
@@ -26,7 +27,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import SectionHeader from '../components/SectionHeader';
 import PremiumEftSection from '../components/PremiumEftSection';
 import { IAP_PRODUCTS, IAP_LINKS, IapPlanId } from '../constants/iap';
-import { loadIapStoreInfo, purchasePremium, syncApplePurchases, IapStoreInfo } from '../lib/iap';
+import { loadIapStoreInfo, purchasePremium, syncApplePurchases, onIapStatusChanged, IapStoreInfo } from '../lib/iap';
 import { formatMoney, yearlySaving } from '../constants/iap';
 
 const IS_IOS = Platform.OS === 'ios';
@@ -86,11 +87,21 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
   const [userId, setUserId] = useState<string | null>(null);
   const [store, setStore] = useState<IapStoreInfo>({ plans: {} });
   const [busy, setBusy] = useState<'purchase' | 'restore' | null>(null);
+  const busyRef = useRef(false);
+  const loadSequence = useRef(0);
+
+  const showTimeout = () => Alert.alert(
+    lang === 'tr' ? 'İşlem zaman aşımına uğradı' : 'Purchase timed out',
+    lang === 'tr'
+      ? 'Satın alma sonucu henüz doğrulanamadı. Apple işlemi devam ediyor olabilir. Yeniden satın almadan önce “Satın alımları geri yükle” seçeneğini kullanın.'
+      : 'The purchase could not be confirmed yet. Apple may still be processing it. Use Restore Purchases before buying again.',
+  );
 
   // Premium durumu ve üye numarası sunucudan okunur. Kullanıcı metadata'sındaki
   // premium alanı istemci tarafından yazılabildiği için hiçbir karar ona dayanmaz.
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    const sequence = ++loadSequence.current;
+    if (!silent) setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
@@ -100,19 +111,26 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
           fetchPremiumStatus(user.id),
           profiles.ownProfile('member_no'),
         ]);
-        setPremium(status);
-        setMemberNo(profileRes.data?.member_no ?? null);
+        if (sequence === loadSequence.current) {
+          setPremium(status);
+          setMemberNo(profileRes.data?.member_no ?? null);
+        }
       }
     } catch (err) {
       if (__DEV__) console.log('Premium durumu yüklenirken beklenmeyen hata:', err);
     }
-    setLoading(false);
+    if (sequence === loadSequence.current) setLoading(false);
   };
 
   useEffect(() => {
     loadData();
     // Fiyatlar ve deneme uygunluğu StoreKit'ten okunur; okunamazsa sabit fiyatlar kalır.
     if (IS_IOS) loadIapStoreInfo().then(setStore).catch(() => {});
+    const unsubscribe = onIapStatusChanged(() => { void loadData(true); });
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void loadData(true);
+    });
+    return () => { unsubscribe(); foreground.remove(); loadSequence.current++; };
   }, []);
 
   const priceText = (p: { id: PlanId; price: number }) =>
@@ -142,34 +160,59 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
 
   // busy bayrağı çift tıklamayı engeller. Kullanıcı iptal ederse hiçbir mesaj gösterilmez.
   const handleSubscribe = async () => {
-    if (busy) return;
+    if (busyRef.current) return;
+    if (premium.active) return;
+    busyRef.current = true;
     setBusy('purchase');
-    const outcome = await purchasePremium(selectedPlan, userId).catch(() => 'error' as const);
-    setBusy(null);
+    let outcome;
+    try {
+      outcome = await purchasePremium(selectedPlan, userId);
+    } catch {
+      outcome = 'error' as const;
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
+    }
     if (outcome === 'success') {
       Alert.alert(t('premium_successTitle'), t('premium_successSub'));
+      await loadData();
+    } else if (outcome === 'existing') {
       await loadData();
     } else if (outcome === 'pending') {
       Alert.alert(t('premium_purchasePending' as any));
     } else if (outcome === 'already_linked') {
       Alert.alert(t('premium_alreadyLinked' as any));
-    } else if (outcome === 'error') {
+    } else if (outcome === 'timeout') {
+      showTimeout();
+    } else if (outcome === 'error' || outcome === 'none') {
       Alert.alert(t('premium_purchaseFailedTitle' as any), t('premium_purchaseFailed' as any));
     }
   };
 
   const handleRestore = async () => {
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy('restore');
-    const outcome = await syncApplePurchases(true);
-    setBusy(null);
-    if (outcome === 'success') {
-      Alert.alert(t('premium_successTitle'), t('premium_successSub'));
+    let outcome;
+    try {
+      outcome = await syncApplePurchases(true);
+    } catch {
+      outcome = 'error' as const;
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
+    }
+    if (outcome === 'restored') {
+      Alert.alert(lang === 'tr' ? 'Aboneliğiniz geri yüklendi' : 'Subscription restored');
       await loadData();
     } else if (outcome === 'none') {
       Alert.alert(t('premium_restoreNone' as any));
     } else if (outcome === 'already_linked') {
       Alert.alert(t('premium_alreadyLinked' as any));
+    } else if (outcome === 'timeout') {
+      showTimeout();
+    } else if (outcome === 'pending') {
+      Alert.alert(t('premium_purchasePending' as any));
     } else if (outcome === 'error') {
       Alert.alert(t('premium_restoreFailed' as any));
     }
@@ -275,6 +318,14 @@ export default function PremiumScreen({ navigate, previousScreen }: Props) {
         {/* Havale/EFT akışı yalnızca geliştirme önizlemesinde açılır. Mağaza
             sürümlerinde IBAN talimatı yayımlanmaz; uygun ödeme sistemi ayrıca belirlenir.
             iOS'ta (dev build dahil) hiç gösterilmez; orada abonelik Apple IAP ile satılır. */}
+        {IS_IOS && isPremiumActive && (
+          <View>
+            <Text style={styles.ctaSub}>{lang === 'tr' ? 'Premium Aktif' : 'Premium Active'}</Text>
+            <HapticTouchable style={styles.ctaBtn} onPress={() => openLink('https://apps.apple.com/account/subscriptions')}>
+              <Text style={styles.ctaText}>{lang === 'tr' ? 'Aboneliği Yönet' : 'Manage Subscription'}</Text>
+            </HapticTouchable>
+          </View>
+        )}
         {IS_IOS && !isPremiumActive && (
           <>
             <HapticTouchable
