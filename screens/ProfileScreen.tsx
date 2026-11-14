@@ -37,6 +37,7 @@ import { profiles } from '../lib/profiles';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { PROFILE_TASK_DEFS, parseScoreBreakdown, type ProfileTaskId, type ProfileTaskState } from '../lib/profileTasks';
 import { buildAiCvText } from '../lib/aiCv';
+import { PROFILE_VIDEO_BUCKET, PROFILE_VIDEO_MAX_BYTES, checkProfileVideo, profileVideoPath } from '../lib/profileVideo';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -486,7 +487,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     setUploadingGalleryPhoto(false);
   };
 
-  // Maç videosu: depoya (videos bucket, kullanıcı klasörü) yüklenir; yolu profiles.video_urls listesine eklenir.
+  // Maç videosu: profile-media (herkese açık) deposuna yüklenir; açık bağlantı profiles.video_urls listesine eklenir.
   // Görev tamamlanması sunucudaki video_urls dolu olmasına bağlıdır (compute_profile_task_breakdown).
   const handleVideoAddPress = () => {
     Alert.alert(t('profile_videoAlertTitle'), t('profile_howToAddVideo'), [
@@ -531,19 +532,30 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       }
 
       const asset = picked.assets[0];
-      const ext = (asset.fileName?.split('.').pop() ?? 'mp4').toLowerCase();
-      const path = `${user.id}/videos/${Date.now()}.${ext}`;
+      const check = checkProfileVideo({ mimeType: asset.mimeType, fileName: asset.fileName, fileSize: asset.fileSize });
+      if (!check.ok) {
+        setToast({ message: t(check.reason === 'too_large' ? 'profile_videoTooLarge' : 'profile_videoBadType'), type: 'error' });
+        return;
+      }
       const buffer = await fetch(asset.uri).then((r) => r.arrayBuffer());
+      if (buffer.byteLength > PROFILE_VIDEO_MAX_BYTES) {
+        setToast({ message: t('profile_videoTooLarge'), type: 'error' });
+        return;
+      }
 
+      // upsert: false. Depo politikasında UPDATE yok; üzerine yazma hata verir. Yol zaman damgası içerdiği için çakışmaz.
+      const path = profileVideoPath(user.id, Date.now(), check.type.ext);
       const { error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(path, buffer, { contentType: asset.mimeType ?? 'video/mp4', upsert: true });
+        .from(PROFILE_VIDEO_BUCKET)
+        .upload(path, buffer, { contentType: check.type.contentType, upsert: false });
       if (uploadError) throw uploadError;
+      // Web sitesiyle aynı biçim: listeye depo yolu değil açık bağlantı (publicUrl) yazılır.
+      const { data: publicData } = supabase.storage.from(PROFILE_VIDEO_BUCKET).getPublicUrl(path);
 
       const { data: current, error: readError } = await profiles.ownProfile('video_urls');
       if (readError) throw readError;
       const { data: updated, error: updateError } = await profiles.updateOwn(user.id, {
-        video_urls: [...(current?.video_urls ?? []), path],
+        video_urls: [...(current?.video_urls ?? []), publicData.publicUrl],
       });
       if (updateError) throw updateError;
       if (!updated || updated.length === 0) throw new Error('profile_not_updated');
