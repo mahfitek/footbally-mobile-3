@@ -16,7 +16,7 @@ export const MESSAGE_COLUMNS = 'id, conversation_id, sender_user_id, body, creat
 
 export const NOTIFICATION_COLUMNS = 'id, user_id, title, body, read, screen, created_at' as const;
 
-export const MATCH_COLUMNS = 'id, title, date, time, location, city, district, type, description, required_players, team_payment, travel_covered, food_covered, needed_positions, creator_id, status, created_at, category' as const;
+export const MATCH_COLUMNS = 'id, title, date, time, location, city, district, type, description, required_players, team_payment, travel_covered, food_covered, needed_positions, creator_id, status, created_at, category, team_id, listing_type, match_format, formation, lineup, fee_note' as const;
 
 export const POST_COLUMNS = 'id, user_id, post_type, media_url, youtube_video_id, highlight_start_seconds, highlight_end_seconds, venue_name, match_date, caption, likes_count, comments_count, created_at' as const;
 

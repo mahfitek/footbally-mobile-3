@@ -29,6 +29,16 @@ import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import BottomSheet from '../components/BottomSheet';
 import MatchCard from '../components/MatchCard';
+import {
+  filterListings,
+  formatOfListing,
+  isPaidListing,
+  listingTypeOf,
+  LISTING_TYPE_SHORT_KEYS,
+  LISTING_TYPES,
+  type ListingFilter,
+} from '../lib/matchListing';
+import { MATCH_FORMATS, roleLabel, type LineupEntry, type MatchFormat } from '../lib/formations';
 
 type MatchView = {
   id: number;
@@ -46,6 +56,12 @@ type MatchView = {
   myApplicationId: string | null;
   myResult: 'win' | 'loss' | 'draw' | null;
   myGoals: number;
+  listing_type: string | null;
+  match_format: number | null;
+  team_payment: number | string | null;
+  formation: string | null;
+  fee_note: string | null;
+  lineup: LineupEntry[] | null;
 };
 
 type Participant = { user_id: string; full_name: string; avatar_url: string | null };
@@ -75,7 +91,7 @@ interface Props {
 
 export default function MatchScreen({ navigate }: Props) {
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const TABS = getTabs(t);
   const RESULT_OPTIONS = getResultOptions(t);
   const styles = createStyles(theme);
@@ -86,6 +102,8 @@ export default function MatchScreen({ navigate }: Props) {
   const [joining, setJoining] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [nearbyOnly, setNearbyOnly] = useState(false);
+  const [listingFilter, setListingFilter] = useState<ListingFilter>('all');
+  const [formatFilter, setFormatFilter] = useState<MatchFormat | 'all'>('all');
   const [myCity, setMyCity] = useState('');
   const [matches, setMatches] = useState<MatchView[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -151,6 +169,12 @@ export default function MatchScreen({ navigate }: Props) {
             myApplicationId: myApp?.id ?? null,
             myResult: myApp?.result ?? null,
             myGoals: myApp?.goals ?? 0,
+            listing_type: m.listing_type ?? null,
+            match_format: m.match_format ?? null,
+            team_payment: m.team_payment ?? 0,
+            formation: m.formation ?? null,
+            fee_note: m.fee_note ?? null,
+            lineup: Array.isArray(m.lineup) ? (m.lineup as LineupEntry[]) : null,
           };
         })
       );
@@ -388,6 +412,12 @@ export default function MatchScreen({ navigate }: Props) {
   if (nearbyOnly && myCity) {
     filtered = filtered.filter((m) => m.city.toLocaleLowerCase('tr-TR').includes(myCity.toLocaleLowerCase('tr-TR')));
   }
+  filtered = filterListings(filtered, { listingType: listingFilter, format: formatFilter });
+
+  const matchFormatText = (m: MatchView) => {
+    const format = formatOfListing(m);
+    return format ? `${format}v${format}` : m.type;
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -430,6 +460,50 @@ export default function MatchScreen({ navigate }: Props) {
           </Text>
         </HapticTouchable>
       ) : null}
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScrollOuter} contentContainerStyle={styles.tabsScroll}>
+        <View style={styles.tabs}>
+          <HapticTouchable
+            style={[styles.tabBtn, listingFilter === 'all' && styles.tabBtnActive]}
+            onPress={() => setListingFilter('all')}
+          >
+            <Text style={[styles.tabText, listingFilter === 'all' && styles.tabTextActive]}>{t('listing_filterAll')}</Text>
+          </HapticTouchable>
+          {LISTING_TYPES.map((type) => (
+            <HapticTouchable
+              key={type}
+              style={[styles.tabBtn, listingFilter === type && styles.tabBtnActive]}
+              onPress={() => setListingFilter(type)}
+            >
+              <Text style={[styles.tabText, listingFilter === type && styles.tabTextActive]}>
+                {t(LISTING_TYPE_SHORT_KEYS[type])}
+              </Text>
+            </HapticTouchable>
+          ))}
+        </View>
+      </ScrollView>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScrollOuter} contentContainerStyle={styles.tabsScroll}>
+        <View style={styles.tabs}>
+          <HapticTouchable
+            style={[styles.tabBtn, formatFilter === 'all' && styles.tabBtnActive]}
+            onPress={() => setFormatFilter('all')}
+          >
+            <Text style={[styles.tabText, formatFilter === 'all' && styles.tabTextActive]}>{t('listing_filterFormatAll')}</Text>
+          </HapticTouchable>
+          {MATCH_FORMATS.map((format) => (
+            <HapticTouchable
+              key={format}
+              style={[styles.tabBtn, formatFilter === format && styles.tabBtnActive]}
+              onPress={() => setFormatFilter(format)}
+            >
+              <Text style={[styles.tabText, formatFilter === format && styles.tabTextActive]}>
+                {format}v{format}
+              </Text>
+            </HapticTouchable>
+          ))}
+        </View>
+      </ScrollView>
 
       <ScrollView
         style={styles.container}
@@ -495,7 +569,13 @@ export default function MatchScreen({ navigate }: Props) {
                   date={m.date}
                   time={m.time}
                   location={m.location}
-                  typeLabel={m.type}
+                  typeLabel={[
+                    t(LISTING_TYPE_SHORT_KEYS[listingTypeOf(m)]),
+                    matchFormatText(m),
+                    isPaidListing(m) ? t('listing_paidBadge') : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                   categoryLabel={m.category}
                   participantsText={`${m.participantsCount}/${m.required_players}`}
                   status={{ label: statusLabel, tone: statusTone }}
@@ -529,8 +609,41 @@ export default function MatchScreen({ navigate }: Props) {
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>{t('match_detailFormat')}</Text>
-                  <Text style={styles.detailValue}>{selected.type}</Text>
+                  <Text style={styles.detailValue}>{matchFormatText(selected)}</Text>
                 </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{t('listing_filterType')}</Text>
+                  <Text style={styles.detailValue}>{t(LISTING_TYPE_SHORT_KEYS[listingTypeOf(selected)])}</Text>
+                </View>
+                {selected.formation ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{t('listing_formationLabel')}</Text>
+                    <Text style={styles.detailValue}>{selected.formation}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{t('listing_feeLabel')}</Text>
+                  <Text style={styles.detailValue}>
+                    {isPaidListing(selected)
+                      ? `${Number(selected.team_payment)} ₺${selected.fee_note ? ` · ${selected.fee_note}` : ''}`
+                      : t('listing_feeFree')}
+                  </Text>
+                </View>
+                {isPaidListing(selected) && (
+                  <Text style={styles.detailValue}>{t('listing_paymentDisclaimer')}</Text>
+                )}
+                {selected.lineup && selected.lineup.length > 0 && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{t('listing_lineupHeader')}</Text>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      {selected.lineup.map((entry) => (
+                        <Text key={entry.slot} style={styles.detailValue}>
+                          {roleLabel(entry.slot.split('-')[0], lang === 'en' ? 'en' : 'tr')} · {entry.name}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                )}
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>{t('match_detailType')}</Text>
                   <Text style={styles.detailValue}>{selected.category}</Text>
