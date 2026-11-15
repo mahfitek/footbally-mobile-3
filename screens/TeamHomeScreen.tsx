@@ -258,6 +258,8 @@ export default function TeamHomeScreen({ navigate, userId }: Props) {
           type: challenge.format,
           category: t('teamHome_teamMatchCategory'),
           creator_id: resolvedUserId,
+          // Takım-takıma kabul edilen karşılaşma: rakip ilanı türüdür (varsayılan 'players' olmamalı).
+          listing_type: 'opponent',
         });
       }
 
