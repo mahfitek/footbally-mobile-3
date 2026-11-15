@@ -21,6 +21,10 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { translateAuthError } from '../lib/authErrors';
 import HapticTouchable from '../components/HapticTouchable';
+import { normalizeReferralCode, redeemReferralCode, isValidReferralCodeFormat } from '../lib/referral';
+import { referralRpcClient } from '../lib/referralClient';
+import { savePendingReferralCode } from '../lib/referralStorage';
+import type { TranslationKey } from '../lib/i18n';
 
 const RADIUS = CARD_RADIUS;
 
@@ -38,6 +42,7 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -78,10 +83,26 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
       return;
     }
 
+    // Davet kodu isteğe bağlıdır. Oturum yoksa (e-posta doğrulaması) kod saklanır; davet ekranında kullanılır.
+    const referralCode = normalizeReferralCode(inviteCode);
     if (!data.session) {
+      if (referralCode) await savePendingReferralCode(referralCode);
       Alert.alert(t('register_verifyEmailTitle'), t('register_verifyEmailBody'));
       onBack();
       return;
+    }
+
+    if (referralCode) {
+      if (!isValidReferralCodeFormat(referralCode)) {
+        Alert.alert(t('register_error'), t('referral_err_invalid_code'));
+      } else {
+        const redeemed = await redeemReferralCode(referralRpcClient, referralCode);
+        if (redeemed.ok) {
+          Alert.alert(t('referral_title'), t('referral_enterDone'));
+        } else {
+          Alert.alert(t('register_error'), t(`referral_err_${redeemed.reason}` as TranslationKey));
+        }
+      }
     }
 
     onLogin();
@@ -163,6 +184,21 @@ export default function RegisterScreen({ onLogin, onBack }: Props) {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                 />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>{t('referral_signupLabel')}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('referral_enterPlaceholder')}
+                  placeholderTextColor={theme.textMuted}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={12}
+                  value={inviteCode}
+                  onChangeText={setInviteCode}
+                />
+                <Text style={styles.inputHint}>{t('referral_signupHint')}</Text>
               </View>
 
               <HapticTouchable
@@ -296,6 +332,7 @@ const createStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
+    inputHint: { marginTop: 6, fontSize: 12, color: theme.textMuted, fontFamily: FontFamily.body },
     inputGroup: {
       marginBottom: 16,
     },

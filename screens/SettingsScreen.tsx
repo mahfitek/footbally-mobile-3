@@ -357,6 +357,8 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
 
         <SettingRow theme={theme} icon="shirt-outline" title={t('merch_settingsTitle')} subtitle={t('merch_settingsSub')} onPress={() => navigate('merch')} />
 
+        <SettingRow theme={theme} icon="gift-outline" title={t('referral_enterTitle')} subtitle={t('referral_enterSub')} onPress={() => navigate('referral')} />
+
         <SettingRow theme={theme}
           icon="download-outline"
           title={t('settings_downloadDataTitle')}

@@ -1418,6 +1418,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
               { icon: 'shield-outline', label: t('profileHub_myTeams'), onPress: () => navigate('teamProfile') },
               { icon: 'add-circle-outline', label: t('profileHub_createTeam'), onPress: () => navigate('teamEdit') },
               { icon: 'people-outline', label: t('profileHub_manageTeam'), onPress: () => navigate('teamHome') },
+              { icon: 'gift-outline', label: t('referral_title'), onPress: () => navigate('referral') },
               { icon: 'settings-outline', label: t('profileHub_settings'), onPress: () => navigate('settings') },
             ] as const).map((row) => (
               <HapticTouchable key={row.label} style={styles.hubRow} onPress={row.onPress}>

@@ -43,6 +43,7 @@ import SearchScreen from './screens/SearchScreen';
 import TeamStatsScreen from './screens/TeamStatsScreen';
 import RegionsScreen from './screens/RegionsScreen';
 import BadgesScreen from './screens/BadgesScreen';
+import ReferralScreen from './screens/ReferralScreen';
 import VenuePanelScreen from './screens/VenuePanelScreen';
 import VenuesScreen from './screens/VenuesScreen';
 import VenueDetailScreen from './screens/VenueDetailScreen';
@@ -93,6 +94,7 @@ type Screen =
   | 'teamStats'
   | 'regions'
   | 'badges'
+  | 'referral'
   | 'venues'
   | 'venueDetail'
   | 'socialFeed'
@@ -520,6 +522,8 @@ function AppContent() {
         return <RegionsScreen navigate={navigate} userId={currentUserId} />;
       case 'badges':
         return <BadgesScreen navigate={navigate} userId={currentUserId} />;
+      case 'referral':
+        return <ReferralScreen navigate={navigate} />;
       case 'scout':
         return <ScoutScreen navigate={navigate} />;
       case 'notifications':
