@@ -82,7 +82,17 @@ Uygulanmayan migration: yok. Migration dosyalarında başta bulunan `drop constr
 
 ## e) Build
 
-_Bölüm 6 sonucu aşağıda; build tamamlandığında doldurulur._
+- **Build — başarılı.** `eas build -p ios --profile production --non-interactive` tamamlandı. Build numarası **7 → 8** (`autoIncrement`; `app.json` / `eas.json` elle değiştirilmedi). Build'i EAS otomatik artırdı.
+  - EAS build bağlantısı: https://expo.dev/accounts/osmantemur/projects/footbally/builds/5d8faaae-65a4-4a74-b09a-bd67fd9b7f21
+  - IPA: https://expo.dev/artifacts/eas/prq6b8wMkdp2lMixCfiI5aEKiei2qMDDKibqOrsjDck.ipa
+  - Credential: uzak (EAS) iOS credential'ı kullanıldı; dağıtım sertifikası ve provisioning profile geçerli (son 2027-11-09).
+- **Submit — başarısız (TestFlight'a yüklenmedi).** `eas submit -p ios --latest --non-interactive` şu hatayla durdu:
+  `Set ascAppId in the submit profile (eas.json) or re-run this command in interactive mode.`
+  - Neden: `eas.json` içindeki `submit.production` profilinde App Store Connect uygulama kimliği (`ascAppId`) yok ve repoda da bu değer bulunmuyor. Non-interactive modda EAS bu kimliği seçemiyor.
+  - Deneme sayısı: 1 (kullanıcının talimatında en fazla 2 düzeltme denemesi var). İkinci deneme için App Store Connect'teki sayısal Apple ID gerekiyor; bu bilgi bende yok.
+  - Yapılacak: App Store Connect → Uygulama Bilgileri → "Apple ID" (sayısal) değerini `eas.json` → `submit.production.ios.ascAppId` olarak ekleyip `eas submit -p ios --latest --non-interactive` komutunu tekrar çalıştırmak, ya da bu komutu etkileşimli modda çalıştırıp uygulamayı listeden seçmek. İncelemeye gönderme yapılmadı.
+- Build ile ilgili çıktılar: `scratchpad/eas_build_1.log`, `scratchpad/eas_submit_1.log` (geçici dosyalar).
+
 
 ## f) Telefonda elle test edilecekler
 
