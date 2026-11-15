@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ListingBoard from '../components/ListingBoard';
 import {
   View,
   Text,
@@ -234,6 +235,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.gold} colors={[theme.gold]} />
         }
       >
+        <ListingBoard navigate={navigate} allowedTypes={['opponent']} titleKey="listing_opponentBoardTitle" />
         <View style={styles.header}>
           <HapticTouchable style={styles.backBtn} onPress={() => (onBack ? onBack() : navigate('home'))}>
             <Ionicons name="chevron-back" size={17} color={theme.text} />

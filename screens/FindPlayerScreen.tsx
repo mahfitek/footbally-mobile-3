@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ListingBoard from '../components/ListingBoard';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -197,6 +198,7 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ListingBoard navigate={navigate} allowedTypes={['players', 'individual']} titleKey="listing_playersBoardTitle" />
         {(selectedCity || selectedDistrict || selectedPositions.length > 0) && (
           <View style={styles.activeChipsRow}>
             {selectedCity && (

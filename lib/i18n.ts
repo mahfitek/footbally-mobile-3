@@ -1397,6 +1397,11 @@ const translations = {
     listing_err_description_too_long: 'Açıklama en fazla 500 karakter olabilir.',
     listing_err_formation_invalid: 'Seçilen diziliş bu formatta yok.',
     listing_err_lineup_requires_team: 'Kadro yalnızca takım ilanında eklenebilir.',
+    listing_boardEmpty: 'Yaklaşan ilan yok.',
+    listing_untitled: 'İsimsiz ilan',
+    listing_opponentBoardTitle: 'Rakip ilanları',
+    listing_playersBoardTitle: 'Oyuncu ilanları',
+    listing_activitiesBoardTitle: 'Maç ilanları',
   },
   en: {
     home: 'Home',
@@ -2796,6 +2801,11 @@ const translations = {
     listing_err_description_too_long: 'The description can be at most 500 characters.',
     listing_err_formation_invalid: 'That formation is not available for this format.',
     listing_err_lineup_requires_team: 'A lineup can only be added to a team listing.',
+    listing_boardEmpty: 'No upcoming listings.',
+    listing_untitled: 'Untitled listing',
+    listing_opponentBoardTitle: 'Opponent listings',
+    listing_playersBoardTitle: 'Player listings',
+    listing_activitiesBoardTitle: 'Match listings',
   },
 };
 

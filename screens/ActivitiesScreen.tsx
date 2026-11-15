@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ListingBoard from '../components/ListingBoard';
 import {
   View,
   Text,
@@ -34,7 +35,7 @@ type OpportunityView = {
   deadline: string;
 };
 
-export default function ActivitiesScreen() {
+export default function ActivitiesScreen({ navigate }: { navigate: (screen: string) => void }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -161,6 +162,8 @@ export default function ActivitiesScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>{t('activities_title')}</Text>
         </View>
+
+        <ListingBoard navigate={navigate} titleKey="listing_activitiesBoardTitle" />
 
         <ScrollView
           horizontal

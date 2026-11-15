@@ -467,7 +467,7 @@ function AppContent() {
       case 'register':
         return <RegisterScreen onLogin={handleAuthSuccess} onBack={() => navigate('login')} />;
       case 'activities':
-        return <ActivitiesScreen />;
+        return <ActivitiesScreen navigate={navigate} />;
       case 'footbally':
         return <PerformanceScreen navigate={navigate} />;
       case 'messages':

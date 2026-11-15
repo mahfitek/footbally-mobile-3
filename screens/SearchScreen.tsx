@@ -13,6 +13,15 @@ import { sanitizeSearchTerm } from '../lib/security';
 import { sendLocalNotification } from '../lib/notifications';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
+import {
+  filterListings,
+  formatOfListing,
+  isPaidListing,
+  listingTypeOf,
+  LISTING_TYPES,
+  LISTING_TYPE_SHORT_KEYS,
+  type ListingFilter,
+} from '../lib/matchListing';
 import Toast from '../components/Toast';
 import BottomSheet from '../components/BottomSheet';
 
@@ -21,7 +30,18 @@ type IoniconName = keyof typeof Ionicons.glyphMap;
 
 type PlayerResult = { user_id: string; full_name: string; position: string | null; city: string | null; score: number };
 type TeamResult = { id: string; name: string; city: string | null; league: string | null; rating: number };
-type MatchResult = { id: string; title: string; date: string; time: string; location: string; creator_id: string };
+type MatchResult = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  creator_id: string;
+  type: string | null;
+  listing_type: string | null;
+  match_format: number | null;
+  team_payment: number | string | null;
+};
 type OpportunityResult = { id: string | number; title: string; subtitle: string; location: string; badge: string };
 
 type TabKey = 'players' | 'teams' | 'matches' | 'opportunities';
@@ -50,6 +70,7 @@ export default function SearchScreen({ navigate }: Props) {
   const [players, setPlayers] = useState<PlayerResult[]>([]);
   const [teams, setTeams] = useState<TeamResult[]>([]);
   const [matches, setMatches] = useState<MatchResult[]>([]);
+  const [listingFilter, setListingFilter] = useState<ListingFilter>('all');
   const [opportunities, setOpportunities] = useState<OpportunityResult[]>([]);
   const [appliedIds, setAppliedIds] = useState<Record<string, boolean>>({});
   const [joinedMatchIds, setJoinedMatchIds] = useState<Record<string, boolean>>({});
@@ -87,7 +108,12 @@ export default function SearchScreen({ navigate }: Props) {
         setTeams((data ?? []) as TeamResult[]);
       } else if (activeTab === 'matches') {
         const today = new Date().toISOString().slice(0, 10);
-        let req = supabase.from('matches').select('id, title, date, time, location, creator_id').gte('date', today).order('date', { ascending: true }).limit(20);
+        let req = supabase
+          .from('matches')
+          .select('id, title, date, time, location, creator_id, type, listing_type, match_format, team_payment')
+          .gte('date', today)
+          .order('date', { ascending: true })
+          .limit(20);
         if (q) req = req.or(`title.ilike.%${q}%,location.ilike.%${q}%`);
         const { data } = await req;
         setMatches((data ?? []) as MatchResult[]);
@@ -237,15 +263,35 @@ export default function SearchScreen({ navigate }: Props) {
               <EmptyState icon="football-outline" title={t('search_emptyMatches')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
-                {matches.map((m) => {
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={styles.tabsScroll}>
+                  {(['all', ...LISTING_TYPES] as ListingFilter[]).map((key) => (
+                    <HapticTouchable
+                      key={key}
+                      style={[styles.tabBtn, listingFilter === key && styles.tabBtnActive]}
+                      onPress={() => setListingFilter(key)}
+                    >
+                      <Text style={[styles.tabText, listingFilter === key && styles.tabTextActive]}>
+                        {key === 'all' ? t('listing_filterAll') : t(LISTING_TYPE_SHORT_KEYS[key])}
+                      </Text>
+                    </HapticTouchable>
+                  ))}
+                </ScrollView>
+                {filterListings(matches, { listingType: listingFilter, format: 'all' }).map((m) => {
                   const joined = joinedMatchIds[m.id];
                   const mine = m.creator_id === userId;
+                  const format = formatOfListing(m);
+                  const labels = [
+                    t(LISTING_TYPE_SHORT_KEYS[listingTypeOf(m)]),
+                    format ? `${format}v${format}` : m.type,
+                    isPaidListing(m) ? t('listing_paidBadge') : null,
+                  ].filter(Boolean);
                   return (
                     <View key={m.id} style={styles.row}>
                       <View style={styles.avatar}><Ionicons name="football-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{m.title}</Text>
                         <Text style={styles.rowMeta}>{m.date} · {m.time} · {m.location}</Text>
+                        <Text style={styles.rowMeta}>{labels.join(' · ')}</Text>
                       </View>
                       {!mine && (
                         <HapticTouchable
