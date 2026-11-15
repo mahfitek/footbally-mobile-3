@@ -23,6 +23,8 @@ test('"Premium\'a geç" counts active, unexpired paid, Apple or admin subscripti
   assert.equal(countsAsPaidPremium(base, NOW), true);
   assert.equal(countsAsPaidPremium({ ...base, plan: 'reward', amount: 0 }, NOW), false);
   assert.equal(countsAsPaidPremium({ ...base, plan: 'reward', amount: 99, payment_provider: 'apple' }, NOW), false);
+  assert.equal(countsAsPaidPremium({ ...base, plan: 'referral', amount: 0 }, NOW), false);
+  assert.equal(countsAsPaidPremium({ ...base, plan: 'referral', amount: 0, payment_provider: 'apple' }, NOW), false);
   assert.equal(countsAsPaidPremium({ ...base, plan: 'admin', amount: null }, NOW), true);
   assert.equal(countsAsPaidPremium({ ...base, amount: 0 }, NOW), false);
   assert.equal(countsAsPaidPremium({ ...base, amount: 0, payment_provider: 'apple' }, NOW), true);
@@ -41,12 +43,12 @@ test('applications with a negative status do not count; others do', () => {
   assert.equal(countsAsApplication(null), true);
 });
 
-test('the server SQL uses the same negative application statuses and reward rule', () => {
-  const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261114120100_profile_task_score.sql'), 'utf8');
+test('the server SQL uses the same negative application statuses and reward/referral rule', () => {
+  const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261115100200_profile_task_exclude_referral.sql'), 'utf8');
   for (const status of NEGATIVE_APPLICATION_STATUSES) {
     assert.ok(sql.includes(`'${status}'`), `server SQL is missing status ${status}`);
   }
-  assert.ok(sql.includes("lower(coalesce(s.plan, '')) <> 'reward'"));
+  assert.ok(sql.includes("lower(coalesce(s.plan, '')) not in ('reward', 'referral')"));
   assert.ok(sql.includes("s.payment_provider = 'apple'"));
   assert.ok(sql.includes("lower(coalesce(s.plan, '')) = 'admin'"));
 });
@@ -54,7 +56,7 @@ test('the server SQL uses the same negative application statuses and reward rule
 // Sunucu (compute_profile_task_breakdown) ile istemci puan tablosu aynı olmalı; sapma testte yakalanır.
 test('task ids and points match the server breakdown in the migration', () => {
   // npm test repo kökünden çalışır; derlenmiş çıktı klasöründen (__dirname) okunmaz.
-  const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261114120100_profile_task_score.sql'), 'utf8');
+  const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261115100200_profile_task_exclude_referral.sql'), 'utf8');
   const server = new Map<string, number>();
   for (const m of sql.matchAll(/'id',\s*'(\w+)',\s*'points',\s*(\d+)/g)) {
     server.set(m[1], Number(m[2]));
