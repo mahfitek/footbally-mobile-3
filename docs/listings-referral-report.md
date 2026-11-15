@@ -86,11 +86,8 @@ Uygulanmayan migration: yok. Migration dosyalarında başta bulunan `drop constr
   - EAS build bağlantısı: https://expo.dev/accounts/osmantemur/projects/footbally/builds/5d8faaae-65a4-4a74-b09a-bd67fd9b7f21
   - IPA: https://expo.dev/artifacts/eas/prq6b8wMkdp2lMixCfiI5aEKiei2qMDDKibqOrsjDck.ipa
   - Credential: uzak (EAS) iOS credential'ı kullanıldı; dağıtım sertifikası ve provisioning profile geçerli (son 2027-11-09).
-- **Submit — başarısız (TestFlight'a yüklenmedi).** `eas submit -p ios --latest --non-interactive` şu hatayla durdu:
-  `Set ascAppId in the submit profile (eas.json) or re-run this command in interactive mode.`
-  - Neden: `eas.json` içindeki `submit.production` profilinde App Store Connect uygulama kimliği (`ascAppId`) yok ve repoda da bu değer bulunmuyor. Non-interactive modda EAS bu kimliği seçemiyor.
-  - Deneme sayısı: 1 (kullanıcının talimatında en fazla 2 düzeltme denemesi var). İkinci deneme için App Store Connect'teki sayısal Apple ID gerekiyor; bu bilgi bende yok.
-  - Yapılacak: App Store Connect → Uygulama Bilgileri → "Apple ID" (sayısal) değerini `eas.json` → `submit.production.ios.ascAppId` olarak ekleyip `eas submit -p ios --latest --non-interactive` komutunu tekrar çalıştırmak, ya da bu komutu etkileşimli modda çalıştırıp uygulamayı listeden seçmek. İncelemeye gönderme yapılmadı.
+- **Submit — başarılı (yalnızca TestFlight'a yükleme).** `eas.json` → `submit.production.ios.ascAppId = "6832729841"` (commit `97a72b7`). `eas submit -p ios --latest --non-interactive` build 8'i App Store Connect'e yükledi. Submission: https://expo.dev/accounts/osmantemur/projects/footbally/submissions/66e8e4e1-eb49-4587-b3e5-9fbf3e6c1753 . TestFlight: https://appstoreconnect.apple.com/apps/6832729841/testflight/ios . Apple işlemesi bitince e-posta gelir. İnceleme gönderimi, sürüm ve metadata değişikliği yapılmadı.
+  - İlk denemede (`ascAppId` eksikken) submit durmuştu; kimlik eklenip ikinci denemede başarılı oldu.
 - Build ile ilgili çıktılar: `scratchpad/eas_build_1.log`, `scratchpad/eas_submit_1.log` (geçici dosyalar).
 
 
