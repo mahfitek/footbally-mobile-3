@@ -15,6 +15,8 @@ import BottomSheet from '../components/BottomSheet';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
+import FormationPitch from '../components/FormationPitch';
+import { FORMATIONS, getFormationSlots, type FormationSlot, type MatchFormat } from '../lib/formations';
 
 type SquadMember = {
   id: string;
@@ -25,199 +27,13 @@ type SquadMember = {
   jersey_number: number | null;
 };
 
-type FormationCoord = { x: number; y: number };
-type FormationSlot = FormationCoord & { role: string };
-
-const FORMATIONS_BY_COUNT: Record<number, Record<string, Record<string, FormationCoord[]>>> = {
-  5: {
-    '1-2-1 (Elmas)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 50, y: 68 }],
-      MID: [{ x: 28, y: 48 }, { x: 72, y: 48 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '2-1-1 (Dengeli)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 30, y: 68 }, { x: 70, y: 68 }],
-      MID: [{ x: 50, y: 48 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '1-1-2 (Hücum)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 50, y: 68 }],
-      MID: [{ x: 50, y: 48 }],
-      FWD: [{ x: 30, y: 22 }, { x: 70, y: 22 }],
-    },
-    '2-2 (Savunma)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 30, y: 70 }, { x: 70, y: 70 }],
-      MID: [{ x: 30, y: 40 }, { x: 70, y: 40 }],
-      FWD: [],
-    },
-    '3-1 (Üçlü Defans)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 20, y: 68 }, { x: 50, y: 68 }, { x: 80, y: 68 }],
-      MID: [],
-      FWD: [{ x: 50, y: 22 }],
-    },
-  },
-  7: {
-    '2-3-1 (En İyi)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 28, y: 70 }, { x: 72, y: 70 }],
-      MID: [{ x: 18, y: 50 }, { x: 50, y: 48 }, { x: 82, y: 50 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '3-2-1 (Güçlü Defans)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 20, y: 70 }, { x: 50, y: 70 }, { x: 80, y: 70 }],
-      MID: [{ x: 32, y: 50 }, { x: 68, y: 50 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '2-1-2-1 (Elmas)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 28, y: 72 }, { x: 72, y: 72 }],
-      DM: [{ x: 50, y: 58 }],
-      MID: [{ x: 28, y: 42 }, { x: 72, y: 42 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '1-3-2 (Orta Saha Hükm.)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 50, y: 72 }],
-      MID: [{ x: 20, y: 52 }, { x: 50, y: 50 }, { x: 80, y: 52 }],
-      FWD: [{ x: 32, y: 22 }, { x: 68, y: 22 }],
-    },
-    '2-2-2 (Dengeli)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 28, y: 72 }, { x: 72, y: 72 }],
-      MID: [{ x: 28, y: 50 }, { x: 72, y: 50 }],
-      FWD: [{ x: 28, y: 25 }, { x: 72, y: 25 }],
-    },
-    '3-1-2 (Hücum)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 20, y: 72 }, { x: 50, y: 72 }, { x: 80, y: 72 }],
-      MID: [{ x: 50, y: 52 }],
-      FWD: [{ x: 32, y: 22 }, { x: 68, y: 22 }],
-    },
-  },
-  8: {
-    '3-3-1 (Dengeli)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 20, y: 70 }, { x: 50, y: 70 }, { x: 80, y: 70 }],
-      MID: [{ x: 20, y: 50 }, { x: 50, y: 48 }, { x: 80, y: 50 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '2-3-2 (Hücum)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 28, y: 72 }, { x: 72, y: 72 }],
-      MID: [{ x: 18, y: 52 }, { x: 50, y: 50 }, { x: 82, y: 52 }],
-      FWD: [{ x: 32, y: 25 }, { x: 68, y: 25 }],
-    },
-    '3-2-2 (Güçlü)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 20, y: 72 }, { x: 50, y: 72 }, { x: 80, y: 72 }],
-      MID: [{ x: 32, y: 52 }, { x: 68, y: 52 }],
-      FWD: [{ x: 32, y: 25 }, { x: 68, y: 25 }],
-    },
-    '2-4-1 (Orta Saha)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 28, y: 72 }, { x: 72, y: 72 }],
-      MID: [{ x: 15, y: 52 }, { x: 38, y: 52 }, { x: 62, y: 52 }, { x: 85, y: 52 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '4-2-1 (Savunma)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 15, y: 72 }, { x: 38, y: 72 }, { x: 62, y: 72 }, { x: 85, y: 72 }],
-      MID: [{ x: 32, y: 50 }, { x: 68, y: 50 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-    '1-3-2-1 (Elmas)': {
-      GK: [{ x: 50, y: 88 }],
-      SW: [{ x: 50, y: 76 }],
-      DEF: [{ x: 20, y: 64 }, { x: 50, y: 64 }, { x: 80, y: 64 }],
-      MID: [{ x: 30, y: 46 }, { x: 70, y: 46 }],
-      FWD: [{ x: 50, y: 22 }],
-    },
-  },
-  11: {
-    '4-4-2 (Klasik)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 15, y: 72 }, { x: 38, y: 72 }, { x: 62, y: 72 }, { x: 85, y: 72 }],
-      MID: [{ x: 15, y: 52 }, { x: 38, y: 52 }, { x: 62, y: 52 }, { x: 85, y: 52 }],
-      FWD: [{ x: 35, y: 25 }, { x: 65, y: 25 }],
-    },
-    '4-3-3 (Hücum)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 15, y: 72 }, { x: 38, y: 72 }, { x: 62, y: 72 }, { x: 85, y: 72 }],
-      MID: [{ x: 25, y: 52 }, { x: 50, y: 50 }, { x: 75, y: 52 }],
-      FWD: [{ x: 20, y: 22 }, { x: 50, y: 18 }, { x: 80, y: 22 }],
-    },
-    '4-2-3-1 (Modern)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 15, y: 72 }, { x: 38, y: 72 }, { x: 62, y: 72 }, { x: 85, y: 72 }],
-      DM: [{ x: 35, y: 58 }, { x: 65, y: 58 }],
-      ATT: [{ x: 20, y: 40 }, { x: 50, y: 38 }, { x: 80, y: 40 }],
-      FWD: [{ x: 50, y: 20 }],
-    },
-    '3-5-2 (Orta Saha)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 25, y: 72 }, { x: 50, y: 72 }, { x: 75, y: 72 }],
-      MID: [{ x: 10, y: 52 }, { x: 30, y: 50 }, { x: 50, y: 48 }, { x: 70, y: 50 }, { x: 90, y: 52 }],
-      FWD: [{ x: 35, y: 22 }, { x: 65, y: 22 }],
-    },
-    '5-3-2 (Savunma)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 10, y: 72 }, { x: 28, y: 70 }, { x: 50, y: 70 }, { x: 72, y: 70 }, { x: 90, y: 72 }],
-      MID: [{ x: 25, y: 50 }, { x: 50, y: 48 }, { x: 75, y: 50 }],
-      FWD: [{ x: 35, y: 22 }, { x: 65, y: 22 }],
-    },
-    '4-1-4-1 (Dengeli)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 15, y: 72 }, { x: 38, y: 72 }, { x: 62, y: 72 }, { x: 85, y: 72 }],
-      DM: [{ x: 50, y: 60 }],
-      MID: [{ x: 10, y: 45 }, { x: 32, y: 45 }, { x: 68, y: 45 }, { x: 90, y: 45 }],
-      FWD: [{ x: 50, y: 20 }],
-    },
-    '3-4-3 (Toplam Futbol)': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 25, y: 72 }, { x: 50, y: 72 }, { x: 75, y: 72 }],
-      MID: [{ x: 15, y: 52 }, { x: 38, y: 52 }, { x: 62, y: 52 }, { x: 85, y: 52 }],
-      FWD: [{ x: 20, y: 22 }, { x: 50, y: 18 }, { x: 80, y: 22 }],
-    },
-    '4-4-2 Elmas': {
-      GK: [{ x: 50, y: 88 }],
-      DEF: [{ x: 15, y: 72 }, { x: 38, y: 72 }, { x: 62, y: 72 }, { x: 85, y: 72 }],
-      DM: [{ x: 50, y: 58 }],
-      MID: [{ x: 25, y: 48 }, { x: 75, y: 48 }],
-      ATT: [{ x: 50, y: 36 }],
-      FWD: [{ x: 35, y: 22 }, { x: 65, y: 22 }],
-    },
-  },
-};
-
 const PLAYER_COUNTS = [5, 7, 8, 11] as const;
-
-const PITCH_WIDTH = 320;
-const PITCH_HEIGHT = 420;
-
-const POSITION_LABELS_TR: Record<string, string> = { GK: 'KAL', DEF: 'DEF', MID: 'ORT', FWD: 'FOR', ATT: 'ATK', DM: 'DMF', SW: 'LIB' };
-const POSITION_LABELS_EN: Record<string, string> = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD', ATT: 'AM', DM: 'DM', SW: 'SW' };
 
 const getFirstName = (name: string) => (name ? name.split(' ')[0] : '');
 
-const getPositionLabel = (role: string, lang: 'tr' | 'en') =>
-  (lang === 'tr' ? POSITION_LABELS_TR : POSITION_LABELS_EN)[role] || role;
+const getAllPositions = (playerCount: number | null, formation: string): FormationSlot[] =>
+  playerCount ? getFormationSlots(playerCount, formation) : [];
 
-const getAllPositions = (playerCount: number | null, formation: string): FormationSlot[] => {
-  if (!playerCount) return [];
-  const f = FORMATIONS_BY_COUNT[playerCount]?.[formation];
-  if (!f) return [];
-  const positions: FormationSlot[] = [];
-  Object.entries(f).forEach(([role, coords]) => {
-    coords.forEach((coord) => positions.push({ ...coord, role }));
-  });
-  return positions;
-};
 
 const autoAssignPlayers = (members: SquadMember[], playerCount: number | null, formation: string): (SquadMember | null)[] => {
   const positions = getAllPositions(playerCount, formation);
@@ -464,7 +280,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
               key={count}
               onPress={() => {
                 setPlayerCount(count);
-                setSelectedFormation(Object.keys(FORMATIONS_BY_COUNT[count])[0]);
+                setSelectedFormation(FORMATIONS[count][0]);
               }}
               style={{
                 width: '100%',
@@ -487,7 +303,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
                 <Text style={{ color: theme.textSecondary, fontSize: 13, fontFamily: FontFamily.mono }}>
                   {count === 5 ? t('teamSquad_format5') : count === 7 ? t('teamSquad_format7') : count === 8 ? t('teamSquad_format8') : t('teamSquad_format11')}
                 </Text>
-                <Text style={{ color: theme.goldDark, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{Object.keys(FORMATIONS_BY_COUNT[count]).length} {t('teamSquad_formationsCount')}</Text>
+                <Text style={{ color: theme.goldDark, fontSize: 12, fontFamily: FontFamily.mono, marginTop: 2 }}>{FORMATIONS[count].length} {t('teamSquad_formationsCount')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
@@ -508,7 +324,7 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
               {playerCount}v{playerCount} {t('teamSquad_formationsHeader')}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-              {Object.keys(FORMATIONS_BY_COUNT[playerCount] || {}).map((f) => (
+              {(FORMATIONS[playerCount as MatchFormat] ?? []).map((f) => (
                 <TouchableOpacity
                   key={f}
                   onPress={() => setSelectedFormation(f)}
@@ -532,42 +348,15 @@ export default function TeamSquadScreen({ navigate, userId }: Props) {
             </ScrollView>
           </View>
 
-          <View style={styles.pitch}>
-            <View style={styles.centerCircle} />
-            <View style={styles.centerLine} />
-            <View style={styles.centerDot} />
-            <View style={[styles.goalArea, { top: 0, borderTopWidth: 0 }]} />
-            <View style={[styles.goalArea, { bottom: 0, borderBottomWidth: 0 }]} />
-            <View style={[styles.penaltyArea, { top: 0, borderTopWidth: 0 }]} />
-            <View style={[styles.penaltyArea, { bottom: 0, borderBottomWidth: 0 }]} />
 
-            {slots.map((pos, index) => {
-              const member = finalPositions[index];
-              const x = (pos.x / 100) * PITCH_WIDTH;
-              const y = (pos.y / 100) * PITCH_HEIGHT;
-
-              return (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => handlePlayerSpotPress(index)}
-                  style={{ position: 'absolute', left: x - 24, top: y - 32, alignItems: 'center', width: 48 }}
-                >
-                  <View style={[styles.playerDot, member ? styles.playerDotFilled : styles.playerDotEmpty]}>
-                    {member ? (
-                      <Text style={styles.playerDotNumber}>{member.jersey_number || index + 1}</Text>
-                    ) : (
-                      <Text style={styles.playerDotPlus}>+</Text>
-                    )}
-                  </View>
-                  <View style={styles.playerNameTag}>
-                    <Text style={styles.playerNameText} numberOfLines={1}>
-                      {member ? getFirstName(member.full_name) : getPositionLabel(pos.role, lang)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <FormationPitch
+            slots={slots}
+            lang={lang}
+            seats={finalPositions.map((m, index) =>
+              m ? { label: getFirstName(m.full_name), number: m.jersey_number || index + 1 } : null
+            )}
+            onSeatPress={handlePlayerSpotPress}
+          />
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('teamSquad_squadHeader')}</Text>
@@ -671,71 +460,6 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     title: { fontFamily: FontFamily.display, fontSize: 17, color: theme.text, letterSpacing: 0.5 },
-    pitch: {
-      width: PITCH_WIDTH,
-      height: PITCH_HEIGHT,
-      backgroundColor: '#2d5a1b',
-      borderRadius: RADIUS,
-      borderWidth: 2,
-      borderColor: 'rgba(255,255,255,0.3)',
-      alignSelf: 'center',
-      position: 'relative',
-      overflow: 'hidden',
-      marginBottom: 28,
-    },
-    centerCircle: {
-      position: 'absolute',
-      top: PITCH_HEIGHT / 2 - 40,
-      left: PITCH_WIDTH / 2 - 40,
-      width: 80, height: 80, borderRadius: 40,
-      borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
-    },
-    centerLine: {
-      position: 'absolute',
-      top: PITCH_HEIGHT / 2 - 1,
-      left: 0, right: 0, height: 1.5,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-    },
-    centerDot: {
-      position: 'absolute',
-      top: PITCH_HEIGHT / 2 - 3,
-      left: PITCH_WIDTH / 2 - 3,
-      width: 6, height: 6, borderRadius: 3,
-      backgroundColor: 'rgba(255,255,255,0.5)',
-    },
-    goalArea: {
-      position: 'absolute',
-      left: PITCH_WIDTH * 0.3,
-      width: PITCH_WIDTH * 0.4,
-      height: PITCH_HEIGHT * 0.12,
-      borderWidth: 1.5,
-      borderColor: 'rgba(255,255,255,0.3)',
-    },
-    penaltyArea: {
-      position: 'absolute',
-      left: PITCH_WIDTH * 0.15,
-      width: PITCH_WIDTH * 0.7,
-      height: PITCH_HEIGHT * 0.2,
-      borderWidth: 1.5,
-      borderColor: 'rgba(255,255,255,0.2)',
-    },
-    playerDot: {
-      width: 36, height: 36, borderRadius: 18,
-      borderWidth: 2,
-      alignItems: 'center', justifyContent: 'center',
-    },
-    playerDotFilled: { backgroundColor: theme.gold, borderColor: '#fff' },
-    playerDotEmpty: { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.4)' },
-    playerDotNumber: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: Paper.ink },
-    playerDotPlus: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
-    playerNameTag: {
-      backgroundColor: 'rgba(0,0,0,0.7)',
-      borderRadius: 4,
-      paddingHorizontal: 4,
-      paddingVertical: 2,
-      marginTop: 2,
-    },
-    playerNameText: { fontFamily: FontFamily.bodySemiBold, color: '#fff', fontSize: 10, textAlign: 'center' },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
