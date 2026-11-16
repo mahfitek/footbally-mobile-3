@@ -25,11 +25,11 @@ as $$
   select t.id, t.sender_id, t.content, t.media_url, t.media_type, t.created_at
     from public.tribun_messages t
    where auth.uid() is not null
-     -- Engel: ben engellediysem ya da beni engellediyse mesaj gizlenir.
+     -- Engel (tek yön): yalnızca BEN engellediğim kişilerin mesajları gizlenir. Beni engelleyenler görünmeye devam eder;
+     -- iki taraf da etkileşimde engellenir (20261116110100 trigger'ları).
      and not exists (
        select 1 from public.user_blocks b
-        where (b.blocker_id = auth.uid() and b.blocked_id = t.sender_id)
-           or (b.blocker_id = t.sender_id and b.blocked_id = auth.uid())
+        where b.blocker_id = auth.uid() and b.blocked_id = t.sender_id
      )
      -- Yönetici tarafından kaldırılmış medya içeren mesaj gizlenir.
      and not exists (
