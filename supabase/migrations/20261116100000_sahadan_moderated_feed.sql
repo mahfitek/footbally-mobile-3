@@ -1,8 +1,7 @@
 -- Sahadan okuma RPC'si: engellenen kişilerin ve yönetici tarafından kaldırılmış medyanın gizlendiği akış.
 --
--- DURUM: YAZILDI, UYGULANMADI. Bu migration canlıya uygulanmadan önce mobil uygulama güvenli modda çalışır:
--- RPC yokken yalnızca istemci engel listesiyle süzer, medyayı doğrulayamadığı için ana sayfa önizlemesinde
--- medya mesajlarını gizler (lib/sahadan.ts withoutUnverifiedMedia).
+-- DURUM: Canlıya uygulandı (2026-11-16). Yerel test: tek yönlü engel ve kaldırılmış medya doğrulandı.
+-- Önceki güvenli mod (RPC yok): medya mesajları önizlemede gizlenir (lib/sahadan.ts withoutUnverifiedMedia).
 --
 -- Yalnızca ekleme: yeni fonksiyon. Tablo, politika ve mevcut fonksiyonlar değişmez.
 -- Kaldırılmış medya eşleşmesi: media_moderation.owner_user_id = mesaj sahibi, media_ref = tribun_messages.media_url,
