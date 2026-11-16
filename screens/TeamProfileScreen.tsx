@@ -22,6 +22,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { fetchTeamApplicants, filterApplicantsByPosition } from '../lib/teamApplications';
 import { TEAM_COLUMNS } from '../lib/columns';
 import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
@@ -64,19 +65,14 @@ type SquadMember = {
 
 type Application = {
   id: string;
+  user_id: string;
   full_name: string;
-  position: string;
-  age: number;
-  city: string;
-  score: number;
-  status: string;
+  position: string | null;
+  age: number | null;
+  city: string | null;
+  score: number | null;
   applied_at: string;
 };
-
-const FAKE_APPLICATIONS: Application[] = [
-  { id: '1', full_name: 'Ahmet Yılmaz', position: 'Santrafor (ST)', age: 22, city: 'İstanbul', score: 78, status: 'pending', applied_at: '2 saat önce' },
-  { id: '2', full_name: 'Mert Çelik', position: 'Sol Forvet (LS)', age: 19, city: 'İstanbul', score: 65, status: 'pending', applied_at: '1 gün önce' },
-];
 
 interface Props {
   navigate: (screen: string, params?: any) => void;
@@ -365,18 +361,26 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
     }
   };
 
-  const loadApplications = (position: string) => {
+  // Takıma gelen gerçek başvurular (takımın maçlarındaki match_applications); pozisyona göre süzülür.
+  const loadApplications = async (position: string) => {
     setSelectedPosition(position);
-    setApplications(FAKE_APPLICATIONS);
+    setApplications([]);
     setShowApplications(true);
-  };
-
-  const handleAcceptApplication = (app: Application) => {
-    Alert.alert(t('teamProfile_acceptedTitle'), `${t('teamProfile_acceptedPrefix')}${app.full_name}${t('teamProfile_acceptedSuffix')}`);
-  };
-
-  const handleRejectApplication = (app: Application) => {
-    setApplications((prev) => prev.filter((a) => a.id !== app.id));
+    if (!team) return;
+    const all = await fetchTeamApplicants(supabase, team.id);
+    const rows = all ? filterApplicantsByPosition(all, position) : [];
+    setApplications(
+      rows.map((r) => ({
+        id: String(r.application_id),
+        user_id: r.user_id,
+        full_name: r.full_name,
+        position: r.position,
+        age: r.age,
+        city: r.city,
+        score: r.score,
+        applied_at: new Date(r.created_at).toLocaleDateString('tr-TR'),
+      })),
+    );
   };
 
   useEffect(() => {
@@ -658,18 +662,12 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
                     <View style={{ flex: 1 }}>
                       <Text style={styles.appName}>{app.full_name}</Text>
                       <Text style={styles.appPosition}>{app.position}</Text>
-                      <Text style={styles.appMeta}>{app.city} · {app.age} {t('teamProfile_ageSuffix')} · {app.applied_at}</Text>
+                      <Text style={styles.appMeta}>{[app.city, app.age !== null ? `${app.age} ${t('teamProfile_ageSuffix')}` : null, app.applied_at].filter(Boolean).join(' · ')}</Text>
                     </View>
-                    <Text style={styles.appScore}>{app.score}</Text>
+                    <Text style={styles.appScore}>{app.score ?? 0}</Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptApplication(app)}>
-                      <Text style={styles.acceptBtnText}>{t('teamProfile_accept')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectApplication(app)}>
-                      <Text style={styles.rejectBtnText}>{t('teamProfile_reject')}</Text>
-                    </TouchableOpacity>
                     <TouchableOpacity style={styles.msgBtn} onPress={() => navigate('chat')}>
                       <Text style={styles.msgBtnText}>{t('teamProfile_message')}</Text>
                     </TouchableOpacity>
