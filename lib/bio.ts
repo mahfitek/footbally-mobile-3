@@ -41,3 +41,19 @@ export function bioView(input: { isOwn: boolean; bio: string | null | undefined;
   if (text) return { mode: 'text', text };
   return input.isOwn ? { mode: 'owner_empty' } : { mode: 'hidden' };
 }
+
+export type BioSave =
+  | { ok: true; send: false }
+  | { ok: true; send: true; value: string | null }
+  | { ok: false; reasonKey: BioReasonKey };
+
+/**
+ * Profil kaydında bio: yalnızca DEĞİŞTİYSE denetlenir ve gönderilir. Değişmediyse sınır uygulanmaz ve sütun
+ * aynen kalır; böylece web sitesinin yazdığı uzun CV metni profil kaydını engellemez ve üzerine yazılmaz.
+ */
+export function bioSaveFor(draft: string, saved: string | null | undefined): BioSave {
+  if (draft.trim() === (saved ?? '').trim()) return { ok: true, send: false };
+  const check = checkBio(draft);
+  if (!check.ok) return { ok: false, reasonKey: check.reasonKey };
+  return { ok: true, send: true, value: check.value };
+}

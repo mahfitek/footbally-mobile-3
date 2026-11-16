@@ -43,7 +43,7 @@ import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { PROFILE_TASK_DEFS, parseScoreBreakdown, type ProfileTaskId, type ProfileTaskState } from '../lib/profileTasks';
 import { buildAiCvText } from '../lib/aiCv';
 import { PROFILE_VIDEO_BUCKET, PROFILE_VIDEO_MAX_BYTES, checkProfileVideo, profileVideoPath } from '../lib/profileVideo';
-import { BIO_MAX_LENGTH, bioLength, bioView, checkBio } from '../lib/bio';
+import { BIO_MAX_LENGTH, bioLength, bioSaveFor, bioView } from '../lib/bio';
 import BioText from '../components/BioText';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
@@ -699,15 +699,16 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         return;
       }
 
-      const bioCheck = checkBio(bioDraft);
-      if (!bioCheck.ok) {
-        setToast({ message: t(bioCheck.reasonKey), type: 'error' });
+      // Hakkımda yalnızca değiştiyse denetlenir ve gönderilir; uzun web CV metni kaydı engellemez.
+      const bioSave = bioSaveFor(bioDraft, bioSaved);
+      if (!bioSave.ok) {
+        setToast({ message: t(bioSave.reasonKey), type: 'error' });
         setSaving(false);
         return;
       }
       const values: ProfileFormValues = {
         fullName, position, age, height, weight, foot, city, district, club,
-        bio: bioCheck.value ?? '',
+        ...(bioSave.send ? { bio: bioSave.value ?? '' } : {}),
       };
       const payload = buildProfilePatch(values);
 
@@ -761,7 +762,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
 
       setSaving(false);
       setEditMode(false);
-      setBioSaved(bioCheck.value ?? '');
+      if (bioSave.send) setBioSaved(bioSave.value ?? '');
       setOpenPicker(null);
       const scoreRefreshed = await refreshServerScore(uid);
       await loadProfile();

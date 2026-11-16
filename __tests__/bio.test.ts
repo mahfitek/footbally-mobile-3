@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIO_MAX_LENGTH, bioLength, bioView, checkBio } from '../lib/bio';
+import { BIO_MAX_LENGTH, bioLength, bioSaveFor, bioView, checkBio } from '../lib/bio';
 import { buildProfilePatch, type ProfileFormValues } from '../lib/profileCompletion';
 
 const values = (over: Partial<ProfileFormValues> = {}): ProfileFormValues => ({
@@ -75,4 +75,17 @@ test('saving the profile writes bio only when the form provides it, and empty bi
   assert.equal('bio' in buildProfilePatch(values()), false, 'no bio key when the form has no bio');
   assert.equal(buildProfilePatch(values({ bio: '' })).bio, null);
   assert.equal(buildProfilePatch(values({ bio: 'Kaleci' })).bio, 'Kaleci');
+});
+
+test('an unchanged bio is not validated or sent, so a long website CV text does not block a profile save', () => {
+  const longCv = 'c'.repeat(800);
+  assert.deepEqual(bioSaveFor(longCv, longCv), { ok: true, send: false });
+  assert.deepEqual(bioSaveFor(`  ${longCv}  `, longCv), { ok: true, send: false }, 'surrounding spaces are not a change');
+  assert.deepEqual(bioSaveFor('', null), { ok: true, send: false }, 'empty stays empty');
+});
+
+test('a changed bio is validated, and a cleared bio is saved as null', () => {
+  assert.deepEqual(bioSaveFor('c'.repeat(800), 'eski'), { ok: false, reasonKey: 'bio_tooLong' });
+  assert.deepEqual(bioSaveFor('', 'eski'), { ok: true, send: true, value: null });
+  assert.deepEqual(bioSaveFor('Yeni metin', 'eski'), { ok: true, send: true, value: 'Yeni metin' });
 });
