@@ -87,7 +87,8 @@ Değiştirme yolu: her karar yukarıdaki fonksiyon veya istemci dosyasında; yen
 - Yerel SQL testleri: **110 kontrol geçti** (reddetme: sahip, sahip olmayan, takım sahibi, çift çağrı tek bildirim, silme engeli, yeniden başvuru engeli, ilansız başvuru, olmayan başvuru, kısıtlı hesap; engel: 10 tablo iki yönde, engel yokken normal çalışma, mevcut satırların korunması, `messages` mevcut engeli, yardımcı fonksiyon).
 - Build ve submit: aşağıda.
 
-BUILD_SECTION_PLACEHOLDER
+- **Build — başarılı.** `eas build -p ios --profile production --non-interactive` tamamlandı. Build numarası **9 → 10** (EAS `autoIncrement`; `app.json`/`eas.json` sürüm ve build alanlarına dokunulmadı). Build: https://expo.dev/accounts/osmantemur/projects/footbally/builds/57a91fa9-c542-4945-8d56-17e1336e25b6 · IPA: https://expo.dev/artifacts/eas/zE5r0hDklD1U43nFNTBQWZvNuNucFrFxo-EtgOuCkmM.ipa
+- **Submit — başarılı (yalnızca TestFlight).** `eas submit -p ios --latest --non-interactive` build 10'u App Store Connect'e yükledi. Submission: https://expo.dev/accounts/osmantemur/projects/footbally/submissions/1a6f2082-3349-4df9-974a-6162ab90ae91 . İnceleme gönderimi, sürüm ve metadata değişikliği yapılmadı.
 
 ## f) Telefonda elle test edilecekler
 
