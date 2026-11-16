@@ -41,19 +41,7 @@ type TeamRow = {
   losses: number;
   draws: number;
   rating: number;
-  isFake?: boolean;
 };
-
-const FAKE_TEAMS: TeamRow[] = [
-  { id: 'fake-1', name: 'Kadıköy United FC', city: 'İstanbul', district: 'Kadıköy', league: 'Amatör Lig', formation: '4-3-3', wins: 8, losses: 3, draws: 2, rating: 72, playing_style: ['Hızlı Geçiş', 'Teknik'], match_days: ['Cumartesi', 'Pazar'], isFake: true },
-  { id: 'fake-2', name: 'Beşiktaş Amatör', city: 'İstanbul', district: 'Beşiktaş', league: 'Süper Amatör', formation: '4-4-2', wins: 12, losses: 2, draws: 3, rating: 85, playing_style: ['Fiziksel', 'Savunma Ağırlıklı'], match_days: ['Cumartesi'], isFake: true },
-  { id: 'fake-3', name: 'Ataşehir Spor', city: 'İstanbul', district: 'Ataşehir', league: 'İl Ligi', formation: '3-5-2', wins: 5, losses: 6, draws: 4, rating: 58, playing_style: ['Tiki-Taka'], match_days: ['Pazar'], isFake: true },
-  { id: 'fake-4', name: 'Maltepe Gençlik', city: 'İstanbul', district: 'Maltepe', league: 'Amatör Lig', formation: '4-2-3-1', wins: 7, losses: 5, draws: 3, rating: 64, playing_style: ['Hücum Ağırlıklı', 'Hızlı Geçiş'], match_days: ['Cumartesi', 'Pazar'], isFake: true },
-  { id: 'fake-5', name: 'Üsküdar SK', city: 'İstanbul', district: 'Üsküdar', league: 'Bölgesel', formation: '5-3-2', wins: 10, losses: 4, draws: 1, rating: 77, playing_style: ['Fiziksel', 'Savunma Ağırlıklı'], match_days: ['Pazar'], isFake: true },
-  { id: 'fake-6', name: 'Pendik Yıldızları', city: 'İstanbul', district: 'Pendik', league: 'İlçe Ligi', formation: '4-3-3', wins: 3, losses: 8, draws: 4, rating: 45, playing_style: ['Teknik'], match_days: ['Cumartesi'], isFake: true },
-  { id: 'fake-7', name: 'Ankara Gençlerbirliği Amatör', city: 'Ankara', district: 'Çankaya', league: 'Süper Amatör', formation: '4-4-2', wins: 9, losses: 3, draws: 3, rating: 74, playing_style: ['Tiki-Taka', 'Teknik'], match_days: ['Cumartesi', 'Pazar'], isFake: true },
-  { id: 'fake-8', name: 'İzmir Karşıyaka Amatör', city: 'İzmir', district: 'Karşıyaka', league: 'Amatör Lig', formation: '3-4-3', wins: 6, losses: 5, draws: 4, rating: 61, playing_style: ['Hücum Ağırlıklı'], match_days: ['Pazar'], isFake: true },
-];
 
 function formatDateForSupabase(d: Date): string {
   const year = d.getFullYear();
@@ -135,7 +123,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
     if (error && __DEV__) console.log('Takımlar yüklenemedi:', error);
 
     const realTeams = (data as TeamRow[]) ?? [];
-    setTeams([...realTeams, ...FAKE_TEAMS].sort((a, b) => b.rating - a.rating));
+    setTeams(realTeams);
   };
 
   const onRefresh = () => {
@@ -169,23 +157,21 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
 
     setSending(true);
     try {
-      if (!challengeTarget.isFake) {
-        const { error } = await sendMatchChallenge(
-          myTeamId,
-          myTeamName,
-          challengeTarget.id,
-          challengeTarget.name,
-          formatDateForSupabase(challengeDate),
-          formatTimeForSupabase(challengeTime),
-          challengeLocation.trim(),
-          selectedFormat ? `${selectedFormat}v${selectedFormat}` : '11v11'
-        );
+      const { error } = await sendMatchChallenge(
+        myTeamId,
+        myTeamName,
+        challengeTarget.id,
+        challengeTarget.name,
+        formatDateForSupabase(challengeDate),
+        formatTimeForSupabase(challengeTime),
+        challengeLocation.trim(),
+        selectedFormat ? `${selectedFormat}v${selectedFormat}` : '11v11'
+      );
 
-        if (error) {
-          setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
-          setSending(false);
-          return;
-        }
+      if (error) {
+        setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
+        setSending(false);
+        return;
       }
 
       sendLocalNotification(t('findOpponent_inviteSentTitle'), `${challengeTarget.name} ${t('findOpponent_inviteSentBody')}`);
