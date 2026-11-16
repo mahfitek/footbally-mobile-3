@@ -8,7 +8,6 @@ import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import HapticTouchable from './HapticTouchable';
 import SectionHeader from './SectionHeader';
-import EmptyState from './EmptyState';
 import { useSahadanFeed } from '../lib/useSahadanFeed';
 import {
   SAHADAN_PREVIEW_COUNT,
