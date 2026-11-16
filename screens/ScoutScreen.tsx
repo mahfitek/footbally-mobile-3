@@ -14,6 +14,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { classifyInteractionError } from '../lib/interactionGuard';
 import { profiles } from '../lib/profiles';
 import { useBlockedIds } from '../lib/useBlockedIds';
 import { playerProfileRoute } from '../lib/discovery';
@@ -77,7 +78,7 @@ export default function ScoutScreen({ navigate }: Props) {
         setToast({ message: t('scout_alreadyRequested'), type: 'error' });
       } else {
         if (__DEV__) console.log('Bağlantı isteği gönderilemedi:', error);
-        setToast({ message: t('scout_requestFailed'), type: 'error' });
+        setToast({ message: classifyInteractionError(error) === 'blocked' ? t('block_interactionBlocked') : t('scout_requestFailed'), type: 'error' });
       }
       return;
     }

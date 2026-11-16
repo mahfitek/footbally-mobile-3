@@ -23,6 +23,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper, PREMIUM_HEART_COLOR, PREMIUM_NAME_GRADIENT } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
+import { classifyInteractionError } from '../lib/interactionGuard';
 import {
   SocialPost,
   PostAuthor,
@@ -206,12 +207,18 @@ export default function SocialFeedScreen({ navigate, userId }: Props) {
         .delete()
         .eq('post_id', post.id)
         .eq('user_id', currentUserId);
-      if (error) revert();
+      if (error) {
+        revert();
+        if (classifyInteractionError(error) === 'blocked') setToast({ message: t('block_interactionBlocked'), type: 'error' });
+      }
     } else {
       const { error } = await supabase
         .from('post_likes')
         .insert({ post_id: post.id, user_id: currentUserId });
-      if (error) revert();
+      if (error) {
+        revert();
+        if (classifyInteractionError(error) === 'blocked') setToast({ message: t('block_interactionBlocked'), type: 'error' });
+      }
     }
   };
 
@@ -482,6 +489,7 @@ function CommentsModal({ post, visible, onClose, currentUserId, theme, t, onComm
     setSending(false);
     if (error || !data) {
       if (__DEV__) console.log('Yorum gönderilemedi:', error);
+      if (classifyInteractionError(error) === 'blocked') Alert.alert(t('block_title'), t('block_interactionBlocked'));
       return;
     }
 

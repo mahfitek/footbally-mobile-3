@@ -19,6 +19,7 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { classifyInteractionError } from '../lib/interactionGuard';
 import { profiles } from '../lib/profiles';
 import { notifyEvent } from '../lib/notify';
 import { moderateMessage } from '../lib/security';
@@ -136,6 +137,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
         .single();
       if (convError) {
         if (__DEV__) console.log('Sohbet oluşturulamadı:', convError);
+        if (classifyInteractionError(convError) === 'blocked') setToast({ message: t('block_interactionBlocked'), type: 'error' });
         setMessages([]);
         setLoading(false);
         return;
@@ -190,7 +192,7 @@ export default function ChatScreen({ navigate, otherUserId, otherUserName }: Pro
 
     if (error) {
       if (__DEV__) console.log('Mesaj gönderilemedi:', error);
-      setToast({ message: t('chat_sendFailed'), type: 'error' });
+      setToast({ message: classifyInteractionError(error) === 'blocked' ? t('block_interactionBlocked') : t('chat_sendFailed'), type: 'error' });
       setText(content);
     } else if (data) {
       setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));

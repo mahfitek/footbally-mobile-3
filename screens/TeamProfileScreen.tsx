@@ -22,8 +22,11 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { classifyInteractionError } from '../lib/interactionGuard';
 import { fetchTeamApplicants, filterApplicantsByPosition } from '../lib/teamApplications';
-import { blockUser } from '../lib/blocking';
+import { blockUser, unblockUser } from '../lib/blocking';
+import { useBlockedIds } from '../lib/useBlockedIds';
+import { interactionAvailability } from '../lib/interactionGuard';
 import { rejectMatchApplication } from '../lib/interactionGuard';
 import { discoveryRpcClient } from '../lib/discoveryClient';
 import { reportTargetFor } from '../lib/profileActions';
@@ -115,6 +118,10 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  // Engel durumu: ben bu kişiyi engelledim mi. Engelliysem etkileşim pasif, "Engeli kaldır" görünür.
+  const { blockedIds, reload: reloadBlocks } = useBlockedIds();
+  const blockedByMe = !!(team && blockedIds?.has(team.owner_id));
+  const availability = interactionAvailability(blockedByMe);
   const [followBusy, setFollowBusy] = useState(false);
 
   // Görüntülenen takım (team.owner_id) oturumdaki kullanıcıdan (currentUserId)
@@ -174,6 +181,7 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
   };
 
   const toggleFollow = async () => {
+    if (!availability.canInteract) return;
     if (!currentUserId || !team || isOwnProfile || followBusy) return;
     const targetId = team.owner_id;
     const wasFollowing = isFollowing;
@@ -190,7 +198,7 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
       if (__DEV__) console.log('Takip işlemi başarısız:', error);
       setIsFollowing(wasFollowing);
       setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? 1 : -1)));
-      setToast({ message: t('social_followActionFailed'), type: 'error' });
+      setToast({ message: classifyInteractionError(error) === 'blocked' ? t('block_interactionBlocked') : t('social_followActionFailed'), type: 'error' });
     }
     setFollowBusy(false);
   };
@@ -414,6 +422,18 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
   };
 
   // Takım sahibini engeller (onay sorulur). Engellendikten sonra geri dönülür.
+  // Takım sahibinin engelini kaldırır.
+  const confirmUnblockOwner = async () => {
+    if (!team) return;
+    const outcome = await unblockUser(supabase, team.owner_id);
+    if (outcome.status === 'done') {
+      reloadBlocks();
+      setToast({ message: t('block_unblockDone'), type: 'success' });
+    } else {
+      setToast({ message: t('block_unblockFailed'), type: 'error' });
+    }
+  };
+
   const confirmBlockOwner = () => {
     if (!team) return;
     Alert.alert(t('block_title'), t('block_confirm').replace('{name}', team.name || t('common_defaultUser')), [
@@ -553,7 +573,7 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
             <HapticTouchable
               style={[styles.followBtn, isFollowing && styles.followBtnActive]}
               onPress={toggleFollow}
-              disabled={followBusy}
+              disabled={followBusy || !availability.canInteract}
             >
               {followBusy ? (
                 <ActivityIndicator size="small" color={isFollowing ? theme.gold : Paper.ink} />
@@ -572,9 +592,13 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
               <Ionicons name="flag-outline" size={14} color={theme.textMuted} />
               <Text style={styles.safetyBtnText}>{t('report_entryAction')}</Text>
             </HapticTouchable>
-            <HapticTouchable style={styles.safetyBtn} onPress={confirmBlockOwner} accessibilityLabel={t('block_action')}>
+            <HapticTouchable
+              style={styles.safetyBtn}
+              onPress={blockedByMe ? confirmUnblockOwner : confirmBlockOwner}
+              accessibilityLabel={blockedByMe ? t('block_unblockAction') : t('block_action')}
+            >
               <Ionicons name="ban-outline" size={14} color={theme.textMuted} />
-              <Text style={styles.safetyBtnText}>{t('block_action')}</Text>
+              <Text style={styles.safetyBtnText}>{blockedByMe ? t('block_unblockAction') : t('block_action')}</Text>
             </HapticTouchable>
           </View>
         )}

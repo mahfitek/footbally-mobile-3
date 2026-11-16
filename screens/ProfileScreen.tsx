@@ -32,7 +32,10 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
-import { blockUser } from '../lib/blocking';
+import { classifyInteractionError } from '../lib/interactionGuard';
+import { blockUser, unblockUser } from '../lib/blocking';
+import { useBlockedIds } from '../lib/useBlockedIds';
+import { interactionAvailability } from '../lib/interactionGuard';
 import ProfileProgress from '../components/ProfileProgress';
 import { ownOnlySections } from '../lib/profileActions';
 import { profiles } from '../lib/profiles';
@@ -198,6 +201,10 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  // Engel durumu: ben bu kişiyi engelledim mi. Engelliysem etkileşim pasif, "Engeli kaldır" görünür.
+  const { blockedIds, reload: reloadBlocks } = useBlockedIds();
+  const blockedByMe = !!(userId && blockedIds?.has(userId));
+  const availability = interactionAvailability(blockedByMe);
   const [followBusy, setFollowBusy] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
@@ -331,6 +338,17 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   };
 
   // Engelleme onaydan sonra çalışır. Sunucu RPC'si yoksa "kullanılamıyor" gösterilir; engellenmiş gibi davranılmaz.
+  // Engeli kaldırır; başarıdan sonra engel listesi yenilenir.
+  const confirmUnblock = async (targetId: string) => {
+    const outcome = await unblockUser(supabase, targetId);
+    if (outcome.status === 'done') {
+      reloadBlocks();
+      setToast({ message: t('block_unblockDone'), type: 'success' });
+    } else {
+      setToast({ message: t('block_unblockFailed'), type: 'error' });
+    }
+  };
+
   const confirmBlock = (targetId: string, name: string) => {
     Alert.alert(t('block_title'), t('block_confirm').replace('{name}', name || t('common_defaultUser')), [
       { text: t('common_cancel'), style: 'cancel' },
@@ -353,6 +371,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   };
 
   const toggleFollow = async () => {
+    if (!availability.canInteract) return;
     if (!currentUserId || !userId || isOwnProfile || followBusy) return;
     const wasFollowing = isFollowing;
     setFollowBusy(true);
@@ -368,7 +387,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       if (__DEV__) console.log('Takip işlemi başarısız:', error);
       setIsFollowing(wasFollowing);
       setFollowersCount((prev) => Math.max(0, prev + (wasFollowing ? 1 : -1)));
-      setToast({ message: t('social_followActionFailed'), type: 'error' });
+      setToast({ message: classifyInteractionError(error) === 'blocked' ? t('block_interactionBlocked') : t('social_followActionFailed'), type: 'error' });
     }
     setFollowBusy(false);
   };
@@ -1296,7 +1315,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             <HapticTouchable
               style={[styles.followBtn, isFollowing && styles.followBtnActive]}
               onPress={toggleFollow}
-              disabled={followBusy}
+              disabled={followBusy || !availability.canInteract}
             >
               {followBusy ? (
                 <ActivityIndicator size="small" color={isFollowing ? theme.gold : Paper.ink} />
@@ -1321,11 +1340,11 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             </HapticTouchable>
             <HapticTouchable
               style={styles.safetyBtn}
-              onPress={() => confirmBlock(userId, fullName)}
-              accessibilityLabel={t('block_action')}
+              onPress={() => (blockedByMe ? confirmUnblock(userId) : confirmBlock(userId, fullName))}
+              accessibilityLabel={blockedByMe ? t('block_unblockAction') : t('block_action')}
             >
               <Ionicons name="ban-outline" size={14} color={theme.textMuted} />
-              <Text style={styles.safetyBtnText}>{t('block_action')}</Text>
+              <Text style={styles.safetyBtnText}>{blockedByMe ? t('block_unblockAction') : t('block_action')}</Text>
             </HapticTouchable>
           </View>
         )}

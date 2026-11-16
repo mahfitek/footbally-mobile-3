@@ -18,7 +18,7 @@ export type SahadanMessage = {
 
 export const SAHADAN_PREVIEW_COUNT = 5;
 
-/** Engellediklerim (ve beni engelleyenler) listelerde görünmez. Kendi mesajlarım her zaman görünür. */
+/** Engellediklerim listelerde görünmez. Beni engelleyenlerin mesajları görünmeye devam eder (engel etkileşimi keser, görünürlüğü değil). Kendi mesajlarım her zaman görünür. */
 export function filterSahadanMessages(
   rows: SahadanMessage[],
   blockedIds: ReadonlySet<string>,
