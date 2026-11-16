@@ -1,4 +1,5 @@
-import { classifyInteractionError } from '../lib/interactionGuard';
+import { classifyInteractionError, rejectMatchApplication } from '../lib/interactionGuard';
+import { discoveryRpcClient } from '../lib/discoveryClient';
 import { useEffect, useState } from 'react';
 import {
   View,
@@ -10,6 +11,7 @@ import {
   RefreshControl,
   Share,
   Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,7 +68,13 @@ type MatchView = {
   lineup: LineupEntry[] | null;
 };
 
-type Participant = { user_id: string; full_name: string; avatar_url: string | null };
+type Participant = {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  application_id?: number | null;
+  application_status?: string | null;
+};
 
 type TabKey = 'upcoming' | 'past' | 'applied' | 'mine';
 
@@ -226,20 +234,52 @@ export default function MatchScreen({ navigate }: Props) {
     fetchMatches(loadedScope, userId).finally(() => setRefreshing(false));
   };
 
+  // İlan sahibi bir başvuruyu reddeder (onay sorulur). Başarıda satır "Reddedildi" olur.
+  const handleRejectParticipant = (participant: Participant) => {
+    if (!participant.application_id) return;
+    const applicationId = participant.application_id;
+    Alert.alert(t('application_rejectConfirmTitle'), t('application_rejectConfirmBody'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      {
+        text: t('application_rejectAction'),
+        style: 'destructive',
+        onPress: async () => {
+          const outcome = await rejectMatchApplication(discoveryRpcClient, applicationId);
+          if (outcome.ok) {
+            setParticipants((prev) =>
+              prev.map((p) => (p.application_id === applicationId ? { ...p, application_status: 'rejected' } : p)),
+            );
+            setToast({ message: t('application_rejectDone'), type: 'success' });
+          } else if (outcome.reason === 'not_owner') {
+            setToast({ message: t('application_notOwner'), type: 'error' });
+          } else {
+            setToast({ message: t('application_rejectFailed'), type: 'error' });
+          }
+        },
+      },
+    ]);
+  };
+
   const loadParticipants = async (matchId: number) => {
     setLoadingParticipants(true);
     const { data: apps } = await supabase
       .from('match_applications')
-      .select('user_id')
+      .select('id, user_id, status')
       .eq('match_id', matchId);
-    const userIds = (apps ?? []).map((a: any) => a.user_id).filter(Boolean);
+    const appRows = (apps ?? []) as { id: number; user_id: string; status: string | null }[];
+    const userIds = appRows.map((a) => a.user_id).filter(Boolean);
     if (userIds.length === 0) {
       setParticipants([]);
       setLoadingParticipants(false);
       return;
     }
     const { data: participantProfiles } = await profiles.publicProfiles(userIds, 'user_id, full_name, avatar_url');
-    setParticipants((participantProfiles ?? []) as Participant[]);
+    setParticipants(
+      ((participantProfiles ?? []) as Participant[]).map((p) => {
+        const app = appRows.find((a) => a.user_id === p.user_id);
+        return { ...p, application_id: app?.id ?? null, application_status: app?.status ?? null };
+      }),
+    );
     setLoadingParticipants(false);
 
     if (userId) {
@@ -693,6 +733,15 @@ export default function MatchScreen({ navigate }: Props) {
                             )}
                           </View>
                           <Text style={styles.participantName}>{p.full_name || t('match_defaultPlayerName')}</Text>
+                          {selected.creator_id === userId && p.application_id ? (
+                            p.application_status === 'rejected' ? (
+                              <Text style={styles.participantRejectedText}>{t('application_rejectedLabel')}</Text>
+                            ) : (
+                              <HapticTouchable onPress={() => handleRejectParticipant(p)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                                <Text style={styles.participantRejectText}>{t('application_rejectAction')}</Text>
+                              </HapticTouchable>
+                            )
+                          ) : null}
                           {canRate && (
                             <View style={styles.starRow}>
                               {[1, 2, 3, 4, 5].map((n) => (
@@ -938,6 +987,8 @@ const createStyles = (theme: Theme) =>
     },
     participantAvatarImg: { width: 32, height: 32, borderRadius: RADIUS },
     participantName: { fontSize: 13, color: theme.text, fontFamily: FontFamily.bodySemiBold, flex: 1 },
+    participantRejectText: { fontSize: 12, color: theme.error, fontFamily: FontFamily.monoMedium },
+    participantRejectedText: { fontSize: 11, color: theme.textMuted, fontFamily: FontFamily.mono },
     starRow: { flexDirection: 'row', gap: 2 },
     ownerNotice: {
       marginTop: 18,
