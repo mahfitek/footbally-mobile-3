@@ -434,6 +434,13 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
     }
   };
 
+  const askUnblockOwner = () => {
+    Alert.alert(t('block_unblockPrimary'), t('block_unblockConfirm'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: t('block_unblockPrimary'), onPress: () => void confirmUnblockOwner() },
+    ]);
+  };
+
   const confirmBlockOwner = () => {
     if (!team) return;
     Alert.alert(t('block_title'), t('block_confirm').replace('{name}', team.name || t('common_defaultUser')), [
@@ -444,9 +451,8 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
         onPress: async () => {
           const outcome = await blockUser(supabase, team.owner_id);
           if (outcome.status === 'done') {
-            Alert.alert(t('block_title'), t('block_done'), [
-              { text: t('match_close'), onPress: () => (onBack ? onBack() : navigate('socialFeed')) },
-            ]);
+            reloadBlocks();
+            setToast({ message: t('block_done'), type: 'success' });
           } else if (outcome.status === 'unavailable') Alert.alert(t('block_title'), t('block_unavailable'));
           else Alert.alert(t('block_title'), t('block_failed'));
         },
@@ -592,17 +598,37 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
               <Ionicons name="flag-outline" size={14} color={theme.textMuted} />
               <Text style={styles.safetyBtnText}>{t('report_entryAction')}</Text>
             </HapticTouchable>
+            {!blockedByMe && (
+              <HapticTouchable
+                style={styles.safetyBtn}
+                onPress={confirmBlockOwner}
+                accessibilityLabel={t('block_action')}
+              >
+                <Ionicons name="ban-outline" size={14} color={theme.textMuted} />
+                <Text style={styles.safetyBtnText}>{t('block_action')}</Text>
+              </HapticTouchable>
+            )}
+          </View>
+        )}
+
+        {blockedByMe && (
+          <View style={styles.blockedBanner}>
+            <Ionicons name="ban-outline" size={22} color={theme.gold} />
+            <Text style={styles.blockedBannerTitle}>{t('block_blockedTeamBanner')}</Text>
+            <Text style={styles.blockedBannerText}>{t('block_contentHidden')}</Text>
             <HapticTouchable
-              style={styles.safetyBtn}
-              onPress={blockedByMe ? confirmUnblockOwner : confirmBlockOwner}
-              accessibilityLabel={blockedByMe ? t('block_unblockAction') : t('block_action')}
+              style={styles.blockedUnblockBtn}
+              onPress={askUnblockOwner}
+              accessibilityLabel={t('block_unblockPrimary')}
             >
-              <Ionicons name="ban-outline" size={14} color={theme.textMuted} />
-              <Text style={styles.safetyBtnText}>{blockedByMe ? t('block_unblockAction') : t('block_action')}</Text>
+              <Text style={styles.blockedUnblockText}>{t('block_unblockPrimary')}</Text>
             </HapticTouchable>
           </View>
         )}
 
+        {/* Engelliyse içerikler gizlenir; yalnızca takım kimliği (ad, logo, takım sahibi) görünür. */}
+        {!blockedByMe && (
+          <>
         <View style={styles.statsBar}>
           {statsRow.map((s, i) => (
             <StatCard key={i} label={s.label} value={s.val} />
@@ -721,6 +747,8 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
               </View>
             ))}
           </View>
+        )}
+          </>
         )}
 
         <View style={{ height: 100 }} />
@@ -991,6 +1019,28 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     safetyBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    blockedBanner: {
+      marginHorizontal: 24,
+      marginTop: 14,
+      marginBottom: 20,
+      padding: 18,
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: theme.card,
+      borderRadius: RADIUS,
+      borderWidth: 1,
+      borderColor: theme.gold,
+    },
+    blockedBannerTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text, textAlign: 'center' },
+    blockedBannerText: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, textAlign: 'center' },
+    blockedUnblockBtn: {
+      marginTop: 6,
+      paddingVertical: 12,
+      paddingHorizontal: 28,
+      borderRadius: RADIUS,
+      backgroundColor: theme.gold,
+    },
+    blockedUnblockText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Paper.ink },
     rejectedBadge: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: theme.border, justifyContent: 'center' },
     rejectedBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
     viewApplicationsBtn: {

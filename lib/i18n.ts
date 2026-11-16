@@ -1415,6 +1415,11 @@ const translations = {
     block_unblockAction: 'Engeli kaldır',
     block_unblockDone: 'Engel kaldırıldı.',
     block_unblockFailed: 'Engel kaldırılamadı. Tekrar dene.',
+    block_blockedBanner: 'Bu kullanıcıyı engelledin.',
+    block_blockedTeamBanner: 'Bu takımın sahibini engelledin.',
+    block_contentHidden: 'Engellediğin için içerikler gizli.',
+    block_unblockPrimary: 'Engeli Kaldır',
+    block_unblockConfirm: 'Bu engeli kaldırmak istiyor musun?',
   },
   en: {
     home: 'Home',
@@ -2832,6 +2837,11 @@ const translations = {
     block_unblockAction: 'Unblock',
     block_unblockDone: 'The block was removed.',
     block_unblockFailed: 'Could not remove the block. Try again.',
+    block_blockedBanner: 'You blocked this user.',
+    block_blockedTeamBanner: 'You blocked this team\'s owner.',
+    block_contentHidden: 'Content is hidden because you blocked them.',
+    block_unblockPrimary: 'Unblock',
+    block_unblockConfirm: 'Do you want to remove this block?',
   },
 };
 
