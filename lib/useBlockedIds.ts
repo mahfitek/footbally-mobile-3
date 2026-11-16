@@ -1,25 +1,26 @@
-// Oturum açan kullanıcının engellediği kişilerin kimlikleri. Listeler bu kümeyi filtrede kullanır.
-// Okunamazsa boş küme yerine null döner; çağıran, emin olmadığı listeyi göstermemelidir (fail closed).
-import { useCallback, useEffect, useState } from 'react';
+// Oturum açan kullanıcının engellediği kişilerin kimlikleri. Önbellek lib/blockStore.ts'tedir: bir ekranda
+// yapılan engelleme veya engel kaldırma, açık olan diğer tüm ekranlara anında yansır.
+// Liste okunamazsa null kalır; liste yine gösterilir ama "Engellendi" etiketi verilmez.
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { supabase } from './supabase';
 import { discoveryBlocksClient } from './discoveryClient';
 import { fetchBlockedUserIds } from './discovery';
+import { getBlockedSnapshot, setBlockedSnapshot, subscribeBlocked, type BlockedSnapshot } from './blockStore';
 
-export function useBlockedIds(): { blockedIds: ReadonlySet<string> | null; reload: () => void } {
-  const [blockedIds, setBlockedIds] = useState<ReadonlySet<string> | null>(null);
+export function useBlockedIds(): { blockedIds: BlockedSnapshot; reload: () => void } {
+  const blockedIds = useSyncExternalStore(subscribeBlocked, getBlockedSnapshot, getBlockedSnapshot);
 
   const load = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id;
     if (!uid) {
-      setBlockedIds(new Set());
+      setBlockedSnapshot(new Set());
       return;
     }
-    setBlockedIds(await fetchBlockedUserIds(discoveryBlocksClient, uid));
+    setBlockedSnapshot(await fetchBlockedUserIds(discoveryBlocksClient, uid));
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 

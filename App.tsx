@@ -27,6 +27,8 @@ import PerformanceScreen from './screens/PerformanceScreen';
 import PremiumScreen from './screens/PremiumScreen';
 import AIAnalysisScreen from './screens/AIAnalysisScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import BlockedUsersScreen from './screens/BlockedUsersScreen';
+import { resetBlockedSnapshot } from './lib/blockStore';
 import ScoutScreen from './screens/ScoutScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import MatchScreen from './screens/MatchScreen';
@@ -78,6 +80,7 @@ type Screen =
   | 'premium'
   | 'ai'
   | 'settings'
+  | 'blockedUsers'
   | 'scout'
   | 'notifications'
   | 'match'
@@ -312,6 +315,7 @@ function AppContent() {
       setAccountAccess(null);
       setHistory([]);
       setScreen('onboarding');
+      resetBlockedSnapshot();
       Alert.alert(t('login_blocked'), renderAccountMessage(access.message, lang));
       void supabase.auth.signOut();
       return false;
@@ -523,6 +527,8 @@ function AppContent() {
         return <AIAnalysisScreen navigate={navigate} />;
       case 'settings':
         return <SettingsScreen navigate={navigate} userId={currentUserId} fromScreen={settingsFrom} />;
+      case 'blockedUsers':
+        return <BlockedUsersScreen navigate={navigate} />;
       case 'regions':
         return <RegionsScreen navigate={navigate} userId={currentUserId} />;
       case 'badges':

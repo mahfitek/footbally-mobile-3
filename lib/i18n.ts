@@ -1421,6 +1421,13 @@ const translations = {
     block_unblockPrimary: 'Engeli Kaldır',
     block_unblockConfirm: 'Bu engeli kaldırmak istiyor musun?',
     block_blockedLabel: 'Engellendi',
+    settings_blockedUsersTitle: 'Engellenen Kullanıcılar',
+    settings_blockedUsersSub: 'Engellediğin kişileri gör ve engelini kaldır',
+    blockedUsers_title: 'Engellenen Kullanıcılar',
+    blockedUsers_empty: 'Engellediğin kullanıcı yok.',
+    blockedUsers_blockedOn: 'Engellendi: {date}',
+    blockedUsers_loadFailed: 'Liste yüklenemedi. Bağlantını kontrol edip tekrar dene.',
+    blockedUsers_retry: 'Tekrar dene',
   },
   en: {
     home: 'Home',
@@ -2844,6 +2851,13 @@ const translations = {
     block_unblockPrimary: 'Unblock',
     block_unblockConfirm: 'Do you want to remove this block?',
     block_blockedLabel: 'Blocked',
+    settings_blockedUsersTitle: 'Blocked users',
+    settings_blockedUsersSub: 'See the people you blocked and remove blocks',
+    blockedUsers_title: 'Blocked users',
+    blockedUsers_empty: 'You have not blocked any users.',
+    blockedUsers_blockedOn: 'Blocked: {date}',
+    blockedUsers_loadFailed: 'The list could not be loaded. Check your connection and try again.',
+    blockedUsers_retry: 'Try again',
   },
 };
 

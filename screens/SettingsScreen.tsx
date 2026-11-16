@@ -11,6 +11,7 @@ import { profiles } from '../lib/profiles';
 import { useAccountAccess } from '../lib/accountContext';
 import { renderAccountMessage } from '../lib/accountAccess';
 import { requestAccountDeletion } from '../lib/accountDeletion';
+import { resetBlockedSnapshot } from '../lib/blockStore';
 import BottomSheet from '../components/BottomSheet';
 import SectionHeader from '../components/SectionHeader';
 
@@ -193,6 +194,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           text: t('settings_logout'),
           style: 'destructive',
           onPress: async () => {
+            resetBlockedSnapshot();
             await supabase.auth.signOut();
             navigate('onboarding');
           },
@@ -212,6 +214,7 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
     try {
       const outcome = await requestAccountDeletion(supabase);
       if (outcome.status === 'deleted') {
+        resetBlockedSnapshot();
         await supabase.auth.signOut();
         Alert.alert(t('account_deleteDone'));
         navigate('onboarding');
@@ -304,6 +307,13 @@ export default function SettingsScreen({ navigate, userId, fromScreen }: Props) 
           title={t('settings_regionsTitle')}
           subtitle={t('settings_regionsSub')}
           onPress={() => navigate('regions')}
+        />
+
+        <SettingRow theme={theme}
+          icon="ban-outline"
+          title={t('settings_blockedUsersTitle')}
+          subtitle={t('settings_blockedUsersSub')}
+          onPress={() => navigate('blockedUsers')}
         />
 
         {/* HESAP AYARLARI */}
