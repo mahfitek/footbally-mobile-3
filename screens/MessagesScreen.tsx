@@ -74,7 +74,7 @@ export default function MessagesScreen({ navigate }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
-  const [tab, setTab] = useState<'messages' | 'connections' | 'tribun'>('messages');
+  const [tab, setTab] = useState<'messages' | 'connections'>('messages');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -383,27 +383,7 @@ export default function MessagesScreen({ navigate }: Props) {
           >
             <Text style={[styles.tabText, tab === 'connections' && styles.tabTextActive]}>{t('messages_connectionsTab')}</Text>
           </HapticTouchable>
-          <HapticTouchable
-            style={[styles.tabBtn, tab === 'tribun' && styles.tabBtnActive]}
-            onPress={() => setTab('tribun')}
-          >
-            <Text style={[styles.tabText, tab === 'tribun' && styles.tabTextActive]}>{t('sahadan_title')}</Text>
-          </HapticTouchable>
         </View>
-
-        {tab === 'tribun' && (
-          <View style={styles.tribunCard}>
-            <View style={styles.tribunIconWrap}>
-              <Ionicons name="megaphone-outline" size={22} color="#FFFFFF" />
-            </View>
-            <Text style={styles.tribunTitle}>{t('sahadan_title').toUpperCase()}</Text>
-            <Text style={styles.tribunSub}>{t('messages_tribunDesc')}</Text>
-            <HapticTouchable style={styles.tribunBtn} onPress={() => navigate('tribun')}>
-              <Ionicons name="chatbubbles-outline" size={14} color={Paper.ink} />
-              <Text style={styles.tribunBtnText}>{t('messages_joinChat')}</Text>
-            </HapticTouchable>
-          </View>
-        )}
 
         {tab === 'messages' && (
           <>
