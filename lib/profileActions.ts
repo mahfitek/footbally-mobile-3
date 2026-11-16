@@ -30,3 +30,12 @@ export function reportTargetFor(
 export function blockTargetUserId(subjectUserId: string | null | undefined): string | null {
   return subjectUserId ? subjectUserId : null;
 }
+
+/** Yalnızca kendi profilinde gösterilen bölümler (ana sayfadan taşınan ilerleme ve görevler). */
+export function ownOnlySections(
+  viewerId: string | null | undefined,
+  subjectUserId: string | null | undefined,
+): { progress: boolean } {
+  const own = isOwnProfileView(viewerId, subjectUserId);
+  return { progress: own };
+}

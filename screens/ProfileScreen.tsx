@@ -33,6 +33,8 @@ import { FontFamily } from '../constants/fonts';
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { blockUser } from '../lib/blocking';
+import ProfileProgress from '../components/ProfileProgress';
+import { ownOnlySections } from '../lib/profileActions';
 import { profiles } from '../lib/profiles';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { PROFILE_TASK_DEFS, parseScoreBreakdown, type ProfileTaskId, type ProfileTaskState } from '../lib/profileTasks';
@@ -1416,6 +1418,9 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
           )}
         </HapticTouchable>
 
+        {/* Kişisel ilerleme (skor görevleri, görev penceresi, günlük ipucu): yalnızca kendi profilinde. */}
+        {ownOnlySections(currentUserId, userId).progress && <ProfileProgress navigate={navigate} />}
+
         {/* Hesap menüsü: tek hesap türü, takım ekranlarına alt navbar yerine buradan girilir. Takım rolü
             Profil'in son sekme olmasını değiştirmez. Takım yoksa "Takım oluştur" takım düzenleme ekranını açar. */}
         {isOwnProfile && (
@@ -1426,6 +1431,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
               { icon: 'shield-outline', label: t('profileHub_myTeams'), onPress: () => navigate('teamProfile') },
               { icon: 'add-circle-outline', label: t('profileHub_createTeam'), onPress: () => navigate('teamEdit') },
               { icon: 'people-outline', label: t('profileHub_manageTeam'), onPress: () => navigate('teamHome') },
+              { icon: 'trending-up-outline', label: t('performance'), onPress: () => navigate('footbally') },
               { icon: 'gift-outline', label: t('referral_title'), onPress: () => navigate('referral') },
               { icon: 'settings-outline', label: t('profileHub_settings'), onPress: () => navigate('settings') },
             ] as const).map((row) => (

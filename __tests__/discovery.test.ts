@@ -14,6 +14,7 @@ import {
   visibleProfileActions,
   reportTargetFor,
   blockTargetUserId,
+  ownOnlySections,
 } from '../lib/profileActions';
 
 const ME = 'me-0000';
@@ -129,4 +130,10 @@ test('report targets use profile for players and team for teams', () => {
   });
   assert.equal(reportTargetFor('team', { userId: 'owner-1', teamId: null, name: 'T' }), null);
   assert.equal(blockTargetUserId('owner-1'), 'owner-1', 'blocking a team blocks its owner');
+});
+
+test('progress and task sections are shown only on the viewer\'s own profile', () => {
+  assert.deepEqual(ownOnlySections(ME, ME), { progress: true });
+  assert.deepEqual(ownOnlySections(ME, 'someone-else'), { progress: false });
+  assert.deepEqual(ownOnlySections(null, 'someone-else'), { progress: true }, 'no session shows own-only sections only when no other user is viewed');
 });
