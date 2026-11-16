@@ -110,13 +110,6 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
             </View>
           )}
 
-          {slide.kind === 'success' && (
-            <View style={styles.phoneMock}>
-              <Text style={styles.cardLabel}>{t('onboarding_fieldStat')}</Text>
-              <Text style={styles.successStatValue}>847</Text>
-              <Text style={styles.successStatLabel}>{t('onboarding_fieldStatLabel')}</Text>
-            </View>
-          )}
         </View>
 
         <Text style={styles.title}>

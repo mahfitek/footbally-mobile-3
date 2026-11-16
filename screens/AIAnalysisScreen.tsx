@@ -55,12 +55,6 @@ const getHowItWorks = (t: (key: any) => string): { icon: IoniconName; title: str
   { icon: 'trophy-outline', title: t('aiAnalysis_step3Title'), desc: t('aiAnalysis_step3Desc') },
 ];
 
-const getTrustIndicators = (t: (key: any) => string) => [
-  t('aiAnalysis_trust1'),
-  t('aiAnalysis_trust2'),
-  t('aiAnalysis_trust3'),
-];
-
 const getConfidenceLabel = (confidence: number, t: (key: any) => string) => {
   if (confidence < 60) return t('aiAnalysis_confidenceLow');
   if (confidence < 80) return t('aiAnalysis_confidenceMid');
@@ -76,7 +70,6 @@ export default function AIAnalysisScreen({ navigate }: Props) {
   const { t, lang } = useLanguage();
   const ANALYZING_MESSAGES = getAnalyzingMessages(t);
   const HOW_IT_WORKS = getHowItWorks(t);
-  const TRUST_INDICATORS = getTrustIndicators(t);
   const styles = createStyles(theme);
   const [stage, setStage] = useState<Stage>('idle');
   const [media, setMedia] = useState<PickedMedia | null>(null);
@@ -366,11 +359,6 @@ export default function AIAnalysisScreen({ navigate }: Props) {
 
         {stage === 'idle' && (
           <>
-            <View style={styles.trustRow}>
-              {TRUST_INDICATORS.map((indicator, i) => (
-                <Text key={i} style={styles.trustText}>{indicator}</Text>
-              ))}
-            </View>
 
             <View style={styles.howItWorksRow}>
               {HOW_IT_WORKS.map((step, i) => (
