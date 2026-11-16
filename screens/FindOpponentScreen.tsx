@@ -19,6 +19,8 @@ import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
+import { useBlockedIds } from '../lib/useBlockedIds';
+import { isTeamBlocked, teamProfileRoute } from '../lib/discovery';
 import { sendLocalNotification } from '../lib/notifications';
 import { sendMatchChallenge } from '../lib/challenges';
 import EmptyState from '../components/EmptyState';
@@ -41,6 +43,7 @@ type TeamRow = {
   losses: number;
   draws: number;
   rating: number;
+  owner_id?: string | null;
 };
 
 function formatDateForSupabase(d: Date): string {
@@ -114,7 +117,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
   const loadTeams = async (ownTeamId: string | null) => {
     let query = supabase
       .from('teams')
-      .select('id, name, city, district, league, formation, playing_style, match_days, wins, losses, draws, rating')
+      .select('id, name, city, district, league, formation, playing_style, match_days, wins, losses, draws, rating, owner_id')
       .order('rating', { ascending: false });
 
     if (ownTeamId) query = query.neq('id', ownTeamId);
@@ -184,7 +187,15 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
     setSending(false);
   };
 
+  // Engellediğim takımlar gösterilmez; engel listesi yüklenmeden takım gösterilmez.
+  const { blockedIds } = useBlockedIds();
+  const openTeam = (ownerId: string | null | undefined) => {
+    if (!ownerId) return;
+    const route = teamProfileRoute(ownerId);
+    navigate(route.screen, route.params);
+  };
   const filteredTeams = teams.filter((team) => {
+    if (!blockedIds || isTeamBlocked(team.owner_id, blockedIds)) return false;
     if (selectedCity && team.city !== selectedCity) return false;
     if (selectedDistrict && team.district !== selectedDistrict) return false;
     return true;
@@ -374,7 +385,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
               const form = getForm(team.wins, team.losses, team.draws);
               return (
                 <View key={team.id} style={styles.teamCard}>
-                  <View style={styles.teamTop}>
+                  <HapticTouchable style={styles.teamTop} onPress={() => openTeam(team.owner_id)}>
                     <View style={styles.avatar}>
                       <Ionicons name="business-outline" size={22} color={theme.gold} />
                     </View>
@@ -385,7 +396,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
                       </Text>
                     </View>
                     <Text style={styles.teamRecord}>{team.wins}G {team.draws}B {team.losses}M</Text>
-                  </View>
+                  </HapticTouchable>
 
                   <View style={styles.formRow}>
                     {form.length === 0 ? (

@@ -8,6 +8,8 @@ import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { useBlockedIds } from '../lib/useBlockedIds';
+import { isTeamBlocked, playerProfileRoute, teamProfileRoute } from '../lib/discovery';
 import { sendMatchChallenge } from '../lib/challenges';
 import { sanitizeSearchTerm } from '../lib/security';
 import { sendLocalNotification } from '../lib/notifications';
@@ -29,7 +31,7 @@ const RADIUS = CARD_RADIUS;
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
 type PlayerResult = { user_id: string; full_name: string; position: string | null; city: string | null; score: number };
-type TeamResult = { id: string; name: string; city: string | null; league: string | null; rating: number };
+type TeamResult = { id: string; name: string; city: string | null; league: string | null; rating: number; owner_id: string | null };
 type MatchResult = {
   id: string;
   title: string;
@@ -69,6 +71,19 @@ export default function SearchScreen({ navigate }: Props) {
   const [myTeam, setMyTeam] = useState<{ id: string; name: string } | null>(null);
   const [players, setPlayers] = useState<PlayerResult[]>([]);
   const [teams, setTeams] = useState<TeamResult[]>([]);
+  // Engellediklerim listelerden çıkarılır. Engel listesi yüklenmeden hiçbir kişi/takım gösterilmez.
+  const { blockedIds } = useBlockedIds();
+  const visiblePlayers = blockedIds ? players.filter((p) => !blockedIds.has(p.user_id)) : [];
+  const visibleTeams = blockedIds ? teams.filter((tm) => !isTeamBlocked(tm.owner_id, blockedIds)) : [];
+  const openPlayer = (userId: string) => {
+    const route = playerProfileRoute(userId);
+    navigate(route.screen, route.params);
+  };
+  const openTeam = (ownerId: string | null) => {
+    if (!ownerId) return;
+    const route = teamProfileRoute(ownerId);
+    navigate(route.screen, route.params);
+  };
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [listingFilter, setListingFilter] = useState<ListingFilter>('all');
   const [opportunities, setOpportunities] = useState<OpportunityResult[]>([]);
@@ -102,7 +117,7 @@ export default function SearchScreen({ navigate }: Props) {
         const { data } = await req;
         setPlayers((data ?? []) as PlayerResult[]);
       } else if (activeTab === 'teams') {
-        let req = supabase.from('teams').select('id, name, city, league, rating').order('rating', { ascending: false }).limit(20);
+        let req = supabase.from('teams').select('id, name, city, league, rating, owner_id').order('rating', { ascending: false }).limit(20);
         if (q) req = req.or(`name.ilike.%${q}%,city.ilike.%${q}%,league.ilike.%${q}%`);
         const { data } = await req;
         setTeams((data ?? []) as TeamResult[]);
@@ -217,14 +232,16 @@ export default function SearchScreen({ navigate }: Props) {
               <EmptyState icon="person-outline" title={t('search_emptyPlayers')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
-                {players.map((p) => (
+                {visiblePlayers.map((p) => (
                   <View key={p.user_id} style={styles.row}>
-                    <View style={styles.avatar}><Ionicons name="person-outline" size={19} color={theme.gold} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{p.full_name || t('match_defaultPlayerName')}</Text>
-                      <Text style={styles.rowMeta}>{[p.position, p.city].filter(Boolean).join(' · ') || '-'}</Text>
-                    </View>
-                    <Text style={styles.scoreText}>{p.score}</Text>
+                    <HapticTouchable style={styles.rowBody} onPress={() => openPlayer(p.user_id)}>
+                      <View style={styles.avatar}><Ionicons name="person-outline" size={19} color={theme.gold} /></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowTitle}>{p.full_name || t('match_defaultPlayerName')}</Text>
+                        <Text style={styles.rowMeta}>{[p.position, p.city].filter(Boolean).join(' · ') || '-'}</Text>
+                      </View>
+                      <Text style={styles.scoreText}>{p.score}</Text>
+                    </HapticTouchable>
                     <HapticTouchable style={styles.actionBtn} onPress={() => navigate('chat', { id: p.user_id, name: p.full_name })}>
                       <Text style={styles.actionBtnText}>{t('scout_sendMessage')}</Text>
                     </HapticTouchable>
@@ -239,14 +256,16 @@ export default function SearchScreen({ navigate }: Props) {
               <EmptyState icon="business-outline" title={t('search_emptyTeams')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
-                {teams.map((tm) => (
+                {visibleTeams.map((tm) => (
                   <View key={tm.id} style={styles.row}>
-                    <View style={styles.avatar}><Ionicons name="business-outline" size={19} color={theme.gold} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{tm.name}</Text>
-                      <Text style={styles.rowMeta}>{[tm.city, tm.league].filter(Boolean).join(' · ') || '-'}</Text>
-                    </View>
-                    <Text style={styles.scoreText}>{tm.rating}</Text>
+                    <HapticTouchable style={styles.rowBody} onPress={() => openTeam(tm.owner_id)}>
+                      <View style={styles.avatar}><Ionicons name="business-outline" size={19} color={theme.gold} /></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowTitle}>{tm.name}</Text>
+                        <Text style={styles.rowMeta}>{[tm.city, tm.league].filter(Boolean).join(' · ') || '-'}</Text>
+                      </View>
+                      <Text style={styles.scoreText}>{tm.rating}</Text>
+                    </HapticTouchable>
                     {myTeam && myTeam.id !== tm.id && (
                       <HapticTouchable style={styles.actionBtn} onPress={() => setChallengeTarget(tm)}>
                         <Text style={styles.actionBtnText}>{t('findOpponent_challenge')}</Text>
@@ -276,7 +295,7 @@ export default function SearchScreen({ navigate }: Props) {
                     </HapticTouchable>
                   ))}
                 </ScrollView>
-                {filterListings(matches, { listingType: listingFilter, format: 'all' }).map((m) => {
+                {filterListings(blockedIds ? matches.filter((m) => !blockedIds.has(m.creator_id)) : [], { listingType: listingFilter, format: 'all' }).map((m) => {
                   const joined = joinedMatchIds[m.id];
                   const mine = m.creator_id === userId;
                   const format = formatOfListing(m);
@@ -412,6 +431,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    rowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     rowTitle: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: theme.text },
     rowMeta: { fontFamily: FontFamily.body, fontSize: 12, color: theme.textMuted, marginTop: 3 },
     scoreText: { fontFamily: FontFamily.display, fontSize: 16, color: theme.goldDark },
