@@ -337,7 +337,12 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         style: 'destructive',
         onPress: async () => {
           const outcome = await blockUser(supabase, targetId);
-          if (outcome.status === 'done') Alert.alert(t('block_title'), t('block_done'));
+          // Engellendikten sonra engellenen profilden geri dön; kullanıcı listede bir daha görmez.
+          if (outcome.status === 'done') {
+            Alert.alert(t('block_title'), t('block_done'), [
+              { text: t('match_close'), onPress: () => (onBack ? onBack() : navigate('home')) },
+            ]);
+          }
           else if (outcome.status === 'unavailable') Alert.alert(t('block_title'), t('block_unavailable'));
           else Alert.alert(t('block_title'), t('block_failed'));
         },
@@ -1300,25 +1305,28 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
               )}
             </HapticTouchable>
           )}
-          {!isOwnProfile && userId && (
+        </View>
+
+        {!isOwnProfile && userId && (
+          <View style={styles.safetyRow}>
             <HapticTouchable
-              style={styles.reportBtn}
+              style={styles.safetyBtn}
               onPress={() => navigate('report', { type: 'profile', id: userId, name: fullName })}
               accessibilityLabel={t('report_entryAction')}
             >
-              <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+              <Ionicons name="flag-outline" size={14} color={theme.textMuted} />
+              <Text style={styles.safetyBtnText}>{t('report_entryAction')}</Text>
             </HapticTouchable>
-          )}
-          {!isOwnProfile && userId && (
             <HapticTouchable
-              style={styles.reportBtn}
+              style={styles.safetyBtn}
               onPress={() => confirmBlock(userId, fullName)}
               accessibilityLabel={t('block_action')}
             >
-              <Ionicons name="ban-outline" size={16} color={theme.textMuted} />
+              <Ionicons name="ban-outline" size={14} color={theme.textMuted} />
+              <Text style={styles.safetyBtnText}>{t('block_action')}</Text>
             </HapticTouchable>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Stats: yan yana modern kartlar */}
         <View style={styles.statsRow}>
@@ -1708,6 +1716,18 @@ const createStyles = (theme: Theme) =>
     followStatValue: { fontFamily: FontFamily.display, fontSize: 20, color: theme.text },
     followStatLabel: { fontFamily: FontFamily.mono, fontSize: 10, color: theme.textSecondary, marginTop: 2 },
     followDivider: { width: 1, height: 28, backgroundColor: theme.border },
+    safetyRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 10, justifyContent: 'center' },
+    safetyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    safetyBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
     reportBtn: {
       width: 40,
       height: 40,

@@ -23,6 +23,8 @@ import { FontFamily } from '../constants/fonts';
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { fetchTeamApplicants, filterApplicantsByPosition } from '../lib/teamApplications';
+import { blockUser } from '../lib/blocking';
+import { reportTargetFor } from '../lib/profileActions';
 import { TEAM_COLUMNS } from '../lib/columns';
 import { profiles } from '../lib/profiles';
 import EmptyState from '../components/EmptyState';
@@ -383,6 +385,33 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
     );
   };
 
+  // Takım sahibini engeller (onay sorulur). Engellendikten sonra geri dönülür.
+  const confirmBlockOwner = () => {
+    if (!team) return;
+    Alert.alert(t('block_title'), t('block_confirm').replace('{name}', team.name || t('common_defaultUser')), [
+      { text: t('common_cancel'), style: 'cancel' },
+      {
+        text: t('block_action'),
+        style: 'destructive',
+        onPress: async () => {
+          const outcome = await blockUser(supabase, team.owner_id);
+          if (outcome.status === 'done') {
+            Alert.alert(t('block_title'), t('block_done'), [
+              { text: t('match_close'), onPress: () => (onBack ? onBack() : navigate('socialFeed')) },
+            ]);
+          } else if (outcome.status === 'unavailable') Alert.alert(t('block_title'), t('block_unavailable'));
+          else Alert.alert(t('block_title'), t('block_failed'));
+        },
+      },
+    ]);
+  };
+
+  const openTeamReport = () => {
+    if (!team) return;
+    const target = reportTargetFor('team', { userId: team.owner_id, teamId: team.id, name: team.name });
+    if (target) navigate('report', target);
+  };
+
   useEffect(() => {
     loadAll();
   }, [userId]);
@@ -508,6 +537,19 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
             </HapticTouchable>
           )}
         </View>
+
+        {!isOwnProfile && team && (
+          <View style={styles.safetyRow}>
+            <HapticTouchable style={styles.safetyBtn} onPress={openTeamReport} accessibilityLabel={t('report_entryAction')}>
+              <Ionicons name="flag-outline" size={14} color={theme.textMuted} />
+              <Text style={styles.safetyBtnText}>{t('report_entryAction')}</Text>
+            </HapticTouchable>
+            <HapticTouchable style={styles.safetyBtn} onPress={confirmBlockOwner} accessibilityLabel={t('block_action')}>
+              <Ionicons name="ban-outline" size={14} color={theme.textMuted} />
+              <Text style={styles.safetyBtnText}>{t('block_action')}</Text>
+            </HapticTouchable>
+          </View>
+        )}
 
         <View style={styles.statsBar}>
           {statsRow.map((s, i) => (
@@ -876,6 +918,18 @@ const createStyles = (theme: Theme) =>
     },
     positionRowTitle: { fontFamily: FontFamily.bodySemiBold, color: theme.text, fontSize: 14 },
     positionRowSub: { fontFamily: FontFamily.mono, color: theme.textSecondary, fontSize: 12, marginTop: 2 },
+    safetyRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 10, justifyContent: 'center' },
+    safetyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    safetyBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
     viewApplicationsBtn: {
       backgroundColor: theme.gold,
       borderRadius: RADIUS,
