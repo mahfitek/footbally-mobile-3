@@ -92,6 +92,8 @@ export interface ProfileFormValues {
   height: string;
   weight: string;
   club: string;
+  /** Hakkımda. Yalnızca form sağlarsa kaydedilir (bkz. lib/bio.ts). */
+  bio?: string;
 }
 
 /** Form metninden sayıya; boş ya da sayı değilse null. */
@@ -135,6 +137,7 @@ export function buildProfilePatch(values: ProfileFormValues): Record<string, unk
     height: toNumber(values.height),
     weight: toNumber(values.weight),
     club: values.club.trim() || null,
+    ...(values.bio !== undefined ? { bio: values.bio.trim() || null } : {}),
   };
 }
 

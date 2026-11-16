@@ -43,6 +43,8 @@ import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { PROFILE_TASK_DEFS, parseScoreBreakdown, type ProfileTaskId, type ProfileTaskState } from '../lib/profileTasks';
 import { buildAiCvText } from '../lib/aiCv';
 import { PROFILE_VIDEO_BUCKET, PROFILE_VIDEO_MAX_BYTES, checkProfileVideo, profileVideoPath } from '../lib/profileVideo';
+import { BIO_MAX_LENGTH, bioLength, bioView, checkBio } from '../lib/bio';
+import BioText from '../components/BioText';
 import { getLevel, getBadges, currentMonthKey, MAX_REWARD_PREMIUM_DAYS_PER_MONTH } from '../lib/rewards';
 import { sendLocalNotification } from '../lib/notifications';
 import LoadingScreen from '../components/LoadingScreen';
@@ -187,6 +189,9 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [club, setClub] = useState('');
+  // Hakkımda: kayıtlı değer profilde görünür; düzenleme taslağı kaydedilene kadar profile yansımaz.
+  const [bioSaved, setBioSaved] = useState('');
+  const [bioDraft, setBioDraft] = useState('');
   const [score, setScore] = useState(0);
   // Sunucudaki görev durumları (kendi profilinde). null: okunamadı; öneri listesi gösterilmez.
   const [serverTasks, setServerTasks] = useState<ProfileTaskState[] | null>(null);
@@ -247,7 +252,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
     if (!isOwnProfile && viewerUid) loadFollowStatus(uid, viewerUid);
 
     // Ekranın kullandığı alanlar. Kendi profilinde get_my_profile, başkasınınkinde herkese açık görünüm.
-    const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
+    const profileFields = 'user_id, full_name, position, age, height, weight, foot, city, district, club, bio, avatar_url, score, followers_count, following_count, overall_rating, stat_hiz, stat_pas, stat_sut, stat_dayaniklilik, stat_dribbling, stat_savunma, is_premium, claimed_badge_keys, reward_premium_month_key, reward_premium_days_this_month';
     // Kendi profilinde skor önce sunucuda yeniden hesaplanır; ekran yalnızca sunucudaki profiles.score'u gösterir.
     if (isOwnProfile) {
       if (!(await refreshServerScore(uid))) {
@@ -270,6 +275,8 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       setFollowersCount(data.followers_count ?? 0);
       setFollowingCount(data.following_count ?? 0);
       setFullName(data.full_name || '');
+      setBioSaved(data.bio ?? '');
+      setBioDraft(data.bio ?? '');
       // Eski ayrıntılı mevki ve ayak etiketleri sunucu değerine çevrilir; tanınmayan değer boş kalır.
       setPosition(toProfilePosition(data.position) ?? '');
       setAge(data.age ? String(data.age) : EMPTY_PICKER_VALUE);
@@ -692,7 +699,16 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
         return;
       }
 
-      const values: ProfileFormValues = { fullName, position, age, height, weight, foot, city, district, club };
+      const bioCheck = checkBio(bioDraft);
+      if (!bioCheck.ok) {
+        setToast({ message: t(bioCheck.reasonKey), type: 'error' });
+        setSaving(false);
+        return;
+      }
+      const values: ProfileFormValues = {
+        fullName, position, age, height, weight, foot, city, district, club,
+        bio: bioCheck.value ?? '',
+      };
       const payload = buildProfilePatch(values);
 
       // profiles.id is an auto-generated identity column; the link to the
@@ -745,6 +761,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
 
       setSaving(false);
       setEditMode(false);
+      setBioSaved(bioCheck.value ?? '');
       setOpenPicker(null);
       const scoreRefreshed = await refreshServerScore(uid);
       await loadProfile();
@@ -1040,7 +1057,7 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
       <View style={styles.editSafe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.editHeader, { paddingTop: 60 }]}>
-            <TouchableOpacity onPress={() => { setEditMode(false); setOpenPicker(null); }} style={[styles.editHeaderBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} disabled={saving}>
+            <TouchableOpacity onPress={() => { setBioDraft(bioSaved); setEditMode(false); setOpenPicker(null); }} style={[styles.editHeaderBtn, { flexDirection: 'row', alignItems: 'center', gap: 4 }]} disabled={saving}>
               <Ionicons name="chevron-back" size={15} color={theme.gold} />
               <Text style={styles.editHeaderCancel}>{t('common_cancel')}</Text>
             </TouchableOpacity>
@@ -1233,11 +1250,29 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
                 placeholderTextColor={theme.textSecondary}
               />
             </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>{t('bio_titleOwn')}</Text>
+              <TextInput
+                style={[styles.input, styles.bioInput]}
+                value={bioDraft}
+                onChangeText={setBioDraft}
+                placeholder={t('bio_hint')}
+                placeholderTextColor={theme.textSecondary}
+                multiline
+                maxLength={BIO_MAX_LENGTH}
+                textAlignVertical="top"
+              />
+              <Text style={styles.bioCounter}>{bioLength(bioDraft)}/{BIO_MAX_LENGTH}</Text>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
     );
   }
+
+  // Hakkımda görünürlüğü: engelliysem gizli; kendi profilimde boşsa ipucu; başkasında boşsa bölüm yok.
+  const bioState = bioView({ isOwn: isOwnProfile, bio: bioSaved, blocked: blockedByMe });
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -1498,6 +1533,22 @@ export default function ProfileScreen({ navigate, userId, currentUserId, onBack 
             </View>
           ))}
         </View>
+
+        {bioState.mode !== 'hidden' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{isOwnProfile ? t('bio_titleOwn') : t('bio_titleOther')}</Text>
+            {bioState.mode === 'owner_empty' ? (
+              <>
+                <Text style={styles.bioHint}>{t('bio_hint')}</Text>
+                <HapticTouchable style={styles.bioAddBtn} onPress={() => setEditMode(true)}>
+                  <Text style={styles.bioAddText}>{t('bio_add')}</Text>
+                </HapticTouchable>
+              </>
+            ) : bioState.mode === 'text' ? (
+              <BioText text={bioState.text} />
+            ) : null}
+          </View>
+        )}
 
         <View style={styles.actionRow}>
           {isOwnProfile && (
@@ -1885,6 +1936,11 @@ const createStyles = (theme: Theme) =>
     name: { fontFamily: FontFamily.display, fontSize: 26, color: theme.text, marginBottom: 4, textAlign: 'center', paddingHorizontal: 24 },
     position: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.goldDark, textAlign: 'center' },
     club: { fontFamily: FontFamily.body, fontSize: 13, color: theme.textMuted, marginTop: 4, textAlign: 'center', paddingHorizontal: 24 },
+    bioInput: { minHeight: 110, paddingTop: 12 },
+    bioCounter: { alignSelf: 'flex-end', marginTop: 6, fontFamily: FontFamily.mono, fontSize: 11, color: theme.textMuted },
+    bioHint: { fontFamily: FontFamily.body, fontSize: 13, lineHeight: 19, color: theme.textMuted, marginTop: 4 },
+    bioAddBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: RADIUS, borderWidth: 1, borderColor: theme.gold },
+    bioAddText: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: theme.gold },
     statsRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
