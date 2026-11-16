@@ -20,9 +20,12 @@ import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper, hexToRgba } from '../constants/theme';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
-import { TRIBUN_MESSAGE_COLUMNS } from '../lib/columns';
 import { moderateMessage } from '../lib/security';
-import { resolveSenderIdentities, SenderIdentity } from '../lib/chatIdentity';
+import type { SenderIdentity } from '../lib/chatIdentity';
+import { useSahadanFeed } from '../lib/useSahadanFeed';
+import { sahadanSenderRoute, type SahadanMessage } from '../lib/sahadan';
+import { blockUser } from '../lib/blocking';
+import { reportTargetFor } from '../lib/profileActions';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import HapticTouchable from '../components/HapticTouchable';
@@ -35,14 +38,7 @@ const HISTORY_LIMIT = 100;
 
 type MediaKind = 'image' | 'video';
 
-type MessageRow = {
-  id: string;
-  sender_id: string;
-  content: string | null;
-  media_url: string | null;
-  media_type: MediaKind | null;
-  created_at: string;
-};
+type MessageRow = SahadanMessage;
 
 type PendingMedia = { uri: string; type: MediaKind };
 
@@ -52,96 +48,57 @@ const formatTime = (iso: string) => {
 };
 
 interface Props {
-  navigate: (screen: string) => void;
+  navigate: (screen: string, params?: any) => void;
+  /** Ana sayfadaki kutudan açıldıysa klavye hazır gelir. */
+  autoFocus?: boolean;
 }
 
-export default function TribunScreen({ navigate }: Props) {
+export default function TribunScreen({ navigate, autoFocus = false }: Props) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [myIdentity, setMyIdentity] = useState<SenderIdentity | null>(null);
-  const [messages, setMessages] = useState<MessageRow[]>([]);
-  const [identities, setIdentities] = useState<Map<string, SenderIdentity>>(new Map());
+  const { loading, userId, rows: messages, identities, appendMessage } = useSahadanFeed(true);
+  const myIdentity: SenderIdentity | null = userId
+    ? identities.get(userId) ?? { name: 'Sen', kind: 'player' }
+    : null;
   const [text, setText] = useState('');
   const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
-  const identitiesRef = useRef(identities);
-  useEffect(() => {
-    identitiesRef.current = identities;
-  }, [identities]);
   const scrollRef = useRef<ScrollViewInstance>(null);
   // Navbar Sahadan'da görünür; giriş çubuğu onun üstünde durur, klavye açılınca navbar gizlenir.
   const keyboardOpen = useKeyboardOpen();
 
 
-  useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase
-      .channel('tribun')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'tribun_messages' },
-        async (payload) => {
-          const m = payload.new as MessageRow;
-          setMessages((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]));
-
-          if (!identitiesRef.current.has(m.sender_id)) {
-            const resolved = await resolveSenderIdentities([m.sender_id]);
-            if (resolved.size > 0) {
-              setIdentities((prev) => new Map([...prev, ...resolved]));
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId]);
-
-  // loading ilk değeri true; yükleme yalnızca mount'ta bir kez yapılır, bu yüzden effect içinde setLoading(true) gerekmez.
-  const load = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    setUserId(user.id);
-
-    const { data, error } = await supabase
-      .from('tribun_messages')
-      .select(TRIBUN_MESSAGE_COLUMNS)
-      .order('created_at', { ascending: false })
-      .limit(HISTORY_LIMIT);
-
-    if (error) {
-      if (__DEV__) console.log('Sahadan yüklenemedi:', error);
-      setMessages([]);
-      setLoading(false);
-      return;
-    }
-
-    const ordered = [...(data ?? [])].reverse();
-    setMessages(ordered);
-
-    const senderIds = Array.from(new Set([user.id, ...ordered.map((m) => m.sender_id)]));
-    const resolved = await resolveSenderIdentities(senderIds);
-    setIdentities(resolved);
-    setMyIdentity(resolved.get(user.id) ?? { name: 'Sen', kind: 'player' });
-    setLoading(false);
+  const openSender = (senderId: string, kind: 'player' | 'team') => {
+    const route = sahadanSenderRoute(kind, senderId);
+    navigate(route.screen, route.params);
   };
 
-  useEffect(() => {
-    // Yükleme state'i ilk değeri true ve load tek sefer çağrılır; setState yalnızca await sonrası yapılır.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
-  }, []);
+  // Uzun basılınca: gönderen şikâyet edilebilir veya engellenebilir (kendi mesajım değilse).
+  const openMessageActions = (senderId: string, name: string) => {
+    if (senderId === userId) return;
+    Alert.alert(name || t('common_defaultUser'), undefined, [
+      {
+        text: t('report_entryAction'),
+        onPress: () => {
+          const target = reportTargetFor('player', { userId: senderId, name });
+          if (target) navigate('report', target);
+        },
+      },
+      {
+        text: t('block_action'),
+        style: 'destructive',
+        onPress: async () => {
+          const outcome = await blockUser(supabase, senderId);
+          if (outcome.status === 'done') setToast({ message: t('block_done'), type: 'success' });
+          else if (outcome.status === 'unavailable') setToast({ message: t('block_unavailable'), type: 'error' });
+          else setToast({ message: t('block_failed'), type: 'error' });
+        },
+      },
+      { text: t('common_cancel'), style: 'cancel' },
+    ]);
+  };
 
   const handleAttachPress = () => {
     Alert.alert(t('sahadan_mediaAddTitle'), t('sahadan_mediaAddBody'), [
@@ -232,7 +189,7 @@ export default function TribunScreen({ navigate }: Props) {
       setText('');
       setPendingMedia(null);
       if (data) {
-        setMessages((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
+        appendMessage(data as MessageRow);
       }
     } catch (err) {
       if (__DEV__) console.log('Mesaj gönderilemedi:', err);
@@ -307,9 +264,15 @@ export default function TribunScreen({ navigate }: Props) {
                           {identity?.kind === 'team' ? t('sahadan_tagTeam') : t('sahadan_tagPlayer')}
                         </Text>
                       </View>
-                      <Text style={styles.senderName} numberOfLines={1}>
-                        {identity?.name ?? t('common_defaultUser')}
-                      </Text>
+                      <HapticTouchable
+                        onPress={() => openSender(m.sender_id, identity?.kind === 'team' ? 'team' : 'player')}
+                        onLongPress={() => openMessageActions(m.sender_id, identity?.name ?? '')}
+                        accessibilityLabel={identity?.name ?? t('common_defaultUser')}
+                      >
+                        <Text style={styles.senderName} numberOfLines={1}>
+                          {identity?.name ?? t('common_defaultUser')}
+                        </Text>
+                      </HapticTouchable>
                     </View>
                   )}
                   <View
@@ -378,6 +341,7 @@ export default function TribunScreen({ navigate }: Props) {
           </HapticTouchable>
           <TextInput
             style={styles.input}
+            autoFocus={autoFocus}
             placeholder={t('sahadan_placeholder')}
             placeholderTextColor={theme.textSecondary}
             value={text}

@@ -171,6 +171,7 @@ function AppContent() {
   const [viewedTeamOwnerId, setViewedTeamOwnerId] = useState<string | null>(null);
   const [followListTarget, setFollowListTarget] = useState<{ userId: string; type: 'followers' | 'following' } | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [tribunAutoFocus, setTribunAutoFocus] = useState(false);
   // Tek hesap türü: oyuncu/takım ayrımı yok. Saha sahipleri (venues) panelden tanımlandığı için ayrı kalır.
   const [userType, setUserType] = useState<'player' | 'venue'>('player');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -182,6 +183,10 @@ function AppContent() {
   const pushTokenRef = useRef<string | null>(null);
 
   const navigate = (next: string, params?: any) => {
+    if (next === 'tribun') {
+      // Ana sayfadaki kutudan açılırsa klavye hazır gelir.
+      setTribunAutoFocus(!!params?.focus);
+    }
     if (next === 'chat' && params) {
       setChatTarget({ id: String(params.id ?? ''), name: String(params.name ?? '') });
     }
@@ -541,7 +546,7 @@ function AppContent() {
           />
         );
       case 'tribun':
-        return <TribunScreen navigate={navigate} />;
+        return <TribunScreen navigate={navigate} autoFocus={tribunAutoFocus} />;
       case 'teamHome':
         return <TeamHomeScreen navigate={navigate} userId={currentUserId} />;
       case 'teamProfile':
