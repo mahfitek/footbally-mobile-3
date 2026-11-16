@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS } from '../constants/theme';
+import { isBlockedUser } from '../lib/discovery';
+import BlockedTag from '../components/BlockedTag';
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { PostAuthor, fetchAuthorsMap } from '../lib/socialSaha';
@@ -23,7 +25,7 @@ interface Props {
 }
 
 export default function UserFollowListScreen({ navigate, onBack, userId, type }: Props) {
-  // Engellediğim kişiler listeden çıkarılır; engel listesi yüklenmeden hiçbir kayıt gösterilmez.
+  // Engellediğim kişiler listede kalır ve "Engellendi" etiketi alır.
   const { blockedIds } = useBlockedIds();
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -81,7 +83,7 @@ export default function UserFollowListScreen({ navigate, onBack, userId, type }:
         <ActivityIndicator color={theme.gold} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={blockedIds ? users.filter((u) => !blockedIds.has(u.user_id)) : []}
+          data={users}
           keyExtractor={(u) => u.user_id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
@@ -106,6 +108,7 @@ export default function UserFollowListScreen({ navigate, onBack, userId, type }:
               <View style={styles.nameRow}>
                 <Text style={styles.name} numberOfLines={1}>{item.full_name || t('common_defaultUser')}</Text>
                 {item.is_premium && <Ionicons name="star" size={12} color={theme.gold} />}
+                {isBlockedUser(item.user_id, blockedIds) && <BlockedTag />}
               </View>
               <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
             </TouchableOpacity>

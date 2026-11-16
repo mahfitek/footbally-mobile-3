@@ -10,7 +10,8 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { useBlockedIds } from '../lib/useBlockedIds';
-import { isTeamBlocked, playerProfileRoute, teamProfileRoute } from '../lib/discovery';
+import { isBlockedUser, isTeamBlocked, playerProfileRoute, teamProfileRoute } from '../lib/discovery';
+import BlockedTag from '../components/BlockedTag';
 import { sendMatchChallenge } from '../lib/challenges';
 import { sanitizeSearchTerm } from '../lib/security';
 import { sendLocalNotification } from '../lib/notifications';
@@ -72,10 +73,8 @@ export default function SearchScreen({ navigate }: Props) {
   const [myTeam, setMyTeam] = useState<{ id: string; name: string } | null>(null);
   const [players, setPlayers] = useState<PlayerResult[]>([]);
   const [teams, setTeams] = useState<TeamResult[]>([]);
-  // Engellediklerim listelerden çıkarılır. Engel listesi yüklenmeden hiçbir kişi/takım gösterilmez.
+  // Engellediklerim listede kalır ve "Engellendi" etiketi alır; mesaj ve meydan okuma kısayolları kapatılır.
   const { blockedIds } = useBlockedIds();
-  const visiblePlayers = blockedIds ? players.filter((p) => !blockedIds.has(p.user_id)) : [];
-  const visibleTeams = blockedIds ? teams.filter((tm) => !isTeamBlocked(tm.owner_id, blockedIds)) : [];
   const openPlayer = (userId: string) => {
     const route = playerProfileRoute(userId);
     navigate(route.screen, route.params);
@@ -240,19 +239,22 @@ export default function SearchScreen({ navigate }: Props) {
               <EmptyState icon="person-outline" title={t('search_emptyPlayers')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
-                {visiblePlayers.map((p) => (
+                {players.map((p) => (
                   <View key={p.user_id} style={styles.row}>
                     <HapticTouchable style={styles.rowBody} onPress={() => openPlayer(p.user_id)}>
                       <View style={styles.avatar}><Ionicons name="person-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{p.full_name || t('match_defaultPlayerName')}</Text>
                         <Text style={styles.rowMeta}>{[p.position, p.city].filter(Boolean).join(' · ') || '-'}</Text>
+                        {isBlockedUser(p.user_id, blockedIds) && <BlockedTag />}
                       </View>
                       <Text style={styles.scoreText}>{p.score}</Text>
                     </HapticTouchable>
-                    <HapticTouchable style={styles.actionBtn} onPress={() => navigate('chat', { id: p.user_id, name: p.full_name })}>
-                      <Text style={styles.actionBtnText}>{t('scout_sendMessage')}</Text>
-                    </HapticTouchable>
+                    {!isBlockedUser(p.user_id, blockedIds) && (
+                      <HapticTouchable style={styles.actionBtn} onPress={() => navigate('chat', { id: p.user_id, name: p.full_name })}>
+                        <Text style={styles.actionBtnText}>{t('scout_sendMessage')}</Text>
+                      </HapticTouchable>
+                    )}
                   </View>
                 ))}
               </View>
@@ -264,17 +266,18 @@ export default function SearchScreen({ navigate }: Props) {
               <EmptyState icon="business-outline" title={t('search_emptyTeams')} subtitle={t('search_tryDifferentSearch')} />
             ) : (
               <View style={{ gap: 12 }}>
-                {visibleTeams.map((tm) => (
+                {teams.map((tm) => (
                   <View key={tm.id} style={styles.row}>
                     <HapticTouchable style={styles.rowBody} onPress={() => openTeam(tm.owner_id)}>
                       <View style={styles.avatar}><Ionicons name="business-outline" size={19} color={theme.gold} /></View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{tm.name}</Text>
                         <Text style={styles.rowMeta}>{[tm.city, tm.league].filter(Boolean).join(' · ') || '-'}</Text>
+                        {isTeamBlocked(tm.owner_id, blockedIds) && <BlockedTag />}
                       </View>
                       <Text style={styles.scoreText}>{tm.rating}</Text>
                     </HapticTouchable>
-                    {myTeam && myTeam.id !== tm.id && (
+                    {myTeam && myTeam.id !== tm.id && !isTeamBlocked(tm.owner_id, blockedIds) && (
                       <HapticTouchable style={styles.actionBtn} onPress={() => setChallengeTarget(tm)}>
                         <Text style={styles.actionBtnText}>{t('findOpponent_challenge')}</Text>
                       </HapticTouchable>

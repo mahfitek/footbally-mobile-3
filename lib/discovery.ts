@@ -61,16 +61,14 @@ export async function fetchBlockedUserIds(client: BlocksClient, ownUserId: strin
   return new Set(rows.map((row) => row.blocked_id).filter((id): id is string => typeof id === 'string'));
 }
 
-/** Oyuncu listesini filtreler: kendi profili, engellenenler, şehir, ilçe ve pozisyon (çoklu). */
+/** Oyuncu listesini filtreler: yalnızca kendi profili çıkar; şehir, ilçe ve pozisyon (çoklu). Engellenenler listede kalır ve etiketlenir. */
 export function applyPlayerFilters(
   players: DiscoverablePlayer[],
   filters: PlayerFilters,
-  blockedIds: ReadonlySet<string>,
   ownUserId: string | null,
 ): DiscoverablePlayer[] {
   return players.filter((player) => {
     if (ownUserId && player.user_id === ownUserId) return false;
-    if (blockedIds.has(player.user_id)) return false;
     if (filters.city && player.city !== filters.city) return false;
     if (filters.district && player.district !== filters.district) return false;
     if (filters.positions.length > 0 && !filters.positions.includes(player.position ?? '')) return false;
@@ -78,9 +76,14 @@ export function applyPlayerFilters(
   });
 }
 
-/** Takım listesinde bir takımın engellenip engellenmediği: takımın sahibi engellenmiş mi? */
-export function isTeamBlocked(ownerId: string | null | undefined, blockedIds: ReadonlySet<string>): boolean {
-  return !!ownerId && blockedIds.has(ownerId);
+/** Bir kullanıcının engellediklerimde olup olmadığı. Liste satırında "Engellendi" etiketi ve kısayol kapatma için. */
+export function isBlockedUser(userId: string | null | undefined, blockedIds: ReadonlySet<string> | null | undefined): boolean {
+  return !!userId && !!blockedIds?.has(userId);
+}
+
+/** Takımın sahibi engellenmiş mi? Takım satırında "Engellendi" etiketi ve meydan okuma kısayolunun kapatılması için. */
+export function isTeamBlocked(ownerId: string | null | undefined, blockedIds: ReadonlySet<string> | null | undefined): boolean {
+  return isBlockedUser(ownerId, blockedIds);
 }
 
 /** Profil rotası: başka bir kullanıcının oyuncu profili (App.tsx 'profile' ekranı params.userId ile açar). */

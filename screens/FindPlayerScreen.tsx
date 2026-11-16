@@ -16,10 +16,12 @@ import {
   applyPlayerFilters,
   fetchBlockedUserIds,
   fetchDiscoverablePlayers,
+  isBlockedUser,
   playerProfileRoute,
   type DiscoverablePlayer,
 } from '../lib/discovery';
 import EmptyState from '../components/EmptyState';
+import BlockedTag from '../components/BlockedTag';
 import HapticTouchable from '../components/HapticTouchable';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
 
@@ -45,7 +47,7 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
   const [ownUserId, setOwnUserId] = useState<string | null>(null);
 
   // Yayınlanabilir oyuncular (sunucu: tamamlanmış, kısıtlı olmayan profiller) ve kendi engel listem.
-  // Engel listesi okunamazsa hiçbir oyuncu gösterilmez (fail closed).
+  // Engel listesi okunamazsa oyuncular yine gösterilir; yalnızca "Engellendi" etiketi verilmez.
   const loadPlayers = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -53,13 +55,13 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
     setOwnUserId(uid);
     const list = await fetchDiscoverablePlayers(discoveryRpcClient, { limit: 100 });
     const blocked = uid ? await fetchBlockedUserIds(discoveryBlocksClient, uid) : new Set<string>();
-    if (!list.ok || blocked === null) {
+    if (!list.ok) {
       setFailed(true);
       setPlayers([]);
     } else {
       setFailed(false);
       setPlayers(list.players);
-      setBlockedIds(blocked);
+      setBlockedIds(blocked ?? new Set<string>());
     }
     setLoading(false);
   };
@@ -71,7 +73,7 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
 
   const filteredPlayers = failed
     ? []
-    : applyPlayerFilters(players, { city: selectedCity, district: selectedDistrict, positions: selectedPositions }, blockedIds, ownUserId);
+    : applyPlayerFilters(players, { city: selectedCity, district: selectedDistrict, positions: selectedPositions }, ownUserId);
 
   const clearFilters = () => {
     setSelectedCity('');
@@ -268,6 +270,7 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
                   <Text style={styles.playerName}>{player.full_name || t('match_defaultPlayerName')}</Text>
                   <Text style={styles.playerPosition}>{player.position}</Text>
                   <Text style={styles.playerLocation}>{[player.city, player.district].filter(Boolean).join(' · ')}</Text>
+                  {isBlockedUser(player.user_id, blockedIds) && <BlockedTag />}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.playerScore}>{player.score ?? 0}</Text>

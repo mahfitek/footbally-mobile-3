@@ -4,6 +4,7 @@ import {
   applyPlayerFilters,
   fetchBlockedUserIds,
   fetchDiscoverablePlayers,
+  isBlockedUser,
   isTeamBlocked,
   playerProfileRoute,
   teamProfileRoute,
@@ -36,14 +37,14 @@ const NO_FILTERS = { city: '', district: '', positions: [] as string[] };
 
 test('own profile is never listed among discoverable players', () => {
   const list = [player(ME), player('a')];
-  const out = applyPlayerFilters(list, NO_FILTERS, new Set(), ME);
+  const out = applyPlayerFilters(list, NO_FILTERS, ME);
   assert.deepEqual(out.map((p) => p.user_id), ['a']);
 });
 
-test('blocked users are removed from the player list', () => {
+test('blocked users stay in the player list so they can be labelled', () => {
   const list = [player('a'), player('b'), player('c')];
-  const out = applyPlayerFilters(list, NO_FILTERS, new Set(['b']), ME);
-  assert.deepEqual(out.map((p) => p.user_id), ['a', 'c']);
+  const out = applyPlayerFilters(list, NO_FILTERS, ME);
+  assert.deepEqual(out.map((p) => p.user_id), ['a', 'b', 'c']);
 });
 
 test('city, district and multi-position filters apply to real profile values', () => {
@@ -54,15 +55,15 @@ test('city, district and multi-position filters apply to real profile values', (
     player('d', { city: 'İstanbul', district: 'Kadıköy', position: 'Kaleci' }),
   ];
   assert.deepEqual(
-    applyPlayerFilters(list, { city: 'İstanbul', district: '', positions: [] }, new Set(), ME).map((p) => p.user_id),
+    applyPlayerFilters(list, { city: 'İstanbul', district: '', positions: [] }, ME).map((p) => p.user_id),
     ['a', 'b', 'd'],
   );
   assert.deepEqual(
-    applyPlayerFilters(list, { city: 'İstanbul', district: 'Kadıköy', positions: [] }, new Set(), ME).map((p) => p.user_id),
+    applyPlayerFilters(list, { city: 'İstanbul', district: 'Kadıköy', positions: [] }, ME).map((p) => p.user_id),
     ['a', 'd'],
   );
   assert.deepEqual(
-    applyPlayerFilters(list, { city: '', district: '', positions: ['Forvet', 'Kaleci'] }, new Set(), ME).map((p) => p.user_id),
+    applyPlayerFilters(list, { city: '', district: '', positions: ['Forvet', 'Kaleci'] }, ME).map((p) => p.user_id),
     ['b', 'c', 'd'],
   );
 });
@@ -107,6 +108,14 @@ test('a blocked team is the one whose owner is blocked', () => {
   assert.equal(isTeamBlocked('owner-1', new Set(['owner-1'])), true);
   assert.equal(isTeamBlocked('owner-2', new Set(['owner-1'])), false);
   assert.equal(isTeamBlocked(null, new Set(['owner-1'])), false);
+  assert.equal(isTeamBlocked('owner-1', null), false, 'unknown block list labels nothing');
+});
+
+test('a blocked user is labelled only when my block list contains that user id', () => {
+  assert.equal(isBlockedUser('u-1', new Set(['u-1'])), true);
+  assert.equal(isBlockedUser('u-2', new Set(['u-1'])), false);
+  assert.equal(isBlockedUser(undefined, new Set(['u-1'])), false);
+  assert.equal(isBlockedUser('u-1', null), false);
 });
 
 test('player and team profile routes carry the user id parameter the app expects', () => {

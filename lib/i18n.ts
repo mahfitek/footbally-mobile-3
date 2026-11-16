@@ -1420,6 +1420,7 @@ const translations = {
     block_contentHidden: 'Engellediğin için içerikler gizli.',
     block_unblockPrimary: 'Engeli Kaldır',
     block_unblockConfirm: 'Bu engeli kaldırmak istiyor musun?',
+    block_blockedLabel: 'Engellendi',
   },
   en: {
     home: 'Home',
@@ -2842,6 +2843,7 @@ const translations = {
     block_contentHidden: 'Content is hidden because you blocked them.',
     block_unblockPrimary: 'Unblock',
     block_unblockConfirm: 'Do you want to remove this block?',
+    block_blockedLabel: 'Blocked',
   },
 };
 

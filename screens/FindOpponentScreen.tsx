@@ -21,6 +21,7 @@ import { FontFamily } from '../constants/fonts';
 const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { useBlockedIds } from '../lib/useBlockedIds';
+import BlockedTag from '../components/BlockedTag';
 import { isTeamBlocked, teamProfileRoute } from '../lib/discovery';
 import { sendLocalNotification } from '../lib/notifications';
 import { sendMatchChallenge } from '../lib/challenges';
@@ -188,7 +189,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
     setSending(false);
   };
 
-  // Engellediğim takımlar gösterilmez; engel listesi yüklenmeden takım gösterilmez.
+  // Engellediğim takımlar listede kalır ve "Engellendi" etiketi alır; meydan okuma düğmesi kapanır.
   const { blockedIds } = useBlockedIds();
   const openTeam = (ownerId: string | null | undefined) => {
     if (!ownerId) return;
@@ -196,7 +197,6 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
     navigate(route.screen, route.params);
   };
   const filteredTeams = teams.filter((team) => {
-    if (!blockedIds || isTeamBlocked(team.owner_id, blockedIds)) return false;
     if (selectedCity && team.city !== selectedCity) return false;
     if (selectedDistrict && team.district !== selectedDistrict) return false;
     return true;
@@ -395,6 +395,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
                       <Text style={styles.teamMeta}>
                         {team.city}{team.district ? ` · ${team.district}` : ''} · {team.league}
                       </Text>
+                      {isTeamBlocked(team.owner_id, blockedIds) && <BlockedTag />}
                     </View>
                     <Text style={styles.teamRecord}>{team.wins}G {team.draws}B {team.losses}M</Text>
                   </HapticTouchable>
@@ -438,9 +439,11 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
                     <Text style={styles.matchDaysText}>{team.match_days.join(' · ')}</Text>
                   )}
 
-                  <HapticTouchable style={styles.challengeBtn} onPress={() => openChallenge(team)}>
-                    <Text style={styles.challengeBtnText}>{t('findOpponent_challenge')}</Text>
-                  </HapticTouchable>
+                  {!isTeamBlocked(team.owner_id, blockedIds) && (
+                    <HapticTouchable style={styles.challengeBtn} onPress={() => openChallenge(team)}>
+                      <Text style={styles.challengeBtnText}>{t('findOpponent_challenge')}</Text>
+                    </HapticTouchable>
+                  )}
                 </View>
               );
             })}

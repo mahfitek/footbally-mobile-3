@@ -17,13 +17,14 @@ import { supabase } from '../lib/supabase';
 import { classifyInteractionError } from '../lib/interactionGuard';
 import { profiles } from '../lib/profiles';
 import { useBlockedIds } from '../lib/useBlockedIds';
-import { playerProfileRoute } from '../lib/discovery';
+import { isBlockedUser, playerProfileRoute } from '../lib/discovery';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
+import BlockedTag from '../components/BlockedTag';
 
 const RADIUS = CARD_RADIUS;
 
@@ -46,7 +47,7 @@ interface Props {
 }
 
 export default function ScoutScreen({ navigate }: Props) {
-  // Engellediğim kişiler listeden çıkarılır; engel listesi yüklenmeden hiçbir kayıt gösterilmez.
+  // Engellediğim kişiler listede kalır ve "Engellendi" etiketi alır; mesaj ve bağlantı istekleri kapanır.
   const { blockedIds } = useBlockedIds();
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -152,7 +153,6 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const query = search.trim().toLowerCase();
   const filteredPlayers = players.filter((p) => {
-    if (!blockedIds || blockedIds.has(p.id)) return false;
     if (activeFilter !== 'Tümü' && p.position !== activeFilter) return false;
     if (typeof p.age === 'number' && (p.age < ageRange[0] || p.age > ageRange[1])) return false;
     if (!query) return true;
@@ -295,6 +295,8 @@ export default function ScoutScreen({ navigate }: Props) {
                   <Text style={styles.playerMeta}>
                     {p.position} · {p.age} {t('teamProfile_ageSuffix')} · {p.city}
                   </Text>
+                  {isBlockedUser(p.id, blockedIds) && <BlockedTag />}
+                  {!isBlockedUser(p.id, blockedIds) && (
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     <HapticTouchable
                       style={styles.contactBtn}
@@ -312,6 +314,7 @@ export default function ScoutScreen({ navigate }: Props) {
                       </Text>
                     </HapticTouchable>
                   </View>
+                  )}
                 </View>
                 <Text style={styles.playerScore}>{p.score}</Text>
               </HapticTouchable>
