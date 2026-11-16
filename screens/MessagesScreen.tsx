@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useBlockedIds } from '../lib/useBlockedIds';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper } from '../constants/theme';
@@ -68,6 +69,8 @@ interface Props {
 }
 
 export default function MessagesScreen({ navigate }: Props) {
+  // Engellediğim kişiler listeden çıkarılır; engel listesi yüklenmeden hiçbir kayıt gösterilmez.
+  const { blockedIds } = useBlockedIds();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -425,7 +428,7 @@ export default function MessagesScreen({ navigate }: Props) {
               />
             ) : (
               <View style={styles.chatList}>
-                {chats.map((c) => (
+                {(blockedIds ? chats.filter((c) => !blockedIds.has(String(c.id))) : []).map((c) => (
                   <HapticTouchable
                     key={c.id}
                     style={styles.chatItem}
@@ -517,7 +520,7 @@ export default function MessagesScreen({ navigate }: Props) {
                   />
                 ) : (
                   <View style={styles.chatList}>
-                    {acceptedConnections.map((c) => (
+                    {(blockedIds ? acceptedConnections.filter((c) => !blockedIds.has(c.userId)) : []).map((c) => (
                       <View key={c.connectionId} style={styles.connectionItem}>
                         <View style={styles.chatAvatarWrap}>
                           <View style={styles.chatAvatar}>

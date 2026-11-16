@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useBlockedIds } from '../lib/useBlockedIds';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Theme, CARD_RADIUS, Paper, PREMIUM_HEART_COLOR, PREMIUM_NAME_GRADIENT } from '../constants/theme';
@@ -48,6 +49,8 @@ interface Props {
 type ToastState = { message: string; type: 'error' | 'success' } | null;
 
 export default function SocialFeedScreen({ navigate, userId }: Props) {
+  // Engellediğim kişiler listeden çıkarılır; engel listesi yüklenmeden hiçbir kayıt gösterilmez.
+  const { blockedIds } = useBlockedIds();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -243,7 +246,7 @@ export default function SocialFeedScreen({ navigate, userId }: Props) {
         </View>
       ) : (
         <FlatList
-          data={posts}
+          data={blockedIds ? posts.filter((p) => !blockedIds.has(p.user_id)) : []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}

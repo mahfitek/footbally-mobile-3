@@ -15,6 +15,8 @@ import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/
 import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
+import { useBlockedIds } from '../lib/useBlockedIds';
+import { playerProfileRoute } from '../lib/discovery';
 import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import { notifyEvent } from '../lib/notify';
 import Toast from '../components/Toast';
@@ -43,6 +45,8 @@ interface Props {
 }
 
 export default function ScoutScreen({ navigate }: Props) {
+  // Engellediğim kişiler listeden çıkarılır; engel listesi yüklenmeden hiçbir kayıt gösterilmez.
+  const { blockedIds } = useBlockedIds();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -147,6 +151,7 @@ export default function ScoutScreen({ navigate }: Props) {
 
   const query = search.trim().toLowerCase();
   const filteredPlayers = players.filter((p) => {
+    if (!blockedIds || blockedIds.has(p.id)) return false;
     if (activeFilter !== 'Tümü' && p.position !== activeFilter) return false;
     if (typeof p.age === 'number' && (p.age < ageRange[0] || p.age > ageRange[1])) return false;
     if (!query) return true;
@@ -273,7 +278,14 @@ export default function ScoutScreen({ navigate }: Props) {
         ) : (
           <View style={styles.list}>
             {(isPremiumActive ? filteredPlayers : filteredPlayers.slice(0, FREE_PREVIEW_COUNT)).map((p) => (
-              <HapticTouchable key={p.id} style={styles.playerCard}>
+              <HapticTouchable
+                key={p.id}
+                style={styles.playerCard}
+                onPress={() => {
+                  const route = playerProfileRoute(p.id);
+                  navigate(route.screen, route.params);
+                }}
+              >
                 <View style={styles.avatar}>
                   <Ionicons name="person-outline" size={22} color={theme.gold} />
                 </View>

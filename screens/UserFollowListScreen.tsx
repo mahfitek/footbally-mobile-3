@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useBlockedIds } from '../lib/useBlockedIds';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export default function UserFollowListScreen({ navigate, onBack, userId, type }: Props) {
+  // Engellediğim kişiler listeden çıkarılır; engel listesi yüklenmeden hiçbir kayıt gösterilmez.
+  const { blockedIds } = useBlockedIds();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
@@ -78,7 +81,7 @@ export default function UserFollowListScreen({ navigate, onBack, userId, type }:
         <ActivityIndicator color={theme.gold} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={users}
+          data={blockedIds ? users.filter((u) => !blockedIds.has(u.user_id)) : []}
           keyExtractor={(u) => u.user_id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
