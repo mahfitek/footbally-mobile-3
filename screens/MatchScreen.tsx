@@ -1,3 +1,4 @@
+import { classifyInteractionError } from '../lib/interactionGuard';
 import { useEffect, useState } from 'react';
 import {
   View,
@@ -53,6 +54,7 @@ type MatchView = {
   creator_id: string;
   participantsCount: number;
   applied: boolean;
+  rejected: boolean;
   myApplicationId: string | null;
   myResult: 'win' | 'loss' | 'draw' | null;
   myGoals: number;
@@ -145,7 +147,7 @@ export default function MatchScreen({ navigate }: Props) {
       if (ids.length > 0) {
         const { data: apps } = await supabase
           .from('match_applications')
-          .select('id, match_id, user_id, result, goals')
+          .select('id, match_id, user_id, result, goals, status')
           .in('match_id', ids);
         appRows = apps ?? [];
       }
@@ -165,7 +167,8 @@ export default function MatchScreen({ navigate }: Props) {
             category: m.category ?? 'Eğlence',
             creator_id: m.creator_id,
             participantsCount: appRows.filter((a) => a.match_id === m.id).length,
-            applied: !!myApp,
+            applied: !!myApp && myApp.status !== 'rejected',
+            rejected: myApp?.status === 'rejected',
             myApplicationId: myApp?.id ?? null,
             myResult: myApp?.result ?? null,
             myGoals: myApp?.goals ?? 0,
@@ -276,7 +279,7 @@ export default function MatchScreen({ navigate }: Props) {
   };
 
   const handleJoin = async (match: MatchView) => {
-    if (!userId || match.applied || match.creator_id === userId) return;
+    if (!userId || match.applied || match.rejected || match.creator_id === userId) return;
     setJoining(true);
     try {
       const { data: inserted, error } = await supabase
@@ -287,7 +290,17 @@ export default function MatchScreen({ navigate }: Props) {
 
       if (error) {
         if (__DEV__) console.log('Maça katılım kaydedilemedi:', error);
-        setToast({ message: t('match_joinFailed'), type: 'error' });
+        const kind = classifyInteractionError(error);
+        if (kind === 'application_rejected') {
+          // Reddedilmiş başvuru: aynı ilana yeniden katılınamaz; etiket güncellenir.
+          setMatches((prev) => prev.map((m) => (m.id === match.id ? { ...m, rejected: true, applied: false } : m)));
+          setSelected((prev) => (prev && prev.id === match.id ? { ...prev, rejected: true, applied: false } : prev));
+        }
+        const message =
+          kind === 'blocked' ? t('block_interactionBlocked')
+          : kind === 'application_rejected' ? t('application_reapplyBlocked')
+          : t('match_joinFailed');
+        setToast({ message, type: 'error' });
       } else {
         setMatches((prev) =>
           prev.map((m) =>
@@ -557,7 +570,7 @@ export default function MatchScreen({ navigate }: Props) {
           <View style={styles.list}>
             {filtered.map((m) => {
               const isUpcoming = m.date >= today;
-              const statusLabel = m.applied ? t('match_statusApplied') : isUpcoming ? t('match_statusUpcoming') : t('match_statusPast');
+              const statusLabel = m.rejected ? t('application_rejectedLabel') : m.applied ? t('match_statusApplied') : isUpcoming ? t('match_statusUpcoming') : t('match_statusPast');
               const needsResult = m.applied && !isUpcoming && !m.myResult;
               const remainingSlots = m.required_players - m.participantsCount;
               const isUrgent = isUpcoming && !m.applied && remainingSlots > 0 && remainingSlots <= 2;
@@ -725,13 +738,13 @@ export default function MatchScreen({ navigate }: Props) {
                       selected.participantsCount >= selected.required_players && styles.joinBtnDisabled,
                     ]}
                     onPress={() => handleJoin(selected)}
-                    disabled={joining || selected.participantsCount >= selected.required_players}
+                    disabled={joining || selected.rejected || selected.participantsCount >= selected.required_players}
                   >
                     {joining ? (
                       <ActivityIndicator color={Paper.ink} />
                     ) : (
                       <Text style={styles.joinBtnText}>
-                        {selected.participantsCount >= selected.required_players ? t('match_full') : t('match_join')}
+                        {selected.rejected ? t('application_rejectedLabel') : selected.participantsCount >= selected.required_players ? t('match_full') : t('match_join')}
                       </Text>
                     )}
                   </HapticTouchable>

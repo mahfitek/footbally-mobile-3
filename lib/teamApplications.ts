@@ -1,7 +1,6 @@
 // Takıma gelen başvurular: takımın (matches.team_id) maçlarına yapılan match_applications kayıtları.
 // Kabul/ret için match_applications üzerinde sahibe UPDATE politikası yoktur; bu ekran yalnızca listeler.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { countsAsApplication } from './profileTasks';
 
 export type TeamApplicant = {
   application_id: number;
@@ -33,9 +32,8 @@ export async function fetchTeamApplicants(client: Client, teamId: string): Promi
     .order('created_at', { ascending: false });
   if (applicationError) return null;
 
-  const rows = ((applications ?? []) as { id: number; user_id: string; status: string | null; created_at: string }[]).filter(
-    (a) => countsAsApplication(a.status),
-  );
+  // Reddedilenler de listelenir ("Reddedildi" etiketiyle); skor kuralı ayrı bir yerde (profileTasks).
+  const rows = (applications ?? []) as { id: number; user_id: string; status: string | null; created_at: string }[];
   const userIds = [...new Set(rows.map((a) => a.user_id))];
   if (userIds.length === 0) return [];
 

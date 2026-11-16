@@ -1,3 +1,4 @@
+import { classifyInteractionError } from '../lib/interactionGuard';
 import { useEffect, useState } from 'react';
 import ListingBoard from '../components/ListingBoard';
 import {
@@ -172,7 +173,7 @@ export default function FindOpponentScreen({ navigate, onBack }: Props) {
       );
 
       if (error) {
-        setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
+        setToast({ message: classifyInteractionError({ message: error }) === 'blocked' ? t('block_interactionBlocked') : t('findOpponent_inviteFailed'), type: 'error' });
         setSending(false);
         return;
       }

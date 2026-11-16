@@ -1,3 +1,4 @@
+import { classifyInteractionError } from '../lib/interactionGuard';
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -154,7 +155,14 @@ export default function SearchScreen({ navigate }: Props) {
     if (!userId || match.creator_id === userId) return;
     const { error } = await supabase.from('match_applications').insert({ match_id: match.id, user_id: userId, status: 'applied' });
     if (error) {
-      setToast({ message: t('match_joinFailed'), type: 'error' });
+      const kind = classifyInteractionError({ message: error.message });
+      setToast({
+        message:
+          kind === 'blocked' ? t('block_interactionBlocked')
+          : kind === 'application_rejected' ? t('application_reapplyBlocked')
+          : t('match_joinFailed'),
+        type: 'error',
+      });
       return;
     }
     setJoinedMatchIds((prev) => ({ ...prev, [match.id]: true }));
@@ -187,7 +195,7 @@ export default function SearchScreen({ navigate }: Props) {
     );
     setSending(false);
     if (error) {
-      setToast({ message: t('findOpponent_inviteFailed'), type: 'error' });
+      setToast({ message: classifyInteractionError({ message: error }) === 'blocked' ? t('block_interactionBlocked') : t('findOpponent_inviteFailed'), type: 'error' });
       return;
     }
     setToast({ message: t('findOpponent_inviteSentToast'), type: 'success' });

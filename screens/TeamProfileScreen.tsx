@@ -24,6 +24,8 @@ const RADIUS = CARD_RADIUS;
 import { supabase } from '../lib/supabase';
 import { fetchTeamApplicants, filterApplicantsByPosition } from '../lib/teamApplications';
 import { blockUser } from '../lib/blocking';
+import { rejectMatchApplication } from '../lib/interactionGuard';
+import { discoveryRpcClient } from '../lib/discoveryClient';
 import { reportTargetFor } from '../lib/profileActions';
 import { TEAM_COLUMNS } from '../lib/columns';
 import { profiles } from '../lib/profiles';
@@ -67,6 +69,8 @@ type SquadMember = {
 
 type Application = {
   id: string;
+  application_id: number;
+  status: string;
   user_id: string;
   full_name: string;
   position: string | null;
@@ -374,6 +378,8 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
     setApplications(
       rows.map((r) => ({
         id: String(r.application_id),
+        application_id: r.application_id,
+        status: r.status,
         user_id: r.user_id,
         full_name: r.full_name,
         position: r.position,
@@ -383,6 +389,28 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
         applied_at: new Date(r.created_at).toLocaleDateString('tr-TR'),
       })),
     );
+  };
+
+  // Başvuruyu reddet (ilan sahibi). Onaydan sonra RPC; başarıda satır "Reddedildi" olur.
+  const handleRejectApplication = (app: Application) => {
+    Alert.alert(t('application_rejectConfirmTitle'), t('application_rejectConfirmBody'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      {
+        text: t('application_rejectAction'),
+        style: 'destructive',
+        onPress: async () => {
+          const outcome = await rejectMatchApplication(discoveryRpcClient, app.application_id);
+          if (outcome.ok) {
+            setApplications((prev) => prev.map((a) => (a.id === app.id ? { ...a, status: 'rejected' } : a)));
+            setToast({ message: t('application_rejectDone'), type: 'success' });
+          } else if (outcome.reason === 'not_owner') {
+            setToast({ message: t('application_notOwner'), type: 'error' });
+          } else {
+            setToast({ message: t('application_rejectFailed'), type: 'error' });
+          }
+        },
+      },
+    ]);
   };
 
   // Takım sahibini engeller (onay sorulur). Engellendikten sonra geri dönülür.
@@ -710,6 +738,15 @@ export default function TeamProfileScreen({ navigate, userId, currentUserId, onB
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {app.status === 'rejected' ? (
+                      <View style={styles.rejectedBadge}>
+                        <Text style={styles.rejectedBadgeText}>{t('application_rejectedLabel')}</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectApplication(app)}>
+                        <Text style={styles.rejectBtnText}>{t('application_rejectAction')}</Text>
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity style={styles.msgBtn} onPress={() => navigate('chat')}>
                       <Text style={styles.msgBtnText}>{t('teamProfile_message')}</Text>
                     </TouchableOpacity>
@@ -930,6 +967,8 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.border,
     },
     safetyBtnText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
+    rejectedBadge: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: theme.border, justifyContent: 'center' },
+    rejectedBadgeText: { fontFamily: FontFamily.monoMedium, fontSize: 12, color: theme.textMuted },
     viewApplicationsBtn: {
       backgroundColor: theme.gold,
       borderRadius: RADIUS,
