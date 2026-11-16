@@ -1402,6 +1402,7 @@ const translations = {
     listing_opponentBoardTitle: 'Rakip ilanları',
     listing_playersBoardTitle: 'Oyuncu ilanları',
     listing_activitiesBoardTitle: 'Maç ilanları',
+    sahadan_writeFirst: 'İlk mesajı yaz',
   },
   en: {
     home: 'Home',
@@ -2806,6 +2807,7 @@ const translations = {
     listing_opponentBoardTitle: 'Opponent listings',
     listing_playersBoardTitle: 'Player listings',
     listing_activitiesBoardTitle: 'Match listings',
+    sahadan_writeFirst: 'Write the first message',
   },
 };
 

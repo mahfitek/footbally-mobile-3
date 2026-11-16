@@ -24,6 +24,7 @@ import { fetchPremiumStatus, INACTIVE_PREMIUM } from '../lib/premium';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
 import SectionHeader from '../components/SectionHeader';
+import SahadanPreview from '../components/SahadanPreview';
 import SkeletonCard from '../components/SkeletonCard';
 import HapticTouchable from '../components/HapticTouchable';
 import TournamentTeaser from '../components/TournamentTeaser';
@@ -324,7 +325,9 @@ export default function HomeScreen({ navigate, userId }: Props) {
         </View>
 
         <TournamentTeaser />
-        {/* SAHADAN_SECTION */}
+        {/* Sahadan: son mesajlar, yazma kutusu ve tam ekran girişi */}
+        <SahadanPreview navigate={navigate} />
+
 
         {/* Matches */}
         <SectionHeader
