@@ -133,7 +133,7 @@ begin
   elsif new.target_type = 'player' then
     select p.user_id into v_recipient from public.profiles p where p.user_id = new.target_id;
   else
-    select t.owner_id into v_recipient from public.teams t where t.id = new.target_id::uuid;
+    select t.owner_id into v_recipient from public.teams t where t.id = new.target_id;
   end if;
   if public.users_blocked_either_way(new.scout_user_id, v_recipient) then
     raise exception 'blocked_interaction' using errcode = '42501';
