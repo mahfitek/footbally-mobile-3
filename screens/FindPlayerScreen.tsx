@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ListingBoard from '../components/ListingBoard';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -9,142 +9,19 @@ import { Theme, CARD_RADIUS, PILL_RADIUS, Paper, hexToRgba } from '../constants/
 import { FontFamily } from '../constants/fonts';
 
 const RADIUS = CARD_RADIUS;
-import { sendLocalNotification } from '../lib/notifications';
+import { supabase } from '../lib/supabase';
+import { discoveryRpcClient, discoveryBlocksClient } from '../lib/discoveryClient';
+import { POSITION_OPTIONS } from '../lib/matchListing';
+import {
+  applyPlayerFilters,
+  fetchBlockedUserIds,
+  fetchDiscoverablePlayers,
+  playerProfileRoute,
+  type DiscoverablePlayer,
+} from '../lib/discovery';
 import EmptyState from '../components/EmptyState';
 import HapticTouchable from '../components/HapticTouchable';
-import Toast from '../components/Toast';
 import { TURKEY_CITIES } from '../constants/turkeyCities';
-import { FOOTBALL_POSITIONS } from '../constants/footballPositions';
-
-type FakePlayer = {
-  id: string;
-  full_name: string;
-  position: string;
-  age: number;
-  city: string;
-  district: string;
-  foot: string;
-  score: number;
-  club: string | null;
-  isPremium: boolean;
-  price: number;
-  stats: { hiz: number; pas: number; sut: number; dayaniklilik: number; dribbling: number; savunma: number };
-};
-
-const FAKE_PLAYERS: FakePlayer[] = [
-  {
-    id: '1',
-    full_name: 'Ahmet Yılmaz',
-    position: 'Santrafor (ST)',
-    age: 22,
-    city: 'İstanbul',
-    district: 'Kadıköy',
-    foot: 'Sağ Ayak',
-    score: 78,
-    club: 'Kadıköy United',
-    isPremium: true,
-    price: 0,
-    stats: { hiz: 82, pas: 71, sut: 85, dayaniklilik: 76, dribbling: 79, savunma: 45 },
-  },
-  {
-    id: '2',
-    full_name: 'Mehmet Demir',
-    position: 'Kaleci (GK)',
-    age: 25,
-    city: 'İstanbul',
-    district: 'Beşiktaş',
-    foot: 'Sağ Ayak',
-    score: 82,
-    club: 'Beşiktaş Amatör',
-    isPremium: true,
-    price: 500,
-    stats: { hiz: 65, pas: 72, sut: 55, dayaniklilik: 80, dribbling: 58, savunma: 88 },
-  },
-  {
-    id: '3',
-    full_name: 'Emre Kaya',
-    position: 'Sol Bek (LB)',
-    age: 19,
-    city: 'İstanbul',
-    district: 'Maltepe',
-    foot: 'Sol Ayak',
-    score: 65,
-    club: null,
-    isPremium: false,
-    price: 0,
-    stats: { hiz: 78, pas: 68, sut: 62, dayaniklilik: 74, dribbling: 71, savunma: 75 },
-  },
-  {
-    id: '4',
-    full_name: 'Burak Şahin',
-    position: 'Ofansif Orta Saha (CAM)',
-    age: 21,
-    city: 'Ankara',
-    district: 'Çankaya',
-    foot: 'Her İkisi',
-    score: 74,
-    club: 'Ankara Gençlik',
-    isPremium: false,
-    price: 0,
-    stats: { hiz: 75, pas: 84, sut: 76, dayaniklilik: 72, dribbling: 82, savunma: 58 },
-  },
-  {
-    id: '5',
-    full_name: 'Can Öztürk',
-    position: 'Stoper (CB)',
-    age: 24,
-    city: 'İzmir',
-    district: 'Karşıyaka',
-    foot: 'Sağ Ayak',
-    score: 71,
-    club: 'Karşıyaka SK',
-    isPremium: true,
-    price: 1000,
-    stats: { hiz: 68, pas: 65, sut: 58, dayaniklilik: 82, dribbling: 60, savunma: 84 },
-  },
-  {
-    id: '6',
-    full_name: 'Enes Arslan',
-    position: 'Sağ Kanat (RW)',
-    age: 18,
-    city: 'İstanbul',
-    district: 'Ümraniye',
-    foot: 'Sol Ayak',
-    score: 68,
-    club: null,
-    isPremium: false,
-    price: 0,
-    stats: { hiz: 88, pas: 70, sut: 72, dayaniklilik: 68, dribbling: 85, savunma: 42 },
-  },
-  {
-    id: '7',
-    full_name: 'Mert Çelik',
-    position: 'Savunma Orta Saha (CDM)',
-    age: 26,
-    city: 'Bursa',
-    district: 'Nilüfer',
-    foot: 'Sağ Ayak',
-    score: 76,
-    club: 'Nilüfer Belediyespor',
-    isPremium: true,
-    price: 750,
-    stats: { hiz: 72, pas: 78, sut: 65, dayaniklilik: 85, dribbling: 68, savunma: 82 },
-  },
-  {
-    id: '8',
-    full_name: 'Furkan Güneş',
-    position: 'Sol Kanat (LW)',
-    age: 20,
-    city: 'İstanbul',
-    district: 'Fatih',
-    foot: 'Sol Ayak',
-    score: 69,
-    club: null,
-    isPremium: false,
-    price: 0,
-    stats: { hiz: 86, pas: 72, sut: 74, dayaniklilik: 70, dribbling: 83, savunma: 40 },
-  },
-];
 
 type FilterKey = 'city' | 'district' | 'position' | null;
 
@@ -161,16 +38,40 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
-  const [minScore] = useState(0);
-  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [players, setPlayers] = useState<DiscoverablePlayer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const [ownUserId, setOwnUserId] = useState<string | null>(null);
 
-  const filteredPlayers = FAKE_PLAYERS.filter((p) => {
-    if (selectedCity && p.city !== selectedCity) return false;
-    if (selectedDistrict && p.district !== selectedDistrict) return false;
-    if (selectedPositions.length > 0 && !selectedPositions.includes(p.position)) return false;
-    if (p.score < minScore) return false;
-    return true;
-  });
+  // Yayınlanabilir oyuncular (sunucu: tamamlanmış, kısıtlı olmayan profiller) ve kendi engel listem.
+  // Engel listesi okunamazsa hiçbir oyuncu gösterilmez (fail closed).
+  const loadPlayers = async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id ?? null;
+    setOwnUserId(uid);
+    const list = await fetchDiscoverablePlayers(discoveryRpcClient, { limit: 100 });
+    const blocked = uid ? await fetchBlockedUserIds(discoveryBlocksClient, uid) : new Set<string>();
+    if (!list.ok || blocked === null) {
+      setFailed(true);
+      setPlayers([]);
+    } else {
+      setFailed(false);
+      setPlayers(list.players);
+      setBlockedIds(blocked);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    void loadPlayers();
+  }, []);
+
+  const filteredPlayers = failed
+    ? []
+    : applyPlayerFilters(players, { city: selectedCity, district: selectedDistrict, positions: selectedPositions }, blockedIds, ownUserId);
 
   const clearFilters = () => {
     setSelectedCity('');
@@ -180,11 +81,6 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
 
   const togglePosition = (pos: string) => {
     setSelectedPositions((prev) => (prev.includes(pos) ? prev.filter((p) => p !== pos) : [...prev, pos]));
-  };
-
-  const handleInvite = (player: FakePlayer) => {
-    setToast({ message: `${player.full_name} ${t('findPlayer_inviteSentToast')}`, type: 'success' });
-    sendLocalNotification(t('findPlayer_inviteSentTitle'), `${player.full_name} ${t('findPlayer_inviteSentBody')}`);
   };
 
   return (
@@ -321,25 +217,20 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
         {openFilter === 'position' && (
           <View style={styles.dropdown}>
             <ScrollView nestedScrollEnabled style={{ maxHeight: 300 }}>
-              {FOOTBALL_POSITIONS.map((cat) => (
-                <View key={cat.category}>
-                  <Text style={styles.categoryLabel}>{cat.category}</Text>
-                  <View style={styles.pillsWrap}>
-                    {cat.positions.map((pos) => {
-                      const isSelected = selectedPositions.includes(pos);
-                      return (
-                        <HapticTouchable
-                          key={pos}
-                          onPress={() => togglePosition(pos)}
-                          style={[styles.positionPill, isSelected && styles.positionPillActive]}
-                        >
-                          <Text style={[styles.positionPillText, isSelected && styles.positionPillTextActive]}>{pos}</Text>
-                        </HapticTouchable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
+              <View style={styles.pillsWrap}>
+                {POSITION_OPTIONS.map((pos) => {
+                  const isSelected = selectedPositions.includes(pos);
+                  return (
+                    <HapticTouchable
+                      key={pos}
+                      onPress={() => togglePosition(pos)}
+                      style={[styles.positionPill, isSelected && styles.positionPillActive]}
+                    >
+                      <Text style={[styles.positionPillText, isSelected && styles.positionPillTextActive]}>{pos}</Text>
+                    </HapticTouchable>
+                  );
+                })}
+              </View>
               {selectedPositions.length > 0 && (
                 <HapticTouchable style={styles.clearPositionsBtn} onPress={() => setSelectedPositions([])}>
                   <Text style={styles.clearText}>{t('findPlayer_clearSelection')}</Text>
@@ -355,80 +246,56 @@ export default function FindPlayerScreen({ navigate, onBack }: Props) {
           </HapticTouchable>
         )}
 
-        {filteredPlayers.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator color={theme.gold} style={{ marginTop: 24 }} />
+        ) : filteredPlayers.length === 0 ? (
           <EmptyState icon="search-outline" title={t('findPlayer_notFound')} subtitle={t('findPlayer_tryDifferentFilters')} />
         ) : (
           filteredPlayers.map((player) => (
-            <View key={player.id} style={styles.playerCard}>
+            <HapticTouchable
+              key={player.user_id}
+              style={styles.playerCard}
+              onPress={() => {
+                const route = playerProfileRoute(player.user_id);
+                navigate(route.screen, route.params);
+              }}
+            >
               <View style={styles.playerHeader}>
-                <View style={[styles.avatar, { borderColor: player.isPremium ? theme.gold : theme.border }]}>
+                <View style={styles.avatar}>
                   <Ionicons name="person-outline" size={24} color={theme.gold} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.playerName}>{player.full_name}</Text>
-                    {player.isPremium && <Ionicons name="star" size={12} color={theme.gold} />}
-                  </View>
+                  <Text style={styles.playerName}>{player.full_name || t('match_defaultPlayerName')}</Text>
                   <Text style={styles.playerPosition}>{player.position}</Text>
-                  <Text style={styles.playerLocation}>{player.city} · {player.district}</Text>
+                  <Text style={styles.playerLocation}>{[player.city, player.district].filter(Boolean).join(' · ')}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.playerScore}>{player.score}</Text>
+                  <Text style={styles.playerScore}>{player.score ?? 0}</Text>
                   <Text style={styles.scoreLabel}>{t('findPlayer_score')}</Text>
                 </View>
               </View>
 
               <View style={styles.infoPills}>
-                <View style={styles.infoPill}>
-                  <Text style={styles.infoPillText}>{player.age} {t('findPlayer_age')}</Text>
-                </View>
-                <View style={styles.infoPill}>
-                  <Text style={styles.infoPillText}>{player.foot}</Text>
-                </View>
+                {player.age !== null && (
+                  <View style={styles.infoPill}>
+                    <Text style={styles.infoPillText}>{player.age} {t('findPlayer_age')}</Text>
+                  </View>
+                )}
+                {player.foot && (
+                  <View style={styles.infoPill}>
+                    <Text style={styles.infoPillText}>{player.foot}</Text>
+                  </View>
+                )}
                 {player.club && (
                   <View style={styles.infoPill}>
                     <Text style={styles.infoPillText}>{player.club}</Text>
                   </View>
                 )}
               </View>
-
-              <View style={styles.statsBlock}>
-                {[
-                  { label: t('findPlayer_statSpeed'), value: player.stats.hiz },
-                  { label: t('findPlayer_statPass'), value: player.stats.pas },
-                  { label: t('findPlayer_statShot'), value: player.stats.sut },
-                ].map((stat) => (
-                  <View key={stat.label} style={styles.statRow}>
-                    <Text style={styles.statLabel}>{stat.label}</Text>
-                    <View style={styles.statTrack}>
-                      <View style={[styles.statFill, { width: `${stat.value}%` }]} />
-                    </View>
-                    <Text style={styles.statValue}>{stat.value}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.actionsRow}>
-                {player.price > 0 ? (
-                  <View style={styles.pricedBadge}>
-                    <Text style={styles.pricedBadgeLabel}>{t('findPlayer_paidPlayer')}</Text>
-                    <Text style={styles.pricedBadgeValue}>₺{player.price}/ay</Text>
-                  </View>
-                ) : (
-                  <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeLabel}>{t('findPlayer_freePlayer')}</Text>
-                    <Text style={styles.freeBadgeValue}>{t('findPlayer_freeAgent')}</Text>
-                  </View>
-                )}
-                <HapticTouchable style={styles.inviteBtn} onPress={() => handleInvite(player)}>
-                  <Text style={styles.inviteBtnText}>{t('findPlayer_invite')}</Text>
-                </HapticTouchable>
-              </View>
-            </View>
+            </HapticTouchable>
           ))
         )}
       </ScrollView>
-      <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'info'} onHide={() => setToast(null)} />
     </SafeAreaView>
   );
 }
