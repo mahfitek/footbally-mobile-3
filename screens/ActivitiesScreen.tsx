@@ -16,6 +16,12 @@ import { FontFamily } from '../constants/fonts';
 import { activityFiltersData } from '../api/mockData';
 import { supabase } from '../lib/supabase';
 import { OPPORTUNITY_COLUMNS } from '../lib/columns';
+import {
+  appliedOpportunityIds,
+  matchesOpportunityFilter,
+  normalizeOpportunities,
+  type OpportunityRow,
+} from '../lib/opportunities';
 import { sendLocalNotification } from '../lib/notifications';
 import Toast from '../components/Toast';
 import EmptyState from '../components/EmptyState';
@@ -24,103 +30,94 @@ import HapticTouchable from '../components/HapticTouchable';
 
 const RADIUS = CARD_RADIUS;
 
-type OpportunityView = {
-  id: number | string;
-  title: string;
-  subtitle: string;
-  badge: string;
-  badgeColor: string;
-  location: string;
-  age: string;
-  deadline: string;
-};
-
 export default function ActivitiesScreen({ navigate }: { navigate: (screen: string) => void }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const styles = createStyles(theme);
   const [activeFilter, setActiveFilter] = useState('Tümü');
-  const [applied, setApplied] = useState<Record<string | number, boolean>>({});
-  const [opportunities, setOpportunities] = useState<OpportunityView[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [applied, setApplied] = useState<ReadonlySet<string>>(new Set());
+  const [opportunities, setOpportunities] = useState<OpportunityRow[]>([]);
+  // Ayrı durumlar: yükleniyor, okunamadı (hata) ve gerçekten boş. Hata, boş liste gibi gösterilmez.
+  const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadOpportunities();
+    void loadOpportunities();
   };
 
+  // Fırsatlar yalnızca veritabanından okunur. Okunamayan liste hata durumudur; boş liste sayılmaz.
   const loadOpportunities = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('opportunities')
-        .select(OPPORTUNITY_COLUMNS)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        if (__DEV__) console.log('Fırsatlar yüklenemedi:', error);
-        // A missing PostgREST error code means the request never reached the
-        // server (real network failure).
-        if (!error.code) {
-          setToast({ message: t('activities_loadFailed'), type: 'error' });
-        }
-        setOpportunities([]);
-      } else if (data && data.length > 0) {
-        setOpportunities(
-          data.map((o: any) => ({
-            id: o.id,
-            title: o.title,
-            subtitle: o.subtitle,
-            badge: o.badge,
-            badgeColor: o.badge_color,
-            location: o.location,
-            age: o.age_range,
-            deadline: o.deadline,
-          }))
-        );
-      } else {
-        setOpportunities([]);
-      }
-    } catch (err) {
-      if (__DEV__) console.log('Fırsatlar yüklenirken beklenmeyen hata:', err);
+    const { data, error } = await supabase
+      .from('opportunities')
+      .select(OPPORTUNITY_COLUMNS)
+      .order('created_at', { ascending: false });
+    if (error) {
+      if (__DEV__) console.log('Fırsatlar yüklenemedi:', error);
       setOpportunities([]);
+      setStatus('error');
+      setRefreshing(false);
+      return;
     }
-    setLoading(false);
+    const rows = normalizeOpportunities(data ?? []);
+    setOpportunities(rows);
+    setStatus('ready');
     setRefreshing(false);
+    await loadMyApplications(rows);
+  };
+
+  // Kendi başvurularım: yalnızca hâlâ var olan fırsatlar "Başvuruldu" olur. Fırsatı silinmiş başvurular atlanır.
+  const loadMyApplications = async (rows: OpportunityRow[]) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) {
+      setApplied(new Set());
+      return;
+    }
+    const { data, error } = await supabase
+      .from('match_applications')
+      .select('opportunity_id')
+      .eq('user_id', uid)
+      .not('opportunity_id', 'is', null);
+    if (error) {
+      if (__DEV__) console.log('Başvurular okunamadı:', error);
+      setApplied(new Set());
+      return;
+    }
+    setApplied(appliedOpportunityIds(data ?? [], rows));
   };
 
   useEffect(() => {
-    loadOpportunities();
+    void loadOpportunities();
   }, []);
 
-  const handleApply = async (opportunityId: number | string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (user) {
-        const { error } = await supabase.from('match_applications').insert({
-          user_id: user.id,
-          opportunity_id: opportunityId,
-          status: 'applied',
-        });
-        if (error) {
-          if (__DEV__) console.log('Başvuru kaydedilemedi:', error);
-        }
-      } else {
-        if (__DEV__) console.log('Başvuru kaydedilemedi: oturum açmış kullanıcı bulunamadı');
-      }
-    } catch (err) {
-      if (__DEV__) console.log('Başvuru gönderilirken beklenmeyen hata:', err);
+  // Başarı yalnızca kayıt gerçekten yapıldıktan sonra gösterilir.
+  const handleApply = async (opportunityId: string) => {
+    if (applied.has(opportunityId)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) {
+      setToast({ message: t('opportunities_applyFailed'), type: 'error' });
+      return;
     }
-
-    setApplied((prev) => ({ ...prev, [opportunityId]: true }));
+    const { error } = await supabase.from('match_applications').insert({
+      user_id: user.id,
+      opportunity_id: opportunityId,
+      status: 'applied',
+    });
+    if (error) {
+      if (__DEV__) console.log('Başvuru kaydedilemedi:', error);
+      setToast({ message: t('opportunities_applyFailed'), type: 'error' });
+      return;
+    }
+    setApplied((prev) => new Set([...prev, opportunityId]));
     setToast({ message: t('activities_applySuccess'), type: 'success' });
     sendLocalNotification(t('activities_applyNotifTitle'), t('activities_applyNotifBody'));
   };
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
@@ -135,14 +132,7 @@ export default function ActivitiesScreen({ navigate }: { navigate: (screen: stri
     );
   }
 
-  const matchesFilter = (op: OpportunityView, filter: string) => {
-    if (filter === 'Tümü') return true;
-    if (filter === 'Türkiye') return op.location.includes('TR');
-    if (filter === 'Avrupa') return !op.location.includes('TR');
-    return op.badge === filter;
-  };
-
-  const filteredOpportunities = opportunities.filter((op) => matchesFilter(op, activeFilter));
+  const filteredOpportunities = opportunities.filter((op) => matchesOpportunityFilter(op, activeFilter));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -172,7 +162,7 @@ export default function ActivitiesScreen({ navigate }: { navigate: (screen: stri
           contentContainerStyle={styles.filters}
         >
           {activityFiltersData.map((f) => {
-            const count = opportunities.filter((op) => matchesFilter(op, f)).length;
+            const count = opportunities.filter((op) => matchesOpportunityFilter(op, f)).length;
             return (
               <HapticTouchable
                 key={f}
@@ -196,13 +186,22 @@ export default function ActivitiesScreen({ navigate }: { navigate: (screen: stri
           })}
         </ScrollView>
 
-        {filteredOpportunities.length === 0 ? (
+        {status === 'error' ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{t('opportunities_loadFailed')}</Text>
+            <HapticTouchable
+              style={styles.retryBtn}
+              onPress={() => {
+                setStatus('loading');
+                void loadOpportunities();
+              }}
+            >
+              <Text style={styles.retryText}>{t('opportunities_retry')}</Text>
+            </HapticTouchable>
+          </View>
+        ) : filteredOpportunities.length === 0 ? (
           opportunities.length === 0 ? (
-            <EmptyState
-              icon="flash-outline"
-              title={t('activities_emptyTitle')}
-              subtitle={t('activities_emptySub')}
-            />
+            <EmptyState icon="flash-outline" title={t('opportunities_emptyText')} subtitle="" />
           ) : (
             <EmptyState
               icon="search-outline"
@@ -244,12 +243,12 @@ export default function ActivitiesScreen({ navigate }: { navigate: (screen: stri
                 </View>
 
                 <HapticTouchable
-                  style={[styles.applyBtn, applied[op.id] && styles.applyBtnDone]}
+                  style={[styles.applyBtn, applied.has(op.id) && styles.applyBtnDone]}
                   onPress={() => handleApply(op.id)}
-                  disabled={!!applied[op.id]}
+                  disabled={applied.has(op.id)}
                 >
-                  <Text style={[styles.applyBtnText, applied[op.id] && styles.applyBtnTextDone]}>
-                    {applied[op.id] ? t('activities_applied') : t('activities_apply')}
+                  <Text style={[styles.applyBtnText, applied.has(op.id) && styles.applyBtnTextDone]}>
+                    {applied.has(op.id) ? t('activities_applied') : t('activities_apply')}
                   </Text>
                 </HapticTouchable>
               </View>
@@ -271,6 +270,10 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.bg },
     container: { flex: 1 },
+    errorBox: { alignItems: 'center', gap: 12, marginTop: 40, paddingHorizontal: 32 },
+    errorText: { fontFamily: FontFamily.body, fontSize: 14, color: theme.textSecondary, textAlign: 'center' },
+    retryBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: CARD_RADIUS, borderWidth: 1, borderColor: theme.gold },
+    retryText: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: theme.gold },
     header: {
       paddingHorizontal: 24,
       paddingTop: 16,

@@ -10,6 +10,7 @@ import { FontFamily } from '../constants/fonts';
 import { supabase } from '../lib/supabase';
 import { profiles } from '../lib/profiles';
 import { useBlockedIds } from '../lib/useBlockedIds';
+import { appliedOpportunityIds, normalizeOpportunities, type OpportunityRow } from '../lib/opportunities';
 import { isBlockedUser, isTeamBlocked, playerProfileRoute, teamProfileRoute } from '../lib/discovery';
 import BlockedTag from '../components/BlockedTag';
 import { sendMatchChallenge } from '../lib/challenges';
@@ -46,7 +47,7 @@ type MatchResult = {
   match_format: number | null;
   team_payment: number | string | null;
 };
-type OpportunityResult = { id: string | number; title: string; subtitle: string; location: string; badge: string };
+type OpportunityResult = OpportunityRow;
 
 type TabKey = 'players' | 'teams' | 'matches' | 'opportunities';
 
@@ -87,6 +88,7 @@ export default function SearchScreen({ navigate }: Props) {
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [listingFilter, setListingFilter] = useState<ListingFilter>('all');
   const [opportunities, setOpportunities] = useState<OpportunityResult[]>([]);
+  const [opportunitiesStatus, setOpportunitiesStatus] = useState<'ready' | 'error'>('ready');
   const [appliedIds, setAppliedIds] = useState<Record<string, boolean>>({});
   const [joinedMatchIds, setJoinedMatchIds] = useState<Record<string, boolean>>({});
   const [challengeTarget, setChallengeTarget] = useState<TeamResult | null>(null);
@@ -106,6 +108,19 @@ export default function SearchScreen({ navigate }: Props) {
     });
   }, []);
 
+
+  // Kendi başvurularım: yalnızca listedeki (hâlâ var olan) fırsatlar işaretlenir.
+  const loadMyOpportunityApplications = async (rows: OpportunityResult[]) => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('match_applications')
+      .select('opportunity_id')
+      .eq('user_id', userId)
+      .not('opportunity_id', 'is', null);
+    if (error) return;
+    const applied = appliedOpportunityIds(data ?? [], rows);
+    setAppliedIds(Object.fromEntries([...applied].map((id) => [id, true])));
+  };
 
   const runSearch = async () => {
     setLoading(true);
@@ -135,8 +150,17 @@ export default function SearchScreen({ navigate }: Props) {
       } else {
         let req = supabase.from('opportunities').select('id, title, subtitle, location, badge').order('created_at', { ascending: false }).limit(20);
         if (q) req = req.or(`title.ilike.%${q}%,subtitle.ilike.%${q}%,location.ilike.%${q}%`);
-        const { data } = await req;
-        setOpportunities((data ?? []) as OpportunityResult[]);
+        const { data, error } = await req;
+        if (error) {
+          if (__DEV__) console.log('Fırsatlar yüklenemedi:', error);
+          setOpportunities([]);
+          setOpportunitiesStatus('error');
+        } else {
+          const rows = normalizeOpportunities(data ?? []);
+          setOpportunities(rows);
+          setOpportunitiesStatus('ready');
+          await loadMyOpportunityApplications(rows);
+        }
       }
     } catch (err) {
       if (__DEV__) console.log('Arama yapılamadı:', err);
@@ -169,9 +193,19 @@ export default function SearchScreen({ navigate }: Props) {
     sendLocalNotification(t('search_joinedNotifTitle'), `${match.title} ${t('match_joinedNotifBody')}`);
   };
 
+  // Başarı yalnızca kayıt gerçekten yapıldıktan sonra gösterilir.
   const handleApplyOpportunity = async (op: OpportunityResult) => {
-    if (userId) {
-      await supabase.from('match_applications').insert({ user_id: userId, opportunity_id: op.id, status: 'applied' });
+    if (!userId) {
+      setToast({ message: t('opportunities_applyFailed'), type: 'error' });
+      return;
+    }
+    const { error } = await supabase
+      .from('match_applications')
+      .insert({ user_id: userId, opportunity_id: op.id, status: 'applied' });
+    if (error) {
+      if (__DEV__) console.log('Başvuru kaydedilemedi:', error);
+      setToast({ message: t('opportunities_applyFailed'), type: 'error' });
+      return;
     }
     setAppliedIds((prev) => ({ ...prev, [String(op.id)]: true }));
     setToast({ message: t('activities_applySuccess'), type: 'success' });
@@ -340,8 +374,19 @@ export default function SearchScreen({ navigate }: Props) {
           )}
 
           {activeTab === 'opportunities' && (
-            opportunities.length === 0 ? (
-              <EmptyState icon="flash-outline" title={t('search_emptyOpportunities')} subtitle={t('search_tryDifferentSearch')} />
+            opportunitiesStatus === 'error' ? (
+              <View style={{ alignItems: 'center', gap: 12, marginTop: 24 }}>
+                <Text style={styles.rowMeta}>{t('opportunities_loadFailed')}</Text>
+                <HapticTouchable style={styles.actionBtn} onPress={() => void runSearch()}>
+                  <Text style={styles.actionBtnText}>{t('opportunities_retry')}</Text>
+                </HapticTouchable>
+              </View>
+            ) : opportunities.length === 0 ? (
+              query.trim() ? (
+                <EmptyState icon="flash-outline" title={t('search_emptyOpportunities')} subtitle={t('search_tryDifferentSearch')} />
+              ) : (
+                <EmptyState icon="flash-outline" title={t('opportunities_emptyText')} subtitle="" />
+              )
             ) : (
               <View style={{ gap: 12 }}>
                 {opportunities.map((op) => {

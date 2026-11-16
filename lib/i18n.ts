@@ -1428,6 +1428,10 @@ const translations = {
     blockedUsers_blockedOn: 'Engellendi: {date}',
     blockedUsers_loadFailed: 'Liste yüklenemedi. Bağlantını kontrol edip tekrar dene.',
     blockedUsers_retry: 'Tekrar dene',
+    opportunities_emptyText: 'Şu an açık fırsat yok. Yeni fırsatlar eklendiğinde burada görünecek.',
+    opportunities_loadFailed: 'Fırsatlar yüklenemedi. Bağlantını kontrol edip tekrar dene.',
+    opportunities_retry: 'Tekrar dene',
+    opportunities_applyFailed: 'Başvuru gönderilemedi. Tekrar dene.',
   },
   en: {
     home: 'Home',
@@ -2858,6 +2862,10 @@ const translations = {
     blockedUsers_blockedOn: 'Blocked: {date}',
     blockedUsers_loadFailed: 'The list could not be loaded. Check your connection and try again.',
     blockedUsers_retry: 'Try again',
+    opportunities_emptyText: 'There are no open opportunities right now. New opportunities will appear here when they are added.',
+    opportunities_loadFailed: 'Opportunities could not be loaded. Check your connection and try again.',
+    opportunities_retry: 'Try again',
+    opportunities_applyFailed: 'Your application could not be sent. Try again.',
   },
 };
 
